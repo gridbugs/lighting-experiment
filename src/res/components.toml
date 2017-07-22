@@ -1,0 +1,10 @@
+imports = [
+    'cgmath::Vector2',
+    'content::DoorState',
+]
+
+[components]
+position = { type = 'Vector2<i32>' }
+solid = {}
+opacity = { type = 'f64' }
+door_state = { type = 'DoorState' }

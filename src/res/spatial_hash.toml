@@ -1,0 +1,10 @@
+imports = [
+    'cgmath::Vector2',
+]
+
+position_component = 'position'
+
+[fields]
+opacity_total = { component = 'opacity', aggregate = 'f64_total' }
+solid_count = { component = 'solid', aggregate = 'count' }
+door_set = { component = 'door_state', aggregate = 'set' }
