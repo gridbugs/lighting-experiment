@@ -131,7 +131,7 @@ macro_rules! update_component_loops {
             match change {
     {{#if type}}
                 &DataChangeType::Insert(v) => {
-                    if let Some(position) = post_change_get!($store, $change, *entity_id, position) {
+                    if let Some(position) = post_change_get!($store, $change, *entity_id, {{../position_component}}) {
                         if let Some(mut cell) = $self.grid.get_mut(position.into()) {
                             if let Some(old) = $store.{{@key}}.get(entity_id) {
         {{#if fields.f64_total}}
@@ -160,7 +160,7 @@ macro_rules! update_component_loops {
                     }
                 }
                 &DataChangeType::Remove => {
-                    if let Some(position) = post_change_get!($store, $change, *entity_id, position) {
+                    if let Some(position) = post_change_get!($store, $change, *entity_id, {{../position_component}}) {
                         if let Some(mut cell) = $self.grid.get_mut(position.into()) {
         {{#if fields.f64_total}}
                             if let Some(value) = $store.{{@key}}.get(entity_id) {
@@ -186,7 +186,7 @@ macro_rules! update_component_loops {
                 }
     {{else}}
                 &FlagChangeType::Insert => {
-                    if let Some(position) = post_change_get!($store, $change, *entity_id, position) {
+                    if let Some(position) = post_change_get!($store, $change, *entity_id, {{../position_component}}) {
                         if let Some(mut cell) = $self.grid.get_mut(position.into()) {
                             if !$store.{{@key}}.contains(entity_id) {
         {{#if fields.count}}
@@ -205,7 +205,7 @@ macro_rules! update_component_loops {
                     }
                 }
                 &FlagChangeType::Remove => {
-                    if let Some(position) = post_change_get!($store, $change, *entity_id, position) {
+                    if let Some(position) = post_change_get!($store, $change, *entity_id, {{../position_component}}) {
                         if let Some(mut cell) = $self.grid.get_mut(position.into()) {
                             if $store.{{@key}}.contains(entity_id) {
         {{#if fields.count}}
