@@ -4,7 +4,8 @@ imports = [
 ]
 
 [components]
-position = { type = 'Vector2<i32>' }
+coord = { type = 'Vector2<i32>' }
+position = { type = 'Vector2<f32>' }
 solid = {}
 opacity = { type = 'f64' }
 door_state = { type = 'DoorState' }

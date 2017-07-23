@@ -38,7 +38,7 @@ fn insert_change() {
 
     let e0 = 0;
 
-    env.change.position.insert(e0, Vector2::new(0, 0));
+    env.change.coord.insert(e0, Vector2::new(0, 0));
     env.change.opacity.insert(e0, 0.5);
     env.commit();
     assert_eq!((env.spatial_hash.get(Vector2::new(0, 0)).unwrap().opacity_total * 10.0).round(), 5.0);
@@ -53,7 +53,7 @@ fn insert_change_move_remove() {
 
     let e0 = 0;
 
-    env.change.position.insert(e0, Vector2::new(0, 0));
+    env.change.coord.insert(e0, Vector2::new(0, 0));
     env.change.opacity.insert(e0, 0.5);
     env.change.solid.insert(e0);
     env.change.door_state.insert(e0, DoorState::Open);
@@ -68,7 +68,7 @@ fn insert_change_move_remove() {
     env.commit();
     assert_eq!((env.spatial_hash.get(Vector2::new(0, 0)).unwrap().opacity_total * 10.0).round(), 3.0);
 
-    env.change.position.insert(e0, Vector2::new(1, 1));
+    env.change.coord.insert(e0, Vector2::new(1, 1));
     env.commit();
     assert_eq!((env.spatial_hash.get(Vector2::new(0, 0)).unwrap().opacity_total * 10.0).round(), 0.0);
     assert_eq!(env.spatial_hash.get(Vector2::new(0, 0)).unwrap().solid_count, 0);
@@ -94,11 +94,11 @@ fn insert_and_move() {
 
     let e0 = 0;
 
-    env.change.position.insert(e0, Vector2::new(0, 0));
+    env.change.coord.insert(e0, Vector2::new(0, 0));
     env.change.opacity.insert(e0, 0.5);
     env.commit();
 
-    env.change.position.insert(e0, Vector2::new(1, 1));
+    env.change.coord.insert(e0, Vector2::new(1, 1));
     env.change.opacity.insert(e0, 0.3);
     env.commit();
     assert_eq!(env.spatial_hash.get(Vector2::new(0, 0)).unwrap().opacity_total, 0.0);
@@ -111,7 +111,7 @@ fn insert_and_remove() {
 
     let e0 = 0;
 
-    env.change.position.insert(e0, Vector2::new(0, 0));
+    env.change.coord.insert(e0, Vector2::new(0, 0));
     env.change.opacity.insert(e0, 0.5);
     env.change.solid.insert(e0);
     env.commit();
@@ -125,7 +125,7 @@ fn insert_and_remove() {
     env.commit();
     assert_eq!(env.spatial_hash.get(Vector2::new(0, 0)).unwrap().solid_count, 1);
 
-    env.change.position.remove(e0);
+    env.change.coord.remove(e0);
     env.change.opacity.insert(e0, 0.6);
     env.commit();
     assert_eq!(env.spatial_hash.get(Vector2::new(0, 0)).unwrap().solid_count, 0);
@@ -140,14 +140,14 @@ fn change_and_move() {
     let e0 = 0;
     let e1 = 1;
 
-    env.change.position.insert(e0, Vector2::new(0, 0));
+    env.change.coord.insert(e0, Vector2::new(0, 0));
     env.change.opacity.insert(e0, 0.5);
-    env.change.position.insert(e1, Vector2::new(0, 0));
+    env.change.coord.insert(e1, Vector2::new(0, 0));
     env.change.opacity.insert(e1, 0.3);
     env.commit();
     assert_eq!((env.spatial_hash.get(Vector2::new(0, 0)).unwrap().opacity_total * 10.0).round(), 8.0);
 
-    env.change.position.insert(e0, Vector2::new(1, 1));
+    env.change.coord.insert(e0, Vector2::new(1, 1));
     env.commit();
     assert_eq!((env.spatial_hash.get(Vector2::new(0, 0)).unwrap().opacity_total * 10.0).round(), 3.0);
     assert_eq!((env.spatial_hash.get(Vector2::new(1, 1)).unwrap().opacity_total * 10.0).round(), 5.0);
@@ -159,7 +159,7 @@ fn redundant_insert() {
 
     let e0 = 0;
 
-    env.change.position.insert(e0, Vector2::new(0, 0));
+    env.change.coord.insert(e0, Vector2::new(0, 0));
     env.change.solid.insert(e0);
     env.change.solid.insert(e0);
     env.commit();
@@ -180,7 +180,7 @@ fn redundant_remove() {
 
     let e0 = 0;
 
-    env.change.position.insert(e0, Vector2::new(0, 0));
+    env.change.coord.insert(e0, Vector2::new(0, 0));
     env.change.solid.insert(e0);
     env.commit();
     assert_eq!(env.spatial_hash.get(Vector2::new(0, 0)).unwrap().solid_count, 1);
