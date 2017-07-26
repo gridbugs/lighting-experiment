@@ -1,14 +1,14 @@
 use glutin;
 use gfx_window_glutin;
 
-use glutin_frontend::formats::{ColourFormat, DepthFormat};
+use frontend::formats::{ColourFormat, DepthFormat};
 
-pub struct GlutinFrontend {
+pub struct Frontend {
     events_loop: glutin::EventsLoop,
     window: glutin::GlWindow,
 }
 
-impl GlutinFrontend {
+impl Frontend {
     pub fn new() -> Self {
         let builder = glutin::WindowBuilder::new()
             .with_fullscreen(glutin::get_primary_monitor());
@@ -19,7 +19,7 @@ impl GlutinFrontend {
         let (window, _device, _factory, _rtv, _dsv) =
             gfx_window_glutin::init::<ColourFormat, DepthFormat>(builder, context, &events_loop);
 
-        GlutinFrontend {
+        Frontend {
             events_loop: events_loop,
             window: window,
         }

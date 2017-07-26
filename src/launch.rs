@@ -1,5 +1,5 @@
-use glutin_frontend::GlutinFrontend;
+use frontend::Frontend;
 
-pub fn launch(mut frontend: GlutinFrontend) {
+pub fn launch(mut frontend: Frontend) {
     frontend.spin();
 }

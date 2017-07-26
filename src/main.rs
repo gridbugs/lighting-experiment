@@ -20,8 +20,8 @@ mod spatial_hash;
 mod content;
 
 mod launch;
-mod glutin_frontend;
+mod frontend;
 
 fn main() {
-    launch::launch(glutin_frontend::GlutinFrontend::new());
+    launch::launch(frontend::Frontend::new());
 }
