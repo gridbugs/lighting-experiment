@@ -13,7 +13,9 @@ enum_primitive = "0.1"
 
 gfx = "0.16"
 gfx_window_glutin = "0.17"
+gfx_device_gl = "0.14"
 glutin = "0.9"
+genmesh = "0.5"
 
 [build-dependencies]
 

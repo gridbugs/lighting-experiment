@@ -6,9 +6,11 @@ extern crate cgmath;
 extern crate serde;
 #[macro_use] extern crate enum_primitive;
 
-extern crate gfx;
+#[macro_use] extern crate gfx;
 extern crate glutin;
 extern crate gfx_window_glutin;
+extern crate gfx_device_gl;
+extern crate genmesh;
 
 mod static_grid;
 mod limits;
@@ -22,7 +24,8 @@ mod content;
 
 mod launch;
 mod frontend;
+mod renderer;
 
 fn main() {
-    launch::launch(frontend::Frontend::new());
+    launch::launch(frontend::Frontend::new().expect("Failed to initialise frontend"));
 }
