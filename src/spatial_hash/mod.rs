@@ -4,7 +4,7 @@
 #![allow(unused_mut)]
 use std::collections::HashSet;
 use entity_store::{EntityId, EntityStore, EntityStoreChange, DataChangeType, FlagChangeType};
-use static_grid::{self, StaticGrid, Coord};
+use static_grid::{self, StaticGrid};
 use limits::LimitsRect;
 use neighbour_count::NeighbourCount;
 use direction::Directions;
@@ -52,12 +52,20 @@ impl SpatialHashTable {
     pub fn width(&self) -> u32 { self.grid.width() }
     pub fn height(&self) -> u32 { self.grid.height() }
 
-    pub fn contains<I: Into<Coord>>(&self, coord: I) -> bool {
-        self.grid.contains(coord.into())
+    pub fn contains(&self, coord: Vector2<u32>) -> bool {
+        self.grid.contains(coord)
     }
 
-    pub fn get<I: Into<Coord>>(&self, coord: I) -> Option<&SpatialHashCell> {
-        self.grid.get(coord.into())
+    pub fn contains_signed(&self, coord: Vector2<i32>) -> bool {
+        self.grid.contains_signed(coord)
+    }
+
+    pub fn get(&self, coord: Vector2<u32>) -> Option<&SpatialHashCell> {
+        self.grid.get(coord)
+    }
+
+    pub fn get_signed(&self, coord: Vector2<i32>) -> Option<&SpatialHashCell> {
+        self.grid.get_signed(coord)
     }
 
     pub fn update(&mut self, store: &EntityStore, change: &EntityStoreChange, time: u64) {
@@ -65,31 +73,28 @@ impl SpatialHashTable {
             match change {
                 &DataChangeType::Insert(position) => {
                     if let Some(current) = position!(store).get(entity_id) {
-                        let coord = current.into();
-                        if let Some(mut cell) = self.grid.get_mut(coord) {
+                        if let Some(mut cell) = self.grid.get_mut(*current) {
                             cell.remove(*entity_id, store);
                             cell.entities.remove(entity_id);
                             cell.last_updated = time;
                         }
-                        remove_neighbours!(self, *entity_id, store, coord);
+                        remove_neighbours!(self, *entity_id, store, current);
                     }
-                    let coord = position.into();
-                    if let Some(mut cell) = self.grid.get_mut(coord) {
+                    if let Some(mut cell) = self.grid.get_mut(position) {
                         cell.insert(*entity_id, store);
                         cell.entities.insert(*entity_id);
                         cell.last_updated = time;
                     }
-                    insert_neighbours!(self, *entity_id, store, coord);
+                    insert_neighbours!(self, *entity_id, store, position);
                 }
                 &DataChangeType::Remove => {
                     if let Some(current) = position!(store).get(entity_id) {
-                        let coord = current.into();
-                        if let Some(mut cell) = self.grid.get_mut(coord) {
+                        if let Some(mut cell) = self.grid.get_mut(*current) {
                             cell.remove(*entity_id, store);
                             cell.entities.remove(entity_id);
                             cell.last_updated = time;
                         }
-                        remove_neighbours!(self, *entity_id, store, coord);
+                        remove_neighbours!(self, *entity_id, store, current);
                     }
                 }
             }

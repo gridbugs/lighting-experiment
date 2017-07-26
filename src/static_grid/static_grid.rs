@@ -1,5 +1,4 @@
 use std::slice;
-use std::convert::TryInto;
 use cgmath::Vector2;
 use limits::LimitsRect;
 
@@ -10,23 +9,6 @@ pub struct StaticGrid<T> {
     height: u32,
     size: u32,
 }
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Coord {
-    pub x: u32,
-    pub y: u32,
-}
-
-impl Coord {
-    pub fn new(x: u32, y: u32) -> Self {
-        Coord {
-            x: x,
-            y: y,
-        }
-    }
-}
-
-type Offset = Vector2<i32>;
 
 impl<T> StaticGrid<T> {
     fn new_with_capacity(width: u32, height: u32) -> Self {
@@ -78,15 +60,19 @@ impl<T> StaticGrid<T> {
     pub fn width(&self) -> u32 { self.width }
     pub fn height(&self) -> u32 { self.height }
 
-    fn wrap(&self, coord: Coord) -> u32 {
+    fn wrap(&self, coord: Vector2<u32>) -> u32 {
         coord.y * self.width + coord.x
     }
 
-    pub fn contains(&self, coord: Coord) -> bool {
+    pub fn contains(&self, coord: Vector2<u32>) -> bool {
         coord.x < self.width && coord.y < self.height
     }
 
-    pub fn get(&self, coord: Coord) -> Option<&T> {
+    pub fn contains_signed(&self, coord: Vector2<i32>) -> bool {
+        coord.x >= 0 && coord.y >= 0 && (coord.x as u32) < self.width && (coord.y as u32) < self.height
+    }
+
+    pub fn get(&self, coord: Vector2<u32>) -> Option<&T> {
         if coord.x < self.width {
             self.items.get(self.wrap(coord) as usize)
         } else {
@@ -94,7 +80,7 @@ impl<T> StaticGrid<T> {
         }
     }
 
-    pub fn get_mut(&mut self, coord: Coord) -> Option<&mut T> {
+    pub fn get_mut(&mut self, coord: Vector2<u32>) -> Option<&mut T> {
         if coord.x < self.width {
             let idx = self.wrap(coord);
             self.items.get_mut(idx as usize)
@@ -104,35 +90,35 @@ impl<T> StaticGrid<T> {
     }
 
     pub fn get_signed(&self, coord: Vector2<i32>) -> Option<&T> {
-        if let Ok(coord) = coord.try_into() {
-            self.get(coord)
+        if coord.x >= 0 && coord.y >= 0 {
+            self.get(coord.cast())
         } else {
             None
         }
     }
 
     pub fn get_signed_mut(&mut self, coord: Vector2<i32>) -> Option<&mut T> {
-        if let Ok(coord) = coord.try_into() {
-            self.get_mut(coord)
+        if coord.x >= 0 && coord.y >= 0 {
+            self.get_mut(coord.cast())
         } else {
             None
         }
     }
 
-    pub fn get_valid(&self, coord: Coord) -> Option<&T> {
+    pub fn get_valid(&self, coord: Vector2<u32>) -> Option<&T> {
         self.items.get(self.wrap(coord) as usize)
     }
 
-    pub fn get_valid_mut(&mut self, coord: Coord) -> Option<&mut T> {
+    pub fn get_valid_mut(&mut self, coord: Vector2<u32>) -> Option<&mut T> {
         let idx = self.wrap(coord);
         self.items.get_mut(idx as usize)
     }
 
-    pub unsafe fn get_unchecked(&self, coord: Coord) -> &T {
+    pub unsafe fn get_unchecked(&self, coord: Vector2<u32>) -> &T {
         self.items.get_unchecked(self.wrap(coord) as usize)
     }
 
-    pub unsafe fn get_unchecked_mut(&mut self, coord: Coord) -> &mut T {
+    pub unsafe fn get_unchecked_mut(&mut self, coord: Vector2<u32>) -> &mut T {
         let idx = self.wrap(coord);
         self.items.get_unchecked_mut(idx as usize)
     }
@@ -154,8 +140,8 @@ impl<T> StaticGrid<T> {
     }
 
     pub fn neighbour_coord_iter<IntoOffset, Iter, IntoIter>
-        (&self, base: Coord, into_iter: IntoIter) -> NeighbourCoordIter<IntoOffset, Iter>
-    where IntoOffset: Into<Offset>,
+        (&self, base: Vector2<u32>, into_iter: IntoIter) -> NeighbourCoordIter<IntoOffset, Iter>
+    where IntoOffset: Into<Vector2<i32>>,
           Iter: Iterator<Item=IntoOffset>,
           IntoIter: IntoIterator<Item=IntoOffset, IntoIter=Iter>,
     {
@@ -163,6 +149,20 @@ impl<T> StaticGrid<T> {
             width: self.width,
             height: self.height,
             base: Vector2::new(base.x as i32, base.y as i32),
+            iter: into_iter.into_iter(),
+        }
+    }
+
+    pub fn neighbour_coord_signed_iter<IntoOffset, Iter, IntoIter>
+        (&self, base: Vector2<i32>, into_iter: IntoIter) -> NeighbourCoordIter<IntoOffset, Iter>
+    where IntoOffset: Into<Vector2<i32>>,
+          Iter: Iterator<Item=IntoOffset>,
+          IntoIter: IntoIterator<Item=IntoOffset, IntoIter=Iter>,
+    {
+        NeighbourCoordIter {
+            width: self.width,
+            height: self.height,
+            base: base,
             iter: into_iter.into_iter(),
         }
     }
@@ -192,13 +192,13 @@ impl CoordIter {
 }
 
 impl Iterator for CoordIter {
-    type Item = Coord;
+    type Item = Vector2<u32>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.y == self.height {
             return None
         }
 
-        let ret = Some(Coord::new(self.x, self.y));
+        let ret = Some(Vector2::new(self.x, self.y));
 
         self.x += 1;
         if self.x == self.width {
@@ -210,20 +210,20 @@ impl Iterator for CoordIter {
     }
 }
 
-pub struct NeighbourCoordIter<IntoOffset: Into<Offset>, Iter: Iterator<Item=IntoOffset>> {
+pub struct NeighbourCoordIter<IntoOffset: Into<Vector2<i32>>, Iter: Iterator<Item=IntoOffset>> {
     width: u32,
     height: u32,
-    base: Offset,
+    base: Vector2<i32>,
     iter: Iter,
 }
 
-impl<IntoOffset: Into<Offset>, Iter: Iterator<Item=IntoOffset>> Iterator for NeighbourCoordIter<IntoOffset, Iter> {
-    type Item = Coord;
+impl<IntoOffset: Into<Vector2<i32>>, Iter: Iterator<Item=IntoOffset>> Iterator for NeighbourCoordIter<IntoOffset, Iter> {
+    type Item = Vector2<u32>;
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(offset) = self.iter.next() {
             let coord = self.base + offset.into();
             if coord.x >= 0 && coord.y >= 0 {
-                let coord = Coord::new(coord.x as u32, coord.y as u32);
+                let coord = Vector2::new(coord.x as u32, coord.y as u32);
                 if coord.x < self.width && coord.y < self.height {
                     return Some(coord);
                 }

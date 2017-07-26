@@ -126,7 +126,6 @@ macro_rules! remove {
 
 macro_rules! insert_neighbours {
     ($self:expr, $entity_id:expr, $store:expr, $coord:expr) => {
-        let coord: Vector2<i32> = $coord.into();
 {{#each components}}
     {{#if fields.neighbour_count}}
         {{#if type}}
@@ -135,7 +134,7 @@ macro_rules! insert_neighbours {
         if $store.{{@key}}.contains(&$entity_id) {
         {{/if}}
             for d in Directions {
-                if let Some(mut cell) = $self.grid.get_signed_mut(coord + d.vector()) {
+                if let Some(mut cell) = $self.grid.get_signed_mut($coord.cast() + d.vector()) {
                     cell.{{fields.neighbour_count.aggregate_name}}.inc(d.opposite());
                 }
             }
@@ -147,7 +146,6 @@ macro_rules! insert_neighbours {
 
 macro_rules! remove_neighbours {
     ($self:expr, $entity_id:expr, $store:expr, $coord:expr) => {
-        let coord: Vector2<i32> = $coord.into();
 {{#each components}}
     {{#if fields.neighbour_count}}
         {{#if type}}
@@ -156,7 +154,7 @@ macro_rules! remove_neighbours {
         if $store.{{@key}}.contains(&$entity_id) {
         {{/if}}
             for d in Directions {
-                if let Some(mut cell) = $self.grid.get_signed_mut(coord + d.vector()) {
+                if let Some(mut cell) = $self.grid.get_signed_mut($coord.cast() + d.vector()) {
                     cell.{{fields.neighbour_count.aggregate_name}}.dec(d.opposite());
                 }
             }
@@ -183,7 +181,7 @@ macro_rules! update_component_loops {
                             }
                         }
         {{/if}}
-                        if let Some(mut cell) = $self.grid.get_mut(position.into()) {
+                        if let Some(mut cell) = $self.grid.get_mut(*position) {
                             if let Some(old) = $store.{{@key}}.get(entity_id) {
         {{#if fields.f64_total}}
                                 let increase = v - *old;
@@ -221,7 +219,7 @@ macro_rules! update_component_loops {
                             }
                         }
         {{/if}}
-                        if let Some(mut cell) = $self.grid.get_mut(position.into()) {
+                        if let Some(mut cell) = $self.grid.get_mut(*position) {
         {{#if fields.f64_total}}
                             if let Some(value) = $store.{{@key}}.get(entity_id) {
                                 cell.{{fields.f64_total.aggregate_name}} -= *value;
@@ -256,7 +254,7 @@ macro_rules! update_component_loops {
                             }
                         }
         {{/if}}
-                        if let Some(mut cell) = $self.grid.get_mut(position.into()) {
+                        if let Some(mut cell) = $self.grid.get_mut(*position) {
                             if !$store.{{@key}}.contains(entity_id) {
         {{#if fields.count}}
                                 cell.{{fields.count.aggregate_name}} += 1;
@@ -284,7 +282,7 @@ macro_rules! update_component_loops {
                             }
                         }
         {{/if}}
-                        if let Some(mut cell) = $self.grid.get_mut(position.into()) {
+                        if let Some(mut cell) = $self.grid.get_mut(*position) {
                             if $store.{{@key}}.contains(entity_id) {
         {{#if fields.count}}
                                 cell.{{fields.count.aggregate_name}} -= 1;
