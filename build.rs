@@ -144,6 +144,7 @@ fn render_spatial_hash_template_internal<P: AsRef<Path>>(desc: SpatialHashDesc,
             "count" => ("usize", "0"),
             "f64_total" => ("f64", "0.0"),
             "set" => ("HashSet<EntityId>", "HashSet::new()"),
+            "neighbour_count" => ("NeighbourCount", "NeighbourCount::new()"),
             "void" => ("", ""),
             other => panic!("No such aggregate: {}", other),
         };

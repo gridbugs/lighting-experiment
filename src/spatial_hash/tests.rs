@@ -3,6 +3,8 @@ use cgmath::Vector2;
 use entity_store::*;
 use spatial_hash::*;
 
+use direction::Direction;
+
 use content::DoorState;
 
 const WIDTH: u32 = 10;
@@ -192,4 +194,112 @@ fn redundant_remove() {
     env.change.solid.remove(e0);
     env.commit();
     assert_eq!(env.spatial_hash.get(Vector2::new(0, 0)).unwrap().solid_count, 0);
+}
+
+#[test]
+fn neighbour_count_insert() {
+    let mut env = Env::new();
+
+    let e0 = 0;
+    let e1 = 1;
+    let e2 = 2;
+    let e3 = 3;
+
+    env.change.coord.insert(e0, Vector2::new(2, 2));
+    env.change.wall.insert(e0);
+    env.commit();
+
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 1)).unwrap().wall_neighbours.get(Direction::SouthEast), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(3, 2)).unwrap().wall_neighbours.get(Direction::West), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(3, 2)).unwrap().wall_neighbours.get(Direction::East), 0);
+    assert_eq!(env.spatial_hash.get(Vector2::new(2, 2)).unwrap().wall_neighbours.get(Direction::West), 0);
+
+    env.change.coord.insert(e1, Vector2::new(4, 2));
+    env.change.wall.insert(e1);
+    env.commit();
+
+    assert_eq!(env.spatial_hash.get(Vector2::new(3, 2)).unwrap().wall_neighbours.get(Direction::West), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(3, 2)).unwrap().wall_neighbours.get(Direction::East), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 1)).unwrap().wall_neighbours.get(Direction::SouthEast), 1);
+
+    env.change.coord.insert(e2, Vector2::new(4, 2));
+    env.change.wall.insert(e2);
+    env.commit();
+
+    assert_eq!(env.spatial_hash.get(Vector2::new(3, 2)).unwrap().wall_neighbours.get(Direction::West), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(3, 2)).unwrap().wall_neighbours.get(Direction::East), 2);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 1)).unwrap().wall_neighbours.get(Direction::SouthEast), 1);
+
+    env.change.coord.insert(e3, Vector2::new(0, 0));
+    env.change.wall.insert(e3);
+    env.commit();
+
+    assert_eq!(env.spatial_hash.get(Vector2::new(0, 1)).unwrap().wall_neighbours.get(Direction::North), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 1)).unwrap().wall_neighbours.get(Direction::NorthWest), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 0)).unwrap().wall_neighbours.get(Direction::West), 1);
+}
+
+#[test]
+fn neighbour_count_insert_and_move() {
+    let mut env = Env::new();
+
+    let e0 = 0;
+    let e1 = 1;
+
+    env.change.coord.insert(e0, Vector2::new(0, 0));
+    env.change.coord.insert(e1, Vector2::new(0, 0));
+    env.change.wall.insert(e0);
+    env.change.wall.insert(e1);
+    env.commit();
+
+    assert_eq!(env.spatial_hash.get(Vector2::new(0, 1)).unwrap().wall_neighbours.get(Direction::North), 2);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 1)).unwrap().wall_neighbours.get(Direction::NorthWest), 2);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 0)).unwrap().wall_neighbours.get(Direction::West), 2);
+    assert_eq!(env.spatial_hash.get(Vector2::new(0, 1)).unwrap().wall_neighbours.get(Direction::East), 0);
+    assert_eq!(env.spatial_hash.get(Vector2::new(0, 0)).unwrap().wall_neighbours.get(Direction::SouthEast), 0);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 0)).unwrap().wall_neighbours.get(Direction::South), 0);
+
+    env.change.coord.insert(e1, Vector2::new(1, 1));
+    env.commit();
+
+    assert_eq!(env.spatial_hash.get(Vector2::new(0, 1)).unwrap().wall_neighbours.get(Direction::North), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 1)).unwrap().wall_neighbours.get(Direction::NorthWest), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 0)).unwrap().wall_neighbours.get(Direction::West), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(0, 1)).unwrap().wall_neighbours.get(Direction::East), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(0, 0)).unwrap().wall_neighbours.get(Direction::SouthEast), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 0)).unwrap().wall_neighbours.get(Direction::South), 1);
+}
+
+#[test]
+fn neighbour_count_insert_and_remove() {
+    let mut env = Env::new();
+
+    let mut env = Env::new();
+
+    let e0 = 0;
+    let e1 = 1;
+
+    env.change.coord.insert(e0, Vector2::new(0, 0));
+    env.change.coord.insert(e1, Vector2::new(0, 0));
+    env.change.wall.insert(e0);
+    env.change.wall.insert(e1);
+    env.commit();
+
+    assert_eq!(env.spatial_hash.get(Vector2::new(0, 1)).unwrap().wall_neighbours.get(Direction::North), 2);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 1)).unwrap().wall_neighbours.get(Direction::NorthWest), 2);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 0)).unwrap().wall_neighbours.get(Direction::West), 2);
+
+    env.change.remove_entity(e0, &env.entity_store);
+    env.commit();
+
+    assert_eq!(env.spatial_hash.get(Vector2::new(0, 1)).unwrap().wall_neighbours.get(Direction::North), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 1)).unwrap().wall_neighbours.get(Direction::NorthWest), 1);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 0)).unwrap().wall_neighbours.get(Direction::West), 1);
+
+    env.change.coord.remove(e1);
+    env.commit();
+
+    assert_eq!(env.spatial_hash.get(Vector2::new(0, 1)).unwrap().wall_neighbours.get(Direction::North), 0);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 1)).unwrap().wall_neighbours.get(Direction::NorthWest), 0);
+    assert_eq!(env.spatial_hash.get(Vector2::new(1, 0)).unwrap().wall_neighbours.get(Direction::West), 0);
 }

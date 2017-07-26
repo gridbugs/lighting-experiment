@@ -124,6 +124,48 @@ macro_rules! remove {
     }
 }
 
+macro_rules! insert_neighbours {
+    ($self:expr, $entity_id:expr, $store:expr, $coord:expr) => {
+        let coord: Vector2<i32> = $coord.into();
+{{#each components}}
+    {{#if fields.neighbour_count}}
+        {{#if type}}
+        if $store.{{@key}}.contains_key(&$entity_id) {
+        {{else}}
+        if $store.{{@key}}.contains(&$entity_id) {
+        {{/if}}
+            for d in Directions {
+                if let Some(mut cell) = $self.grid.get_signed_mut(coord + d.vector()) {
+                    cell.{{fields.neighbour_count.aggregate_name}}.inc(d.opposite());
+                }
+            }
+        }
+    {{/if}}
+{{/each}}
+    }
+}
+
+macro_rules! remove_neighbours {
+    ($self:expr, $entity_id:expr, $store:expr, $coord:expr) => {
+        let coord: Vector2<i32> = $coord.into();
+{{#each components}}
+    {{#if fields.neighbour_count}}
+        {{#if type}}
+        if $store.{{@key}}.contains_key(&$entity_id) {
+        {{else}}
+        if $store.{{@key}}.contains(&$entity_id) {
+        {{/if}}
+            for d in Directions {
+                if let Some(mut cell) = $self.grid.get_signed_mut(coord + d.vector()) {
+                    cell.{{fields.neighbour_count.aggregate_name}}.dec(d.opposite());
+                }
+            }
+        }
+    {{/if}}
+{{/each}}
+    }
+}
+
 macro_rules! update_component_loops {
     ($self:expr, $store:expr, $change:expr, $time:expr) => {
 {{#each components}}
@@ -132,6 +174,15 @@ macro_rules! update_component_loops {
     {{#if type}}
                 &DataChangeType::Insert(v) => {
                     if let Some(position) = post_change_get!($store, $change, *entity_id, {{../position_component}}) {
+        {{#if fields.neighbour_count}}
+                        if !$store.{{@key}}.contains_key(entity_id) {
+                            for d in Directions {
+                                if let Some(mut cell) = $self.grid.get_signed_mut(position.cast() + d.vector()) {
+                                    cell.{{fields.neighbour_count.aggregate_name}}.inc(d.opposite());
+                                }
+                            }
+                        }
+        {{/if}}
                         if let Some(mut cell) = $self.grid.get_mut(position.into()) {
                             if let Some(old) = $store.{{@key}}.get(entity_id) {
         {{#if fields.f64_total}}
@@ -161,6 +212,15 @@ macro_rules! update_component_loops {
                 }
                 &DataChangeType::Remove => {
                     if let Some(position) = post_change_get!($store, $change, *entity_id, {{../position_component}}) {
+        {{#if fields.neighbour_count}}
+                        if $store.{{@key}}.contains_key(entity_id) {
+                            for d in Directions {
+                                if let Some(mut cell) = $self.grid.get_signed_mut(position.cast() + d.vector()) {
+                                    cell.{{fields.neighbour_count.aggregate_name}}.dec(d.opposite());
+                                }
+                            }
+                        }
+        {{/if}}
                         if let Some(mut cell) = $self.grid.get_mut(position.into()) {
         {{#if fields.f64_total}}
                             if let Some(value) = $store.{{@key}}.get(entity_id) {
@@ -187,6 +247,15 @@ macro_rules! update_component_loops {
     {{else}}
                 &FlagChangeType::Insert => {
                     if let Some(position) = post_change_get!($store, $change, *entity_id, {{../position_component}}) {
+        {{#if fields.neighbour_count}}
+                        if !$store.{{@key}}.contains(entity_id) {
+                            for d in Directions {
+                                if let Some(mut cell) = $self.grid.get_signed_mut(position.cast() + d.vector()) {
+                                    cell.{{fields.neighbour_count.aggregate_name}}.inc(d.opposite());
+                                }
+                            }
+                        }
+        {{/if}}
                         if let Some(mut cell) = $self.grid.get_mut(position.into()) {
                             if !$store.{{@key}}.contains(entity_id) {
         {{#if fields.count}}
@@ -206,6 +275,15 @@ macro_rules! update_component_loops {
                 }
                 &FlagChangeType::Remove => {
                     if let Some(position) = post_change_get!($store, $change, *entity_id, {{../position_component}}) {
+        {{#if fields.neighbour_count}}
+                        if $store.{{@key}}.contains(entity_id) {
+                            for d in Directions {
+                                if let Some(mut cell) = $self.grid.get_signed_mut(position.cast() + d.vector()) {
+                                    cell.{{fields.neighbour_count.aggregate_name}}.dec(d.opposite());
+                                }
+                            }
+                        }
+        {{/if}}
                         if let Some(mut cell) = $self.grid.get_mut(position.into()) {
                             if $store.{{@key}}.contains(entity_id) {
         {{#if fields.count}}

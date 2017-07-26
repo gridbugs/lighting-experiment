@@ -8,3 +8,5 @@ position_component = 'coord'
 opacity_total = { component = 'opacity', aggregate = 'f64_total' }
 solid_count = { component = 'solid', aggregate = 'count' }
 door_set = { component = 'door_state', aggregate = 'set' }
+wall_neighbours = { component = 'wall', aggregate = 'neighbour_count' }
+opacity_neighbours = { component = 'opacity', aggregate = 'neighbour_count' }

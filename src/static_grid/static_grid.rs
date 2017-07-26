@@ -1,4 +1,5 @@
 use std::slice;
+use std::convert::TryInto;
 use cgmath::Vector2;
 use limits::LimitsRect;
 
@@ -97,6 +98,22 @@ impl<T> StaticGrid<T> {
         if coord.x < self.width {
             let idx = self.wrap(coord);
             self.items.get_mut(idx as usize)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_signed(&self, coord: Vector2<i32>) -> Option<&T> {
+        if let Ok(coord) = coord.try_into() {
+            self.get(coord)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_signed_mut(&mut self, coord: Vector2<i32>) -> Option<&mut T> {
+        if let Ok(coord) = coord.try_into() {
+            self.get_mut(coord)
         } else {
             None
         }

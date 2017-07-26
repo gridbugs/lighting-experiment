@@ -1,10 +1,13 @@
 // Generated code may contain pattern matches that bind variables
 // that are never used
 #![allow(unused_variables)]
+#![allow(unused_mut)]
 use std::collections::HashSet;
 use entity_store::{EntityId, EntityStore, EntityStoreChange, DataChangeType, FlagChangeType};
 use static_grid::{self, StaticGrid, Coord};
 use limits::LimitsRect;
+use neighbour_count::NeighbourCount;
+use direction::Directions;
 
 #[path = "macros.gen.rs"]
 #[macro_use] mod macros;
@@ -62,25 +65,31 @@ impl SpatialHashTable {
             match change {
                 &DataChangeType::Insert(position) => {
                     if let Some(current) = position!(store).get(entity_id) {
-                        if let Some(mut cell) = self.grid.get_mut(current.into()) {
+                        let coord = current.into();
+                        if let Some(mut cell) = self.grid.get_mut(coord) {
                             cell.remove(*entity_id, store);
                             cell.entities.remove(entity_id);
                             cell.last_updated = time;
                         }
+                        remove_neighbours!(self, *entity_id, store, coord);
                     }
-                    if let Some(mut cell) = self.grid.get_mut(position.into()) {
+                    let coord = position.into();
+                    if let Some(mut cell) = self.grid.get_mut(coord) {
                         cell.insert(*entity_id, store);
                         cell.entities.insert(*entity_id);
                         cell.last_updated = time;
                     }
+                    insert_neighbours!(self, *entity_id, store, coord);
                 }
                 &DataChangeType::Remove => {
                     if let Some(current) = position!(store).get(entity_id) {
-                        if let Some(mut cell) = self.grid.get_mut(current.into()) {
+                        let coord = current.into();
+                        if let Some(mut cell) = self.grid.get_mut(coord) {
                             cell.remove(*entity_id, store);
                             cell.entities.remove(entity_id);
                             cell.last_updated = time;
                         }
+                        remove_neighbours!(self, *entity_id, store, coord);
                     }
                 }
             }
