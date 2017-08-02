@@ -1,8 +1,12 @@
 use cgmath::Vector2;
 use enum_primitive::FromPrimitive;
 
+pub const NUM_DIRECTIONS: usize = 8;
+pub const NUM_CARDINAL_DIRECTIONS: usize = 4;
+pub const NUM_ORDINAL_DIRECTIONS: usize = 4;
+
 enum_from_primitive! {
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Direction {
     North,
     NorthEast,
@@ -16,7 +20,7 @@ pub enum Direction {
 }
 
 enum_from_primitive! {
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum CardinalDirection {
     North,
     East,
@@ -26,7 +30,7 @@ pub enum CardinalDirection {
 }
 
 enum_from_primitive! {
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum OrdinalDirection {
     NorthEast,
     SouthEast,

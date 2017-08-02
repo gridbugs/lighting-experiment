@@ -29,4 +29,15 @@ impl NeighbourCount {
     pub fn has(&self, direction: Direction) -> bool {
         self.neighbours[direction as usize] != 0
     }
+
+    pub fn bitmap(&self) -> u8 {
+        (((self.neighbours[0] != 0) as u8) << 0) |
+        (((self.neighbours[1] != 0) as u8) << 1) |
+        (((self.neighbours[2] != 0) as u8) << 2) |
+        (((self.neighbours[3] != 0) as u8) << 3) |
+        (((self.neighbours[4] != 0) as u8) << 4) |
+        (((self.neighbours[5] != 0) as u8) << 5) |
+        (((self.neighbours[6] != 0) as u8) << 6) |
+        (((self.neighbours[7] != 0) as u8) << 7)
+    }
 }

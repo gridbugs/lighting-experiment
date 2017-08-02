@@ -1,5 +1,3 @@
-use std::thread;
-use std::time::Duration;
 use std::result;
 
 use gfx;
@@ -10,7 +8,7 @@ use gfx_window_glutin;
 use gfx_device_gl;
 
 use renderer::formats::{ColourFormat, DepthFormat};
-use renderer::tile_map;
+use renderer::example;
 
 #[derive(Debug)]
 pub enum Error {
@@ -23,8 +21,9 @@ pub struct Frontend {
     events_loop: glutin::EventsLoop,
     window: glutin::GlWindow,
     device: gfx_device_gl::Device,
-    tile_map: gfx::Bundle<gfx_device_gl::Resources, tile_map::tile_map::Data<gfx_device_gl::Resources>>,
+    example: example::Example<gfx_device_gl::Resources>,
     encoder: gfx::Encoder<gfx_device_gl::Resources, gfx_device_gl::CommandBuffer>,
+    factory: gfx_device_gl::Factory,
     rtv: gfx::handle::RenderTargetView<gfx_device_gl::Resources, ColourFormat>,
 }
 
@@ -40,14 +39,15 @@ impl Frontend {
             gfx_window_glutin::init::<ColourFormat, DepthFormat>(builder, context, &events_loop);
 
         let encoder = factory.create_command_buffer().into();
-        let tile_map_bundle = tile_map::init(rtv.clone(), &mut factory).map_err(|_| Error::RendererError)?;
+        let example = example::Example::new(rtv.clone(), &mut factory).map_err(|_| Error::RendererError)?;
 
         Ok(Frontend {
             events_loop: events_loop,
             window: window,
             device: device,
-            tile_map: tile_map_bundle,
+            example: example,
             encoder: encoder,
+            factory: factory,
             rtv: rtv,
         })
     }
@@ -55,14 +55,6 @@ impl Frontend {
     pub fn spin(&mut self) {
         let mut running = true;
         while running {
-
-            self.encoder.clear(&self.rtv, [0.0, 0.0, 0.0, 1.0]);
-            self.tile_map.encode(&mut self.encoder);
-            self.encoder.flush(&mut self.device);
-            self.window.swap_buffers().expect("Failed to swap buffers");
-            self.device.cleanup();
-
-            thread::sleep(Duration::from_millis(16));
 
             self.events_loop.poll_events(|event| {
                 match event {
@@ -73,6 +65,15 @@ impl Frontend {
                     _ => (),
                 }
             });
+
+            self.encoder.clear(&self.rtv, [0.0, 0.0, 0.0, 1.0]);
+
+            self.example.update(&mut self.encoder, &mut self.factory);
+            self.example.draw(&mut self.encoder);
+
+            self.encoder.flush(&mut self.device);
+            self.window.swap_buffers().expect("Failed to swap buffers");
+            self.device.cleanup();
         }
     }
 }
