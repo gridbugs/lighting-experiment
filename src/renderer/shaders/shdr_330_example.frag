@@ -1,7 +1,9 @@
 #version 330 core
 
+in vec4 v_Col;
+
 out vec4 Target0;
 
 void main() {
-    Target0 = vec4(1.0, 0.0, 0.0, 1.0);
+    Target0 = v_Col;
 }

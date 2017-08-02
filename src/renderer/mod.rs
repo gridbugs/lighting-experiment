@@ -1,2 +1,2 @@
 pub mod formats;
-pub mod tile_map;
+pub mod example;
