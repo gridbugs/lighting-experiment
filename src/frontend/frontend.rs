@@ -9,6 +9,7 @@ use gfx_device_gl;
 
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::example;
+use renderer::sprite_sheet::SpriteSheet;
 
 #[derive(Debug)]
 pub enum Error {
@@ -40,6 +41,8 @@ impl Frontend {
 
         let encoder = factory.create_command_buffer().into();
         let example = example::Example::new(rtv.clone(), &mut factory).map_err(|_| Error::RendererError)?;
+
+        let sprite_sheet: SpriteSheet<gfx_device_gl::Resources> = SpriteSheet::new(&mut factory);
 
         Ok(Frontend {
             events_loop: events_loop,

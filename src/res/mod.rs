@@ -1,2 +1,1 @@
-mod input_sprite;
-pub use self::input_sprite::*;
+pub mod input_sprite;
