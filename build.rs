@@ -5,6 +5,9 @@ extern crate serde;
 extern crate toml;
 extern crate handlebars;
 
+#[path = "src/res/files.rs"]
+mod files;
+
 #[path = "src/simple_file.rs"]
 mod simple_file;
 
@@ -40,6 +43,21 @@ fn res_src_path<P: AsRef<Path>>(path: P) -> PathBuf {
 }
 
 fn ret_none() -> Option<String> { None }
+
+fn dst_dirs() -> Vec<PathBuf> {
+    let target = env::var("TARGET").unwrap();
+    let host = env::var("HOST").unwrap();
+    let profile = env::var("PROFILE").unwrap();
+
+    if target == host {
+        vec![
+           Path::new("target").join(&profile),
+           Path::new("target").join(&target).join(&profile),
+        ]
+    } else {
+        vec![Path::new("target").join(&target).join(&profile)]
+    }.iter().filter(|p| p.exists()).cloned().collect()
+}
 
 #[derive(Debug, Deserialize)]
 struct SpatialHashDesc {
@@ -223,7 +241,30 @@ fn source_changed_rel<P: AsRef<Path>, Q: AsRef<Path>>(in_path: P, out_path: Q) -
     in_time > out_time
 }
 
+fn ensure_dir<P: AsRef<Path>>(path: P) {
+    if !path.as_ref().exists() {
+        fs::create_dir(path).expect("Failed to create dir");
+    }
+}
+
+fn copy_sprite_sheet() {
+    let in_path = &res_src_path(files::SPRITE_SHEET);
+
+    for dest in dst_dirs().iter() {
+        let out_dir = dest.join(files::RES_DIR);
+        ensure_dir(&out_dir);
+
+        let out_path = out_dir.join(files::SPRITE_SHEET);
+
+        if source_changed_rel(in_path, &out_path) {
+            fs::copy(in_path, &out_path)
+                .expect("Failed to copy sprite sheet");
+        }
+    }
+}
+
 fn main() {
     render_entity_system_template();
     render_spatial_hash_template();
+    copy_sprite_sheet();
 }

@@ -13,6 +13,7 @@ extern crate glutin;
 extern crate gfx_window_glutin;
 extern crate gfx_device_gl;
 extern crate genmesh;
+extern crate image;
 
 mod static_grid;
 mod limits;

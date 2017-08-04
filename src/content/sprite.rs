@@ -7,3 +7,5 @@ pub enum Sprite {
     OuterWall,
 }
 }
+
+pub const NUM_SPRITES: usize = 4;

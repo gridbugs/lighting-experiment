@@ -6,10 +6,13 @@ use glutin;
 use glutin::GlContext;
 use gfx_window_glutin;
 use gfx_device_gl;
+use image;
 
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::example;
 use renderer::sprite_sheet::SpriteSheet;
+
+use res::{input_sprite, paths, files};
 
 #[derive(Debug)]
 pub enum Error {
@@ -42,7 +45,12 @@ impl Frontend {
         let encoder = factory.create_command_buffer().into();
         let example = example::Example::new(rtv.clone(), &mut factory).map_err(|_| Error::RendererError)?;
 
-        let sprite_sheet: SpriteSheet<gfx_device_gl::Resources> = SpriteSheet::new(&mut factory);
+        let sprite_sheet_path = paths::res_path(files::SPRITE_SHEET);
+        let image = image::open(&sprite_sheet_path)
+            .expect(format!("Failed to open sprite sheet (looked for {})", sprite_sheet_path.display()).as_ref())
+            .to_rgba();
+        let sprite_sheet: SpriteSheet<gfx_device_gl::Resources> =
+            SpriteSheet::new(image, input_sprite::input_sprite_pixel_coords(), &mut factory);
 
         Ok(Frontend {
             events_loop: events_loop,
