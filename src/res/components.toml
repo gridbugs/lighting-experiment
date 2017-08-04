@@ -1,6 +1,7 @@
 imports = [
     'cgmath::Vector2',
     'content::DoorState',
+    'content::Sprite',
 ]
 
 [components]
@@ -10,3 +11,6 @@ solid = {}
 opacity = { type = 'f64' }
 door_state = { type = 'DoorState' }
 wall = {}
+player = {}
+sprite = { type = 'Sprite' }
+depth = { type = 'f32' }
