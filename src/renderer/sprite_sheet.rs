@@ -1,59 +1,92 @@
+use std::collections::BTreeMap;
 use gfx;
 use image::RgbaImage;
+use cgmath::Vector2;
 
+use direction::{Direction, CardinalDirections, OrdinalDirections};
 use renderer::formats::ColourFormat;
+use renderer::common;
 use res::input_sprite::{self, InputSpritePixelCoord};
-use content::sprite::{self, Sprite};
+use content::sprite;
 
 const TILES_PER_WALL: u32 = 256;
 
-pub struct SpriteResolution;
+// one for the top and one for each possible decoration
+const MAX_INSTANCES_PER_WALL: u32 = 5;
+
+#[derive(Clone, Copy, Debug)]
+pub enum SpriteResolution {
+    Simple(u32),
+    Wall(u32),
+}
+
 impl Default for SpriteResolution {
     fn default() -> Self {
-        SpriteResolution
+        SpriteResolution::Simple(0)
     }
 }
 
+pub struct SpriteTable(Vec<SpriteResolution>);
+
 pub struct SpriteSheet<R: gfx::Resources> {
-    shader_resource_view: gfx::handle::ShaderResourceView<R, [f32; 4]>,
-    width: u32,
-    height: u32,
-    sprite_table: Vec<SpriteResolution>,
+    pub shader_resource_view: gfx::handle::ShaderResourceView<R, [f32; 4]>,
+    pub width: u32,
+    pub height: u32,
+    pub sprite_table: SpriteTable,
 }
 
 gfx_vertex_struct!( Vertex {
     pos: [f32; 2] = "a_Pos",
-    tex: [f32; 2] = "a_Tex",
+});
+
+gfx_vertex_struct!( Instance {
+    tex_offset: [u32; 2] = "a_TexOffset",
+    index: u32 = "a_Index",
+});
+
+gfx_constant_struct!( Locals {
+    step: [f32; 2] = "u_Step",
+    tex_size: [f32; 2] = "u_TexSize",
 });
 
 gfx_pipeline!( pipe {
+    locals: gfx::ConstantBuffer<Locals> = "Locals",
     vertex: gfx::VertexBuffer<Vertex> = (),
+    instance: gfx::InstanceBuffer<Instance> = (),
     out: gfx::RenderTarget<ColourFormat> = "Target0",
 });
 
 struct SpriteSheetBuilder<R: gfx::Resources> {
-    render_target_view: gfx::handle::RenderTargetView<R, ColourFormat>,
     shader_resource_view: gfx::handle::ShaderResourceView<R, [f32; 4]>,
     width: u32,
     height: u32,
     input_sprites: Vec<input_sprite::InputSpritePixelCoord>,
     sprite_table: Vec<SpriteResolution>,
     image: RgbaImage,
+    bundle: gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
+    upload: gfx::handle::Buffer<R, Instance>,
 }
 
 impl<R: gfx::Resources> SpriteSheetBuilder<R> {
     fn new<F>(image: RgbaImage, input_sprites: Vec<InputSpritePixelCoord>, factory: &mut F) -> Self
-        where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>
+        where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
 
         use self::InputSpritePixelCoord::*;
 
         let mut num_sprites = 0;
+        let mut num_instances = 0;
 
         for sprite in input_sprites.iter() {
             match sprite {
-                &Simple { .. } => num_sprites += 1,
-                &Wall { .. } => num_sprites += TILES_PER_WALL,
+                &Simple { .. } => {
+                    num_sprites += 1;
+                    num_instances += 1;
+                }
+                &Wall { .. } => {
+                    num_sprites += TILES_PER_WALL;
+                    num_instances += TILES_PER_WALL * MAX_INSTANCES_PER_WALL;
+                }
             }
         }
 
@@ -68,21 +101,154 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
             sprite_table.push(SpriteResolution::default());
         }
 
+        let pso = factory.create_pipeline_simple(
+            include_bytes!("shaders/shdr_330_sprite_sheet.vert"),
+            include_bytes!("shaders/shdr_330_sprite_sheet.frag"),
+            pipe::new()).expect("Failed to create pso");
+
+        let vertex_data: Vec<Vertex> = common::QUAD_VERTICES.iter()
+            .map(|v| {
+                Vertex { pos: *v }
+            }).collect();
+
+        let (vertex_buffer, mut slice) =
+            factory.create_vertex_buffer_with_slice(
+                &vertex_data,
+                &common::QUAD_INDICES[..]);
+
+        slice.instances = Some((num_instances, 0));
+
+        let data = pipe::Data {
+            locals: factory.create_constant_buffer(1),
+            vertex: vertex_buffer,
+            instance: factory.create_buffer(num_instances as usize,
+                                            gfx::buffer::Role::Vertex,
+                                            gfx::memory::Usage::Data,
+                                            gfx::TRANSFER_DST)
+                .expect("Failed to create instance buffer"),
+            out: rtv,
+        };
+
+        let bundle = gfx::pso::bundle::Bundle::new(slice, pso, data);
+
+        let upload = factory.create_upload_buffer(num_instances as usize)
+            .expect("Failed to create upload buffer");
+
         SpriteSheetBuilder {
-            render_target_view: rtv,
             shader_resource_view: srv,
             width,
             height,
             input_sprites,
             sprite_table,
             image,
+            bundle,
+            upload,
         }
     }
 
-    fn populate(&mut self) {
-        for (i, input_sprite) in self.input_sprites.iter().enumerate() {
+    fn populate<F>(&mut self, factory: &mut F)
+        where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
+    {
 
+        use self::InputSpritePixelCoord::*;
+
+        let mut mapping = factory.write_mapping(&self.upload)
+            .expect("Failed to map upload buffer");
+
+        let mut instance_index = 0;
+        let mut sprite_index = 0;
+
+        for input_sprite in self.input_sprites.iter() {
+            match input_sprite {
+                &Simple { sprite, coord } => {
+                    self.sprite_table[sprite as usize] = SpriteResolution::Simple(sprite_index);
+                    mapping[instance_index] = Instance {
+                        tex_offset: coord.into(),
+                        index: sprite_index,
+                    };
+                    sprite_index += 1;
+                    instance_index += 1;
+                }
+                &Wall { sprite, top, ref decorations } => {
+                    self.sprite_table[sprite as usize] = SpriteResolution::Wall(sprite_index);
+                    for i in 0..TILES_PER_WALL {
+                        let instance_offset = Self::populate_wall(&mut mapping[instance_index..],
+                                                                  i as u8, top, decorations,
+                                                                  sprite_index);
+                        instance_index += instance_offset;
+                        sprite_index += 1;
+                    }
+                }
+            }
         }
+    }
+
+    fn populate_wall(mapping: &mut [Instance], neighbour_bits: u8, top: Vector2<u32>,
+                     decorations: &BTreeMap<Direction, Vector2<u32>>, sprite_index: u32) -> usize {
+
+        let mut instance_offset = 0;
+
+        mapping[instance_offset] = Instance {
+            tex_offset: top.into(),
+            index: sprite_index,
+        };
+
+        instance_offset += 1;
+
+        for card in CardinalDirections {
+            let dir_bit = 1 << (card.direction() as usize);
+            if neighbour_bits & dir_bit == 0 {
+                // neighbour is absent
+                let decoration = *decorations.get(&card.direction())
+                    .expect(format!("Missing decoration for {:?}", card.direction()).as_ref());
+                mapping[instance_offset] = Instance {
+                    tex_offset: decoration.into(),
+                    index: sprite_index,
+                };
+                instance_offset += 1;
+            }
+        }
+
+        for ord in OrdinalDirections {
+            let ord_bit = 1 << (ord.direction() as usize);
+            let (card0, card1) = ord.to_cardinals();
+            let card_bits = (1 << (card0.direction() as usize)) | (1 << (card1.direction() as usize));
+
+            if neighbour_bits & card_bits == card_bits && neighbour_bits & ord_bit == 0 {
+                // both cardinal neighbours are present but ordinal neighbour is absent
+                let decoration = *decorations.get(&ord.direction())
+                    .expect(format!("Missing decoration for {:?}", ord.direction()).as_ref());
+                mapping[instance_offset] = Instance {
+                    tex_offset: decoration.into(),
+                    index: sprite_index,
+                };
+                instance_offset += 1;
+            }
+        }
+
+        assert!(instance_offset <= MAX_INSTANCES_PER_WALL as usize);
+
+        instance_offset
+    }
+
+    fn draw<C>(&self, encoder: &mut gfx::Encoder<R, C>)
+        where C: gfx::CommandBuffer<R>,
+    {
+        encoder.copy_buffer(&self.upload, &self.bundle.data.instance, 0, 0, self.upload.len())
+            .expect("Failed to copy instance buffer");
+
+        let tex_dimensions = self.image.dimensions();
+        let tex_width = tex_dimensions.0 as f32;
+        let tex_height = tex_dimensions.1 as f32;
+        let step_x = tex_width / (input_sprite::WIDTH_PX as f32);
+        let step_y = tex_height / (input_sprite::HEIGHT_PX as f32);
+
+        encoder.update_constant_buffer(&self.bundle.data.locals, &Locals {
+            step: [step_x, step_y],
+            tex_size: [tex_width, tex_height],
+        });
+
+        encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);
     }
 
     fn build(self) -> SpriteSheet<R> {
@@ -91,17 +257,20 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
             shader_resource_view,
             width,
             height,
-            sprite_table,
+            sprite_table: SpriteTable(sprite_table),
         }
     }
 }
 
 impl<R: gfx::Resources> SpriteSheet<R> {
-    pub fn new<F>(image: RgbaImage, input_sprites: Vec<InputSpritePixelCoord>, factory: &mut F) -> Self
-        where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>
+    pub fn new<C, F>(image: RgbaImage, input_sprites: Vec<InputSpritePixelCoord>,
+                     factory: &mut F, encoder: &mut gfx::Encoder<R, C>) -> Self
+        where C: gfx::CommandBuffer<R>,
+              F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
         let mut builder = SpriteSheetBuilder::new(image, input_sprites, factory);
-        builder.populate();
+        builder.populate(factory);
+        builder.draw(encoder);
         builder.build()
     }
 }

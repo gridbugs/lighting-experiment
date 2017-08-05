@@ -187,6 +187,17 @@ impl OrdinalDirection {
             }
         }
     }
+
+    pub fn to_cardinals(self) -> (CardinalDirection, CardinalDirection) {
+        use self::OrdinalDirection::*;
+        use self::CardinalDirection::*;
+        match self {
+            NorthEast => (North, East),
+            SouthEast => (South, East),
+            SouthWest => (South, West),
+            NorthWest => (North, West),
+        }
+    }
 }
 
 macro_rules! make_direction_iter {
@@ -213,6 +224,8 @@ macro_rules! make_direction_iter {
     }
 }
 
+// IntoIter implementations for iterating over all directions of a type. E.g.:
+// for direction in CardinalDirections { ... }
 make_direction_iter!{Directions, DirectionIter, Direction}
 make_direction_iter!{CardinalDirections, CardinalDirectionIter, CardinalDirection}
 make_direction_iter!{OrdinalDirections, OrdinalDirectionIter, OrdinalDirection}
@@ -239,6 +252,8 @@ macro_rules! make_subdirection_iter {
     }
 }
 
+// IntoIter implementations for iterating over a subset of directions. E.g.:
+// for direction in DirectionsCardinal { ... }
 make_subdirection_iter!{DirectionsCardinal, CardinalDirections, DirectionCardinalIter, CardinalDirectionIter}
 make_subdirection_iter!{DirectionsOrdinal, OrdinalDirections, DirectionOrdinalIter, OrdinalDirectionIter}
 

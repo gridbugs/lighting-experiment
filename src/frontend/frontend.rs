@@ -9,8 +9,8 @@ use gfx_device_gl;
 use image;
 
 use renderer::formats::{ColourFormat, DepthFormat};
-use renderer::example;
 use renderer::sprite_sheet::SpriteSheet;
+use renderer::tile_renderer::TileRenderer;
 
 use res::{input_sprite, paths, files};
 
@@ -25,7 +25,7 @@ pub struct Frontend {
     events_loop: glutin::EventsLoop,
     window: glutin::GlWindow,
     device: gfx_device_gl::Device,
-    example: example::Example<gfx_device_gl::Resources>,
+    renderer: TileRenderer<gfx_device_gl::Resources>,
     encoder: gfx::Encoder<gfx_device_gl::Resources, gfx_device_gl::CommandBuffer>,
     factory: gfx_device_gl::Factory,
     rtv: gfx::handle::RenderTargetView<gfx_device_gl::Resources, ColourFormat>,
@@ -42,24 +42,25 @@ impl Frontend {
         let (window, device, mut factory, rtv, _dsv) =
             gfx_window_glutin::init::<ColourFormat, DepthFormat>(builder, context, &events_loop);
 
-        let encoder = factory.create_command_buffer().into();
-        let example = example::Example::new(rtv.clone(), &mut factory).map_err(|_| Error::RendererError)?;
+        let mut encoder = factory.create_command_buffer().into();
 
         let sprite_sheet_path = paths::res_path(files::SPRITE_SHEET);
         let image = image::open(&sprite_sheet_path)
             .expect(format!("Failed to open sprite sheet (looked for {})", sprite_sheet_path.display()).as_ref())
             .to_rgba();
         let sprite_sheet: SpriteSheet<gfx_device_gl::Resources> =
-            SpriteSheet::new(image, input_sprite::input_sprite_pixel_coords(), &mut factory);
+            SpriteSheet::new(image, input_sprite::input_sprite_pixel_coords(), &mut factory, &mut encoder);
+
+        let renderer = TileRenderer::new(sprite_sheet, rtv.clone(), &mut factory);
 
         Ok(Frontend {
-            events_loop: events_loop,
-            window: window,
-            device: device,
-            example: example,
-            encoder: encoder,
-            factory: factory,
-            rtv: rtv,
+            events_loop,
+            window,
+            device,
+            renderer,
+            encoder,
+            factory,
+            rtv,
         })
     }
 
@@ -79,8 +80,7 @@ impl Frontend {
 
             self.encoder.clear(&self.rtv, [0.0, 0.0, 0.0, 1.0]);
 
-            self.example.update(&mut self.encoder, &mut self.factory);
-            self.example.draw(&mut self.encoder);
+            self.renderer.draw(&mut self.encoder);
 
             self.encoder.flush(&mut self.device);
             self.window.swap_buffers().expect("Failed to swap buffers");
