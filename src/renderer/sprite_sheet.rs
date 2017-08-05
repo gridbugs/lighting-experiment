@@ -40,12 +40,13 @@ gfx_vertex_struct!( Vertex {
 });
 
 gfx_vertex_struct!( Instance {
-    tex_offset: [u32; 2] = "a_TexOffset",
-    index: u32 = "a_Index",
+    tex_offset: [f32; 2] = "a_TexOffset",
+    index: f32 = "a_Index",
 });
 
 gfx_constant_struct!( Locals {
-    step: [f32; 2] = "u_Step",
+    in_step: [f32; 2] = "u_InStep",
+    out_step: [f32; 2] = "u_OutStep",
     tex_size: [f32; 2] = "u_TexSize",
 });
 
@@ -53,6 +54,7 @@ gfx_pipeline!( pipe {
     locals: gfx::ConstantBuffer<Locals> = "Locals",
     vertex: gfx::VertexBuffer<Vertex> = (),
     instance: gfx::InstanceBuffer<Instance> = (),
+    tex: gfx::TextureSampler<[f32; 4]> = "t_Texture",
     out: gfx::RenderTarget<ColourFormat> = "Target0",
 });
 
@@ -118,6 +120,15 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
 
         slice.instances = Some((num_instances, 0));
 
+        let (img_width, img_height) = image.dimensions();
+        let tex_kind = gfx::texture::Kind::D2(img_width as u16, img_height as u16, gfx::texture::AaMode::Single);
+        let (_, texture) = factory.create_texture_immutable_u8::<ColourFormat>(tex_kind, &[&image])
+            .expect("Failed to create texture");
+
+        let sampler = factory.create_sampler(
+            gfx::texture::SamplerInfo::new(gfx::texture::FilterMethod::Scale,
+                                           gfx::texture::WrapMode::Tile));
+
         let data = pipe::Data {
             locals: factory.create_constant_buffer(1),
             vertex: vertex_buffer,
@@ -126,6 +137,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                                             gfx::memory::Usage::Data,
                                             gfx::TRANSFER_DST)
                 .expect("Failed to create instance buffer"),
+            tex: (texture, sampler),
             out: rtv,
         };
 
@@ -163,8 +175,8 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                 &Simple { sprite, coord } => {
                     self.sprite_table[sprite as usize] = SpriteResolution::Simple(sprite_index);
                     mapping[instance_index] = Instance {
-                        tex_offset: coord.into(),
-                        index: sprite_index,
+                        tex_offset: coord.cast().into(),
+                        index: sprite_index as f32,
                     };
                     sprite_index += 1;
                     instance_index += 1;
@@ -189,8 +201,8 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         let mut instance_offset = 0;
 
         mapping[instance_offset] = Instance {
-            tex_offset: top.into(),
-            index: sprite_index,
+            tex_offset: top.cast().into(),
+            index: sprite_index as f32,
         };
 
         instance_offset += 1;
@@ -202,8 +214,8 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                 let decoration = *decorations.get(&card.direction())
                     .expect(format!("Missing decoration for {:?}", card.direction()).as_ref());
                 mapping[instance_offset] = Instance {
-                    tex_offset: decoration.into(),
-                    index: sprite_index,
+                    tex_offset: decoration.cast().into(),
+                    index: sprite_index as f32,
                 };
                 instance_offset += 1;
             }
@@ -219,8 +231,8 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                 let decoration = *decorations.get(&ord.direction())
                     .expect(format!("Missing decoration for {:?}", ord.direction()).as_ref());
                 mapping[instance_offset] = Instance {
-                    tex_offset: decoration.into(),
-                    index: sprite_index,
+                    tex_offset: decoration.cast().into(),
+                    index: sprite_index as f32,
                 };
                 instance_offset += 1;
             }
@@ -240,11 +252,15 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         let tex_dimensions = self.image.dimensions();
         let tex_width = tex_dimensions.0 as f32;
         let tex_height = tex_dimensions.1 as f32;
-        let step_x = tex_width / (input_sprite::WIDTH_PX as f32);
-        let step_y = tex_height / (input_sprite::HEIGHT_PX as f32);
+        let in_step_x = (input_sprite::WIDTH_PX as f32) / tex_width;
+        let in_step_y = (input_sprite::HEIGHT_PX as f32) / tex_height;
+
+        let out_step_x = (input_sprite::WIDTH_PX as f32) / (self.width as f32);
+        let out_step_y = (input_sprite::HEIGHT_PX as f32) / (self.height as f32);
 
         encoder.update_constant_buffer(&self.bundle.data.locals, &Locals {
-            step: [step_x, step_y],
+            in_step: [in_step_x, in_step_y],
+            out_step: [out_step_x, out_step_y],
             tex_size: [tex_width, tex_height],
         });
 

@@ -11,8 +11,8 @@ gfx_vertex_struct!( Vertex {
 
 gfx_pipeline!( pipe {
     vertex: gfx::VertexBuffer<Vertex> = (),
-    out: gfx::RenderTarget<ColourFormat> = "Target0",
     tex: gfx::TextureSampler<[f32; 4]> = "t_Texture",
+    out: gfx::RenderTarget<ColourFormat> = "Target0",
 });
 
 pub struct TileRenderer<R: gfx::Resources> {
