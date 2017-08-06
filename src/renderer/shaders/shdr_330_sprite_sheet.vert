@@ -10,6 +10,7 @@ in vec2 a_Pos;
 
 in vec2 a_TexOffset;
 in float a_Index;
+in float a_Depth;
 
 out vec2 v_TexCoord;
 
@@ -26,5 +27,5 @@ void main() {
     vec2 dst = vec2(normalised_dst.x * 2.0 - 1.0,
                     1.0 - normalised_dst.y * 2.0);
 
-    gl_Position = vec4(dst, 0.0, 1.0);
+    gl_Position = vec4(dst, a_Depth, 1.0);
 }

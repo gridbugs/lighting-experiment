@@ -39,7 +39,7 @@ impl Frontend {
         let events_loop = glutin::EventsLoop::new();
         let context = glutin::ContextBuilder::new();
 
-        let (window, device, mut factory, rtv, _dsv) =
+        let (window, mut device, mut factory, rtv, _dsv) =
             gfx_window_glutin::init::<ColourFormat, DepthFormat>(builder, context, &events_loop);
 
         let mut encoder = factory.create_command_buffer().into();
@@ -49,7 +49,7 @@ impl Frontend {
             .expect(format!("Failed to open sprite sheet (looked for {})", sprite_sheet_path.display()).as_ref())
             .to_rgba();
         let sprite_sheet: SpriteSheet<gfx_device_gl::Resources> =
-            SpriteSheet::new(image, input_sprite::input_sprite_pixel_coords(), &mut factory, &mut encoder);
+            SpriteSheet::new(image, input_sprite::input_sprite_pixel_coords(), &mut factory, &mut encoder, &mut device);
 
         let renderer = TileRenderer::new(sprite_sheet, rtv.clone(), &mut factory);
 
@@ -65,6 +65,8 @@ impl Frontend {
     }
 
     pub fn spin(&mut self) {
+        self.renderer.init(&mut self.encoder);
+        self.renderer.update(&mut self.encoder, &mut self.factory);
         let mut running = true;
         while running {
 

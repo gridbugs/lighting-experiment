@@ -4,7 +4,7 @@ use image::RgbaImage;
 use cgmath::Vector2;
 
 use direction::{Direction, CardinalDirections, OrdinalDirections};
-use renderer::formats::ColourFormat;
+use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::common;
 use res::input_sprite::{self, InputSpritePixelCoord};
 use content::sprite;
@@ -42,6 +42,7 @@ gfx_vertex_struct!( Vertex {
 gfx_vertex_struct!( Instance {
     tex_offset: [f32; 2] = "a_TexOffset",
     index: f32 = "a_Index",
+    depth: f32 = "a_Depth",
 });
 
 gfx_constant_struct!( Locals {
@@ -55,7 +56,9 @@ gfx_pipeline!( pipe {
     vertex: gfx::VertexBuffer<Vertex> = (),
     instance: gfx::InstanceBuffer<Instance> = (),
     tex: gfx::TextureSampler<[f32; 4]> = "t_Texture",
-    out: gfx::RenderTarget<ColourFormat> = "Target0",
+    out: gfx::BlendTarget<ColourFormat> = ("Target0", gfx::state::ColorMask::all(), gfx::preset::blend::ALPHA),
+    depth: gfx::DepthTarget<DepthFormat> =
+        gfx::preset::depth::LESS_EQUAL_WRITE,
 });
 
 struct SpriteSheetBuilder<R: gfx::Resources> {
@@ -67,6 +70,7 @@ struct SpriteSheetBuilder<R: gfx::Resources> {
     image: RgbaImage,
     bundle: gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     upload: gfx::handle::Buffer<R, Instance>,
+    num_instances: usize,
 }
 
 impl<R: gfx::Resources> SpriteSheetBuilder<R> {
@@ -113,12 +117,10 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                 Vertex { pos: *v }
             }).collect();
 
-        let (vertex_buffer, mut slice) =
+        let (vertex_buffer, slice) =
             factory.create_vertex_buffer_with_slice(
                 &vertex_data,
                 &common::QUAD_INDICES[..]);
-
-        slice.instances = Some((num_instances, 0));
 
         let (img_width, img_height) = image.dimensions();
         let tex_kind = gfx::texture::Kind::D2(img_width as u16, img_height as u16, gfx::texture::AaMode::Single);
@@ -129,16 +131,17 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
             gfx::texture::SamplerInfo::new(gfx::texture::FilterMethod::Scale,
                                            gfx::texture::WrapMode::Tile));
 
+        let (_, _, depth_rtv) = factory.create_depth_stencil(width as u16, height as u16)
+            .expect("Failed to create depth stencil");
+
         let data = pipe::Data {
             locals: factory.create_constant_buffer(1),
             vertex: vertex_buffer,
-            instance: factory.create_buffer(num_instances as usize,
-                                            gfx::buffer::Role::Vertex,
-                                            gfx::memory::Usage::Data,
-                                            gfx::TRANSFER_DST)
+            instance: common::create_instance_buffer(num_instances as usize, factory)
                 .expect("Failed to create instance buffer"),
             tex: (texture, sampler),
             out: rtv,
+            depth: depth_rtv,
         };
 
         let bundle = gfx::pso::bundle::Bundle::new(slice, pso, data);
@@ -155,6 +158,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
             image,
             bundle,
             upload,
+            num_instances: 0,
         }
     }
 
@@ -177,6 +181,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                     mapping[instance_index] = Instance {
                         tex_offset: coord.cast().into(),
                         index: sprite_index as f32,
+                        depth: 0.0,
                     };
                     sprite_index += 1;
                     instance_index += 1;
@@ -193,6 +198,9 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                 }
             }
         }
+
+        self.num_instances = instance_index;
+        self.bundle.slice.instances = Some((self.num_instances as u32, 0));
     }
 
     fn populate_wall(mapping: &mut [Instance], neighbour_bits: u8, top: Vector2<u32>,
@@ -203,6 +211,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         mapping[instance_offset] = Instance {
             tex_offset: top.cast().into(),
             index: sprite_index as f32,
+            depth: 0.6,
         };
 
         instance_offset += 1;
@@ -216,6 +225,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                 mapping[instance_offset] = Instance {
                     tex_offset: decoration.cast().into(),
                     index: sprite_index as f32,
+                    depth: 0.5,
                 };
                 instance_offset += 1;
             }
@@ -233,6 +243,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                 mapping[instance_offset] = Instance {
                     tex_offset: decoration.cast().into(),
                     index: sprite_index as f32,
+                    depth: 0.5,
                 };
                 instance_offset += 1;
             }
@@ -243,10 +254,13 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         instance_offset
     }
 
-    fn draw<C>(&self, encoder: &mut gfx::Encoder<R, C>)
+    fn draw<C, D>(&self, encoder: &mut gfx::Encoder<R, C>, device: &mut D)
         where C: gfx::CommandBuffer<R>,
+              D: gfx::traits::Device<Resources=R, CommandBuffer=C>,
     {
-        encoder.copy_buffer(&self.upload, &self.bundle.data.instance, 0, 0, self.upload.len())
+        encoder.clear(&self.bundle.data.out, [0.0, 0.0, 0.0, 1.0]);
+        encoder.clear_depth(&self.bundle.data.depth, 1.0);
+        encoder.copy_buffer(&self.upload, &self.bundle.data.instance, 0, 0, self.num_instances)
             .expect("Failed to copy instance buffer");
 
         let tex_dimensions = self.image.dimensions();
@@ -265,6 +279,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         });
 
         encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);
+        encoder.flush(device);
     }
 
     fn build(self) -> SpriteSheet<R> {
@@ -279,14 +294,21 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
 }
 
 impl<R: gfx::Resources> SpriteSheet<R> {
-    pub fn new<C, F>(image: RgbaImage, input_sprites: Vec<InputSpritePixelCoord>,
-                     factory: &mut F, encoder: &mut gfx::Encoder<R, C>) -> Self
+    pub fn new<C, F, D>(image: RgbaImage, input_sprites: Vec<InputSpritePixelCoord>,
+                        factory: &mut F, encoder: &mut gfx::Encoder<R, C>,
+                        device: &mut D) -> Self
         where C: gfx::CommandBuffer<R>,
               F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
+              D: gfx::traits::Device<Resources=R, CommandBuffer=C>,
     {
         let mut builder = SpriteSheetBuilder::new(image, input_sprites, factory);
         builder.populate(factory);
-        builder.draw(encoder);
+        builder.draw(encoder, device);
         builder.build()
+    }
+
+    pub fn sprite_size(&self) -> (f32, f32) {
+        ((input_sprite::WIDTH_PX as f32) / (self.width as f32),
+         (input_sprite::HEIGHT_PX as f32) / (self.height as f32))
     }
 }
