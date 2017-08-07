@@ -31,6 +31,9 @@ pub fn generate(change: &mut EntityStoreChange,
         "..................................................",
     ];
 
+    metadata.width = strings[0].len() as u32;
+    metadata.height = strings.len() as u32;
+
     let mut y = 0;
     for row in strings.iter() {
         let mut x = 0;
@@ -51,6 +54,7 @@ pub fn generate(change: &mut EntityStoreChange,
                 }
                 '#' => {
                     prototype::outer_wall(change, allocator.allocate(), coord);
+                    prototype::inner_floor(change, allocator.allocate(), coord);
                 }
                 _ => panic!("Unrecognised character"),
             }

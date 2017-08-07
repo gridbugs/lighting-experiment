@@ -8,6 +8,9 @@ use gfx_window_glutin;
 use gfx_device_gl;
 use image;
 
+use entity_store::EntityStore;
+use spatial_hash::SpatialHashTable;
+
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::sprite_sheet::SpriteSheet;
 use renderer::tile_renderer::TileRenderer;
@@ -29,6 +32,7 @@ pub struct Frontend {
     encoder: gfx::Encoder<gfx_device_gl::Resources, gfx_device_gl::CommandBuffer>,
     factory: gfx_device_gl::Factory,
     rtv: gfx::handle::RenderTargetView<gfx_device_gl::Resources, ColourFormat>,
+    dsv: gfx::handle::DepthStencilView<gfx_device_gl::Resources, DepthFormat>,
 }
 
 impl Frontend {
@@ -39,7 +43,7 @@ impl Frontend {
         let events_loop = glutin::EventsLoop::new();
         let context = glutin::ContextBuilder::new();
 
-        let (window, mut device, mut factory, rtv, _dsv) =
+        let (window, mut device, mut factory, rtv, dsv) =
             gfx_window_glutin::init::<ColourFormat, DepthFormat>(builder, context, &events_loop);
 
         let mut encoder = factory.create_command_buffer().into();
@@ -51,7 +55,7 @@ impl Frontend {
         let sprite_sheet: SpriteSheet<gfx_device_gl::Resources> =
             SpriteSheet::new(image, input_sprite::input_sprite_pixel_coords(), &mut factory, &mut encoder, &mut device);
 
-        let renderer = TileRenderer::new(sprite_sheet, rtv.clone(), &mut factory);
+        let renderer = TileRenderer::new(sprite_sheet, rtv.clone(), dsv.clone(), &mut factory);
 
         Ok(Frontend {
             events_loop,
@@ -61,12 +65,13 @@ impl Frontend {
             encoder,
             factory,
             rtv,
+            dsv,
         })
     }
 
-    pub fn spin(&mut self) {
+    pub fn spin(&mut self, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
         self.renderer.init(&mut self.encoder);
-        self.renderer.update(&mut self.encoder, &mut self.factory);
+        self.renderer.update_entities(entity_store, spatial_hash, &mut self.factory);
         let mut running = true;
         while running {
 
@@ -81,6 +86,7 @@ impl Frontend {
             });
 
             self.encoder.clear(&self.rtv, [0.0, 0.0, 0.0, 1.0]);
+            self.encoder.clear_depth(&self.dsv, 1.0);
 
             self.renderer.draw(&mut self.encoder);
 

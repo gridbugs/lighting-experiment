@@ -28,6 +28,12 @@ impl Default for SpriteResolution {
 
 pub struct SpriteTable(Vec<SpriteResolution>);
 
+impl SpriteTable {
+    pub fn get(&self, sprite: sprite::Sprite) -> Option<SpriteResolution> {
+        self.0.get(sprite as usize).map(Clone::clone)
+    }
+}
+
 pub struct SpriteSheet<R: gfx::Resources> {
     pub shader_resource_view: gfx::handle::ShaderResourceView<R, [f32; 4]>,
     pub width: u32,
@@ -310,5 +316,9 @@ impl<R: gfx::Resources> SpriteSheet<R> {
     pub fn sprite_size(&self) -> (f32, f32) {
         ((input_sprite::WIDTH_PX as f32) / (self.width as f32),
          (input_sprite::HEIGHT_PX as f32) / (self.height as f32))
+    }
+
+    pub fn get(&self, sprite: sprite::Sprite) -> Option<SpriteResolution> {
+        self.sprite_table.get(sprite)
     }
 }

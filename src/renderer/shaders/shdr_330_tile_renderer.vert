@@ -10,6 +10,7 @@ in vec2 a_Pos;
 in float a_SpriteIndex;
 in vec2 a_SizePix;
 in vec2 a_CoordPix;
+in float a_Depth;
 
 out vec2 v_TexCoord;
 
@@ -27,5 +28,5 @@ void main() {
     v_TexCoord = tex_base + u_SpriteSize * normalised_pos;
     v_TexCoord.y = 1 - v_TexCoord.y;
 
-    gl_Position = vec4(coord, 0.0, 1.0);
+    gl_Position = vec4(coord, a_Depth, 1.0);
 }
