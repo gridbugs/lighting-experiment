@@ -55,8 +55,8 @@ impl<R: gfx::Resources> TileRenderer<R> {
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
         let pso = factory.create_pipeline_simple(
-            include_bytes!("shaders/shdr_330_tile_renderer.vert"),
-            include_bytes!("shaders/shdr_330_general.frag"),
+            include_bytes!("shaders/shdr_150_tile_renderer.vert"),
+            include_bytes!("shaders/shdr_150_general.frag"),
             pipe::new()).expect("Failed to create pipeline");
 
         let vertex_data: Vec<Vertex> = common::QUAD_VERTICES.iter()
