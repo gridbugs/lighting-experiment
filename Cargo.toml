@@ -10,7 +10,6 @@ serde = "1.0"
 serde_derive = "1.0"
 toml = "0.4"
 enum_primitive = "0.1"
-itertools = "0.6"
 maplit = "0.1"
 
 gfx = "0.16"
