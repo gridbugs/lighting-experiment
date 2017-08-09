@@ -35,5 +35,5 @@ mod frontend;
 mod renderer;
 
 fn main() {
-    launch::launch(frontend::Frontend::new().expect("Failed to initialise frontend"));
+    launch::launch(frontend::Frontend::new());
 }

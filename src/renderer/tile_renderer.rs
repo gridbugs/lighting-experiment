@@ -119,7 +119,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
 
     pub fn update_entities<F>(&mut self, entity_store: &EntityStore, spatial_hash: &SpatialHashTable,
                               factory: &mut F)
-        where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>, 
+        where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
 
         let player_id = entity_store.player.iter().next().expect("Failed to find player");
