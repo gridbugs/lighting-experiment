@@ -14,9 +14,9 @@ macro_rules! entity_store_decl {
         pub struct $EntityStore {
 {{#each components}}
     {{#if type}}
-            pub {{@key}}: HashMap<EntityId, {{type}}>,
+            pub {{@key}}: fnv::FnvHashMap<EntityId, {{type}}>,
     {{else}}
-            pub {{@key}}: HashSet<EntityId>,
+            pub {{@key}}: fnv::FnvHashSet<EntityId>,
     {{/if}}
 {{/each}}
         }
@@ -28,9 +28,9 @@ macro_rules! entity_store_cons {
         $EntityStore {
 {{#each components}}
     {{#if type}}
-            {{@key}}: HashMap::new(),
+            {{@key}}: fnv::FnvHashMap::default(),
     {{else}}
-            {{@key}}: HashSet::new(),
+            {{@key}}: fnv::FnvHashSet::default(),
     {{/if}}
 {{/each}}
         }
@@ -76,9 +76,9 @@ macro_rules! entity_store_change_cons {
         $EntityStoreChange {
 {{#each components}}
     {{#if type}}
-            {{@key}}: DataComponentChange(HashMap::new()),
+            {{@key}}: DataComponentChange(fnv::FnvHashMap::default()),
     {{else}}
-            {{@key}}: FlagComponentChange(HashMap::new()),
+            {{@key}}: FlagComponentChange(fnv::FnvHashMap::default()),
     {{/if}}
 {{/each}}
         }

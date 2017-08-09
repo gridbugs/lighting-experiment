@@ -6,6 +6,7 @@ extern crate cgmath;
 extern crate serde;
 #[macro_use] extern crate enum_primitive;
 #[macro_use] extern crate maplit;
+extern crate fnv;
 
 #[macro_use] extern crate gfx;
 extern crate glutin;

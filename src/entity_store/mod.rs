@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet, hash_map};
-
+use std::collections::hash_map;
+use fnv;
 
 #[path = "macros.gen.rs"]
 #[macro_use] mod macros;
@@ -47,9 +47,9 @@ pub enum FlagChangeType {
 }
 
 #[derive(Debug, Clone)]
-pub struct DataComponentChange<T>(HashMap<EntityId, DataChangeType<T>>);
+pub struct DataComponentChange<T>(fnv::FnvHashMap<EntityId, DataChangeType<T>>);
 #[derive(Debug, Clone)]
-pub struct FlagComponentChange(HashMap<EntityId, FlagChangeType>);
+pub struct FlagComponentChange(fnv::FnvHashMap<EntityId, FlagChangeType>);
 
 pub type DataComponentChangeIter<'a, T> = hash_map::Iter<'a, EntityId, DataChangeType<T>>;
 pub type FlagComponentChangeIter<'a> = hash_map::Iter<'a, EntityId, FlagChangeType>;
