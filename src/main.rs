@@ -15,6 +15,7 @@ extern crate gfx_device_gl;
 extern crate genmesh;
 extern crate image;
 
+
 mod static_grid;
 mod limits;
 mod direction;
@@ -33,6 +34,7 @@ mod res;
 mod launch;
 mod frontend;
 mod renderer;
+mod input;
 
 fn main() {
     launch::launch(frontend::Frontend::new());
