@@ -141,17 +141,17 @@ impl<R: gfx::Resources> TileRenderer<R> {
         let top_left = mid - half_delta;
         let bottom_right = mid + half_delta;
 
-        let top_left_coord = Vector2::new((top_left.x / input_sprite::WIDTH_PX as f32).floor() as u32,
-                                          (top_left.y / input_sprite::HEIGHT_PX as f32).floor() as u32);
-        let bottom_right_coord = Vector2::new((bottom_right.x / input_sprite::WIDTH_PX as f32).ceil() as u32,
-                                              (bottom_right.y / input_sprite::HEIGHT_PX as f32).ceil() as u32);
+        let top_left_scaled = Vector2::new((top_left.x / input_sprite::WIDTH_PX as f32),
+                                          (top_left.y / input_sprite::HEIGHT_PX as f32));
+        let bottom_right_scaled = Vector2::new((bottom_right.x / input_sprite::WIDTH_PX as f32),
+                                              (bottom_right.y / input_sprite::HEIGHT_PX as f32));
 
         let mut count = 0;
 
-        for (id, coord) in entity_store.coord.iter() {
+        for (id, position) in entity_store.position.iter() {
 
-            if coord.x < top_left_coord.x || coord.y < top_left_coord.y ||
-                coord.x >= bottom_right_coord.x || coord.y >= bottom_right_coord.y {
+            if position.x < top_left_scaled.x || position.y < top_left_scaled.y ||
+                position.x >= bottom_right_scaled.x || position.y >= bottom_right_scaled.y {
                 continue;
             }
 
@@ -167,17 +167,11 @@ impl<R: gfx::Resources> TileRenderer<R> {
                 continue;
             };
 
-            let position = if let Some(position) = entity_store.position.get(id) {
-                *position
-            } else {
-                coord.cast()
-            };
-
             let sprite_index = if let Some(sprite_resolution) = self.sprite_sheet.get(sprite) {
                 match sprite_resolution {
                     SpriteResolution::Simple(index) => index,
                     SpriteResolution::Wall(index) => {
-                        if let Some(sh_cell) = spatial_hash.get(*coord) {
+                        if let Some(sh_cell) = spatial_hash.get_float(*position) {
                             index + (sh_cell.wall_neighbours.bitmap() as u32)
                         } else {
                             continue;

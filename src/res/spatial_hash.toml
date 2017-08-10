@@ -2,7 +2,7 @@ imports = [
     'cgmath::Vector2',
 ]
 
-position_component = 'coord'
+position_component = 'position'
 
 [fields]
 opacity_total = { component = 'opacity', aggregate = 'f64_total' }

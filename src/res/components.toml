@@ -5,7 +5,6 @@ imports = [
 ]
 
 [components]
-coord = { type = 'Vector2<u32>' }
 position = { type = 'Vector2<f32>' }
 solid = {}
 opacity = { type = 'f64' }

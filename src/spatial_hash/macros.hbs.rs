@@ -181,7 +181,7 @@ macro_rules! update_component_loops {
                             }
                         }
         {{/if}}
-                        if let Some(mut cell) = $self.grid.get_mut(*position) {
+                        if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
                             if let Some(old) = $store.{{@key}}.get(entity_id) {
         {{#if fields.f64_total}}
                                 let increase = v - *old;
@@ -219,7 +219,7 @@ macro_rules! update_component_loops {
                             }
                         }
         {{/if}}
-                        if let Some(mut cell) = $self.grid.get_mut(*position) {
+                        if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
         {{#if fields.f64_total}}
                             if let Some(value) = $store.{{@key}}.get(entity_id) {
                                 cell.{{fields.f64_total.aggregate_name}} -= *value;
@@ -254,7 +254,7 @@ macro_rules! update_component_loops {
                             }
                         }
         {{/if}}
-                        if let Some(mut cell) = $self.grid.get_mut(*position) {
+                        if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
                             if !$store.{{@key}}.contains(entity_id) {
         {{#if fields.count}}
                                 cell.{{fields.count.aggregate_name}} += 1;
@@ -282,7 +282,7 @@ macro_rules! update_component_loops {
                             }
                         }
         {{/if}}
-                        if let Some(mut cell) = $self.grid.get_mut(*position) {
+                        if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
                             if $store.{{@key}}.contains(entity_id) {
         {{#if fields.count}}
                                 cell.{{fields.count.aggregate_name}} -= 1;

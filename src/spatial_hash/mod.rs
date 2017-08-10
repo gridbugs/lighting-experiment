@@ -68,19 +68,23 @@ impl SpatialHashTable {
         self.grid.get_signed(coord)
     }
 
+    pub fn get_float(&self, position: Vector2<f32>) -> Option<&SpatialHashCell> {
+        self.grid.get_signed(position.cast())
+    }
+
     pub fn update(&mut self, store: &EntityStore, change: &EntityStoreChange, time: u64) {
         for (entity_id, change) in position!(change).iter() {
             match change {
                 &DataChangeType::Insert(position) => {
                     if let Some(current) = position!(store).get(entity_id) {
-                        if let Some(mut cell) = self.grid.get_mut(*current) {
+                        if let Some(mut cell) = self.grid.get_signed_mut(current.cast()) {
                             cell.remove(*entity_id, store);
                             cell.entities.remove(entity_id);
                             cell.last_updated = time;
                         }
                         remove_neighbours!(self, *entity_id, store, current);
                     }
-                    if let Some(mut cell) = self.grid.get_mut(position) {
+                    if let Some(mut cell) = self.grid.get_signed_mut(position.cast()) {
                         cell.insert(*entity_id, store);
                         cell.entities.insert(*entity_id);
                         cell.last_updated = time;
@@ -89,7 +93,7 @@ impl SpatialHashTable {
                 }
                 &DataChangeType::Remove => {
                     if let Some(current) = position!(store).get(entity_id) {
-                        if let Some(mut cell) = self.grid.get_mut(*current) {
+                        if let Some(mut cell) = self.grid.get_signed_mut(current.cast()) {
                             cell.remove(*entity_id, store);
                             cell.entities.remove(entity_id);
                             cell.last_updated = time;
