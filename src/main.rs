@@ -24,6 +24,7 @@ mod neighbour_count;
 #[macro_use] mod entity_store;
 mod spatial_hash;
 mod entity_id_allocator;
+mod frame_env;
 
 mod depth;
 mod prototype;
