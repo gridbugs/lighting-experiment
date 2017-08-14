@@ -1,5 +1,6 @@
 use gfx;
 use image;
+use cgmath::Vector2;
 
 use renderer::tile_renderer::TileRenderer;
 use renderer::formats::{DepthFormat, ColourFormat};
@@ -30,7 +31,7 @@ impl<R: gfx::Resources> Renderer<R> {
                             sprite_sheet_path.display()).as_ref())
             .to_rgba();
         let sprite_sheet =
-            SpriteSheet::new(image, input_sprite::input_sprite_pixel_coords(),
+            SpriteSheet::new(image, input_sprite::input_sprites(),
                              factory, encoder, device);
 
         let tile_renderer = TileRenderer::new(sprite_sheet, rtv.clone(), dsv.clone(), factory);
@@ -40,6 +41,13 @@ impl<R: gfx::Resources> Renderer<R> {
         Renderer {
             tile_renderer,
         }
+    }
+
+
+    pub fn update_offset<C>(&self, player_position: Vector2<f32>, encoder: &mut gfx::Encoder<R, C>)
+        where C: gfx::CommandBuffer<R>,
+    {
+        self.tile_renderer.update_offset(player_position, encoder);
     }
 
     pub fn render<C, F>(&mut self,

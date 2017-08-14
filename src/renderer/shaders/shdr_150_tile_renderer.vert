@@ -1,32 +1,32 @@
 #version 150 core
 
-uniform Locals {
-    vec2 u_OutputSizePix;
-    vec2 u_SpriteSize;
+uniform Dimensions {
+    vec2 u_SpriteSheetSize;
+    vec2 u_OutputSize;
+};
+
+uniform Offset {
+    vec2 u_ScrollOffsetPix;
 };
 
 in vec2 a_Pos;
 
-in float a_SpriteIndex;
-in vec2 a_SizePix;
-in vec2 a_CoordPix;
+in vec2 a_SpriteSheetPixCoord;
+in vec2 a_OutPixCoord;
+in vec2 a_PixSize;
+in vec2 a_PixOffset;
 in float a_Depth;
 
 out vec2 v_TexCoord;
 
 void main() {
 
-    vec2 normalised_pos = vec2((a_Pos.x + 1.0) / 2.0,
-                               (1.0 - a_Pos.y) / 2.0);
+    vec2 in_pix = a_SpriteSheetPixCoord + a_Pos * a_PixSize;
+    v_TexCoord = in_pix / u_SpriteSheetSize;
+    v_TexCoord.y = 1.0 - v_TexCoord.y;
 
-    vec2 coord_pix = a_CoordPix + a_SizePix * normalised_pos;
-    vec2 normalised_coord = coord_pix / u_OutputSizePix;
-    vec2 coord = vec2(normalised_coord.x * 2.0 - 1.0,
-                      1.0 - normalised_coord.y * 2.0);
-
-    vec2 tex_base = vec2(u_SpriteSize.x * a_SpriteIndex, 0.0);
-    v_TexCoord = tex_base + u_SpriteSize * normalised_pos;
-    v_TexCoord.y = 1 - v_TexCoord.y;
-
-    gl_Position = vec4(coord, a_Depth, 1.0);
+    vec2 out_pix = a_OutPixCoord - u_ScrollOffsetPix - a_PixOffset + a_Pos * a_PixSize;
+    vec2 out_scaled = out_pix / u_OutputSize;
+    vec2 dst = vec2(out_scaled.x * 2.0 - 1.0, 1.0 - out_scaled.y * 2.0);
+    gl_Position = vec4(dst, a_Depth, 1.0);
 }

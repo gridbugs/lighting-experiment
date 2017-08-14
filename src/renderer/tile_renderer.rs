@@ -1,6 +1,6 @@
 use gfx;
 
-use cgmath::Vector2;
+use cgmath::{Vector2, ElementWise};
 
 use renderer::sprite_sheet::{SpriteSheet, SpriteResolution};
 use renderer::formats::{ColourFormat, DepthFormat};
@@ -18,19 +18,25 @@ gfx_vertex_struct!( Vertex {
 });
 
 gfx_vertex_struct!( Instance {
-    sprite_index: f32 = "a_SpriteIndex",
-    size: [f32; 2] = "a_SizePix",
-    coord: [f32; 2] = "a_CoordPix",
+    sprite_sheet_pix_coord: [f32; 2] = "a_SpriteSheetPixCoord",
+    out_pix_coord: [f32; 2] = "a_OutPixCoord",
+    pix_size: [f32; 2] = "a_PixSize",
+    pix_offset: [f32; 2] = "a_PixOffset",
     depth: f32 = "a_Depth",
 });
 
-gfx_constant_struct!( Locals {
-    output_size: [f32; 2] = "u_OutputSizePix",
-    sprite_size: [f32; 2] = "u_SpriteSize",
+gfx_constant_struct!( Dimensions {
+    sprite_sheet_size: [f32; 2] = "u_SpriteSheetSize",
+    output_size: [f32; 2] = "u_OutputSize",
+});
+
+gfx_constant_struct!( Offset {
+    scroll_offset_pix: [f32; 2] = "u_ScrollOffsetPix",
 });
 
 gfx_pipeline!( pipe {
-    locals: gfx::ConstantBuffer<Locals> = "Locals",
+    dimensions: gfx::ConstantBuffer<Dimensions> = "Dimensions",
+    offset: gfx::ConstantBuffer<Offset> = "Offset",
     vertex: gfx::VertexBuffer<Vertex> = (),
     instance: gfx::InstanceBuffer<Instance> = (),
     tex: gfx::TextureSampler<[f32; 4]> = "t_Texture",
@@ -59,7 +65,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             include_bytes!("shaders/shdr_150_general.frag"),
             pipe::new()).expect("Failed to create pipeline");
 
-        let vertex_data: Vec<Vertex> = common::QUAD_VERTICES.iter()
+        let vertex_data: Vec<Vertex> = common::QUAD_VERTICES_REFL.iter()
             .map(|v| {
                 Vertex {
                     pos: *v,
@@ -76,7 +82,8 @@ impl<R: gfx::Resources> TileRenderer<R> {
                                            gfx::texture::WrapMode::Tile));
 
         let data = pipe::Data {
-            locals: factory.create_constant_buffer(1),
+            dimensions: factory.create_constant_buffer(1),
+            offset: factory.create_constant_buffer(1),
             vertex: vertex_buffer,
             instance: common::create_instance_buffer(MAX_NUM_INSTANCES, factory)
                 .expect("Failed to create instance buffer"),
@@ -102,10 +109,9 @@ impl<R: gfx::Resources> TileRenderer<R> {
     pub fn init<C>(&self, encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {
-        let sprite_size = self.sprite_sheet.sprite_size();
-        encoder.update_constant_buffer(&self.bundle.data.locals, &Locals {
+        encoder.update_constant_buffer(&self.bundle.data.dimensions, &Dimensions {
+            sprite_sheet_size: [self.sprite_sheet.width as f32, self.sprite_sheet.height as f32],
             output_size: [self.width_px as f32, self.height_px as f32],
-            sprite_size: [sprite_size.0, sprite_size.1],
         });
     }
 
@@ -117,43 +123,29 @@ impl<R: gfx::Resources> TileRenderer<R> {
         encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);
     }
 
+    pub fn update_offset<C>(&self, player_position: Vector2<f32>, encoder: &mut gfx::Encoder<R, C>)
+        where C: gfx::CommandBuffer<R>,
+    {
+        let mid = (player_position + Vector2::new(0.5, 0.5))
+            .mul_element_wise(Vector2::new(input_sprite::WIDTH_PX, input_sprite::HEIGHT_PX).cast());
+        let offset = Vector2::new(mid.x - (self.width_px / 2) as f32, mid.y - (self.height_px / 2) as f32);
+        encoder.update_constant_buffer(&self.bundle.data.offset, &Offset {
+            scroll_offset_pix: offset.into(),
+        });
+    }
+
     pub fn update_entities<F>(&mut self, entity_store: &EntityStore, spatial_hash: &SpatialHashTable,
                               factory: &mut F)
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
-
-        let player_id = entity_store.player.iter().next().expect("Failed to find player");
-        let player_position = entity_store.position.get(&player_id).expect("Failed to find player position");
-        let mid_coord = player_position + Vector2::new(0.5, 0.5);
-        let mid = Vector2::new(mid_coord.x * (input_sprite::WIDTH_PX as f32),
-                               mid_coord.y * (input_sprite::HEIGHT_PX as f32));
-
         let mut mapper = factory.write_mapping(&self.upload)
             .expect("Failed to map upload buffer");
 
         let mut mapper_iter_mut = mapper.iter_mut();
 
-        let half_width = self.width_px / 2;
-        let half_height = self.height_px / 2;
-
-        let half_delta = Vector2::new(half_width as f32, half_height as f32);
-
-        let top_left = mid - half_delta;
-        let bottom_right = mid + half_delta;
-
-        let top_left_scaled = Vector2::new((top_left.x / input_sprite::WIDTH_PX as f32),
-                                          (top_left.y / input_sprite::HEIGHT_PX as f32));
-        let bottom_right_scaled = Vector2::new((bottom_right.x / input_sprite::WIDTH_PX as f32),
-                                              (bottom_right.y / input_sprite::HEIGHT_PX as f32));
-
         let mut count = 0;
 
         for (id, position) in entity_store.position.iter() {
-
-            if position.x < top_left_scaled.x || position.y < top_left_scaled.y ||
-                position.x >= bottom_right_scaled.x || position.y >= bottom_right_scaled.y {
-                continue;
-            }
 
             let depth = if let Some(depth) = entity_store.depth.get(id) {
                 *depth
@@ -167,12 +159,17 @@ impl<R: gfx::Resources> TileRenderer<R> {
                 continue;
             };
 
-            let sprite_index = if let Some(sprite_resolution) = self.sprite_sheet.get(sprite) {
+            let (sprite_position, sprite_size, sprite_offset) =
+                if let Some(sprite_resolution) = self.sprite_sheet.get(sprite) {
+
                 match sprite_resolution {
-                    SpriteResolution::Simple(index) => index,
-                    SpriteResolution::Wall(index) => {
+                    &SpriteResolution::Simple(location) => {
+                        (location.position, location.size, location.offset)
+                    }
+                    &SpriteResolution::Wall(location) => {
                         if let Some(sh_cell) = spatial_hash.get_float(*position) {
-                            index + (sh_cell.wall_neighbours.bitmap() as u32)
+                            let bitmap = sh_cell.wall_neighbours.bitmap_raw();
+                            (location.position(bitmap), *location.size(), *location.offset())
                         } else {
                             continue;
                         }
@@ -182,15 +179,19 @@ impl<R: gfx::Resources> TileRenderer<R> {
                 continue;
             };
 
+            let scaled_position = position
+                .mul_element_wise(Vector2::new(input_sprite::WIDTH_PX, input_sprite::HEIGHT_PX).cast());
+
+            let cell_depth = 1.0 - position.y.floor() / (spatial_hash.height() as f32);
+
             if let Some(instance_slot) = mapper_iter_mut.next() {
                 *instance_slot = Instance {
-                    sprite_index: sprite_index as f32,
-                    size: [input_sprite::WIDTH_PX as f32, input_sprite::HEIGHT_PX as f32],
-                    coord: Vector2::new(position.x * (input_sprite::WIDTH_PX as f32),
-                                        position.y * (input_sprite::HEIGHT_PX as f32)).into(),
-                    depth,
+                    sprite_sheet_pix_coord: [sprite_position, 0.0],
+                    out_pix_coord: scaled_position.into(),
+                    pix_size: sprite_size.into(),
+                    pix_offset: sprite_offset.into(),
+                    depth: cell_depth + depth / 100.0,
                 };
-
                 count += 1;
             } else {
                 break;

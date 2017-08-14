@@ -1,5 +1,6 @@
 mod formats;
 mod sprite_sheet;
+mod sprite_sheet_;
 mod tile_renderer;
 mod common;
 mod renderer;

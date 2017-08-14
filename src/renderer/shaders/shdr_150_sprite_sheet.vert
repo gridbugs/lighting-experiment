@@ -1,31 +1,27 @@
 #version 150 core
 
 uniform Locals {
-    vec2 u_InStep;
-    vec2 u_OutStep;
-    vec2 u_TexSize;
+    vec2 u_InTexSize;
+    vec2 u_OutTexSize;
 };
 
 in vec2 a_Pos;
 
-in vec2 a_TexOffset;
-in float a_Index;
+in vec2 a_InPixPos;
+in vec2 a_OutPixPos;
+in vec2 a_PixSize;
 in float a_Depth;
 
 out vec2 v_TexCoord;
 
 void main() {
 
-    vec2 normalised_pos = vec2((a_Pos.x + 1.0) / 2.0,
-                               (1.0 - a_Pos.y) / 2.0);
+    vec2 in_pix = a_InPixPos + a_Pos * a_PixSize;
+    vec2 out_pix = a_OutPixPos + a_Pos * a_PixSize;
 
-    vec2 tex_base = a_TexOffset / u_TexSize;
-    v_TexCoord = tex_base + normalised_pos * u_InStep;
+    v_TexCoord = in_pix / u_InTexSize;
 
-    vec2 normalised_dst_base = vec2(a_Index * u_OutStep.x, 0.0);
-    vec2 normalised_dst = normalised_dst_base + normalised_pos * u_OutStep;
-    vec2 dst = vec2(normalised_dst.x * 2.0 - 1.0,
-                    1.0 - normalised_dst.y * 2.0);
-
+    vec2 out_scaled = out_pix / u_OutTexSize;
+    vec2 dst = vec2(out_scaled.x * 2.0 - 1.0, 1.0 - out_scaled.y * 2.0);
     gl_Position = vec4(dst, a_Depth, 1.0);
 }

@@ -1,4 +1,4 @@
-use direction::Direction;
+use direction::{Direction, DirectionBitmap};
 
 const NUM_NEIGHBOURS: usize = 8;
 
@@ -30,7 +30,7 @@ impl NeighbourCount {
         self.neighbours[direction as usize] != 0
     }
 
-    pub fn bitmap(&self) -> u8 {
+    pub fn bitmap_raw(&self) -> u8 {
         (((self.neighbours[0] != 0) as u8) << 0) |
         (((self.neighbours[1] != 0) as u8) << 1) |
         (((self.neighbours[2] != 0) as u8) << 2) |
@@ -39,5 +39,9 @@ impl NeighbourCount {
         (((self.neighbours[5] != 0) as u8) << 5) |
         (((self.neighbours[6] != 0) as u8) << 6) |
         (((self.neighbours[7] != 0) as u8) << 7)
+    }
+
+    pub fn bitmap(&self) -> DirectionBitmap {
+        DirectionBitmap::new(self.bitmap_raw())
     }
 }

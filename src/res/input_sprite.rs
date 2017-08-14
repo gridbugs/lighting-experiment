@@ -1,83 +1,105 @@
 use std::collections::BTreeMap;
-use cgmath::Vector2;
-use direction::{self, Direction};
+use cgmath::{Vector2, ElementWise};
+use direction::Direction;
 use content::Sprite;
 
 pub const WIDTH_PX: u32 = 32;
 pub const HEIGHT_PX: u32 = 32;
 pub const DIMENSIONS: Vector2<u32> = Vector2 { x: WIDTH_PX, y: HEIGHT_PX };
 
-#[derive(Clone, Debug)]
-pub enum InputSpriteCoord {
-    Simple(Sprite, (u32, u32)),
-    Wall(Sprite, (u32, u32), BTreeMap<Direction, (u32, u32)>),
-}
+pub fn input_sprites() -> Vec<InputSprite> {
 
-pub fn input_sprite_coords() -> Vec<InputSpriteCoord> {
-
-    use self::InputSpriteCoord::*;
     use self::Sprite::*;
-    use self::Direction::*;
 
     vec![
-        Simple(Angler, (0, 1)),
-        Simple(InnerFloor, (0, 2)),
-        Simple(OuterFloor, (0, 3)),
-        Wall(OuterWall, (8, 0), btreemap!{
-            North => (0, 0),
-            East => (1, 0),
-            South => (2, 0),
-            West => (3, 0),
-            NorthEast => (4, 0),
-            SouthEast => (5, 0),
-            SouthWest => (6, 0),
-            NorthWest => (7, 0),
-        }),
+        character(Angler, CHARACTER_START + Vector2::new(0, 0).mul_element_wise(CHARACTER_DIMENSIONS)),
+        floor(InnerFloor, FLOOR_START + Vector2::new(0, 0).mul_element_wise(FLOOR_DIMENSIONS)),
+        floor(OuterFloor, FLOOR_START + Vector2::new(0, 1).mul_element_wise(FLOOR_DIMENSIONS)),
+        wall(OuterWall, WALL_START + Vector2::new(0, 0).mul_element_wise(WALL_BLOCK_DIMENSIONS)),
     ]
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct InputSpriteLocation {
+    pub position: Vector2<u32>,
+    pub size: Vector2<u32>,
+    pub offset: Vector2<i32>,
+}
+
 #[derive(Clone, Debug)]
-pub enum InputSpritePixelCoord {
+pub enum InputSprite {
     Simple {
         sprite: Sprite,
-        coord: Vector2<u32>,
+        location: InputSpriteLocation,
     },
     Wall {
         sprite: Sprite,
-        top: Vector2<u32>,
+        top: InputSpriteLocation,
         decorations: BTreeMap<Direction, Vector2<u32>>,
     },
 }
 
-impl<'a> From<&'a InputSpriteCoord> for InputSpritePixelCoord {
-    fn from(s: &'a InputSpriteCoord) -> Self {
-        match s {
-            &InputSpriteCoord::Simple(sprite, (x, y)) => {
-                InputSpritePixelCoord::Simple {
-                    sprite: sprite,
-                    coord: Vector2::new(x * WIDTH_PX, y * HEIGHT_PX),
-                }
-            }
-            &InputSpriteCoord::Wall(sprite, (x, y), ref decorations) => {
+const WALL_START: Vector2<u32> = Vector2 { x: 0, y: 0 };
+const WALL_DIMENSIONS: Vector2<u32> = Vector2 { x: 32, y: 40 };
+const WALL_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 8 };
+const WALL_DIRECTION_ORDER: [Direction; 8] = [
+    Direction::North,
+    Direction::East,
+    Direction::South,
+    Direction::West,
+    Direction::NorthEast,
+    Direction::SouthEast,
+    Direction::SouthWest,
+    Direction::NorthWest,
+];
+const WALL_BLOCK_DIMENSIONS: Vector2<u32> = Vector2 {
+    x: WALL_DIMENSIONS.x,
+    y: WALL_DIMENSIONS.y * 9,
+};
 
-                let decorations: BTreeMap<Direction, Vector2<u32>> = decorations.iter()
-                    .map(|(dir, &(x, y))| {
-                        (*dir, Vector2::new(x * WIDTH_PX, y * HEIGHT_PX))
-                    }).collect();
+const CHARACTER_START: Vector2<u32> = Vector2 { x: 0, y: 40 };
+const CHARACTER_DIMENSIONS: Vector2<u32> = Vector2 { x: 32, y: 32 };
+const CHARACTER_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
 
-                assert_eq!(decorations.len(), direction::NUM_DIRECTIONS,
-                    "Incomplete direction table in sprite sheet!");
+const FLOOR_START: Vector2<u32> = Vector2 { x: 0, y: 72 };
+const FLOOR_DIMENSIONS: Vector2<u32> = Vector2 { x: 32, y: 32 };
+const FLOOR_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
 
-                InputSpritePixelCoord::Wall {
-                    sprite: sprite,
-                    top: Vector2::new(x * WIDTH_PX, y * HEIGHT_PX),
-                    decorations: decorations,
-                }
-            }
-        }
+fn character(sprite: Sprite, position: Vector2<u32>) -> InputSprite {
+    InputSprite::Simple {
+        sprite,
+        location: InputSpriteLocation {
+            position: position,
+            size: CHARACTER_DIMENSIONS,
+            offset: CHARACTER_OFFSET,
+        },
     }
 }
 
-pub fn input_sprite_pixel_coords() -> Vec<InputSpritePixelCoord> {
-    input_sprite_coords().iter().map(InputSpritePixelCoord::from).collect()
+fn floor(sprite: Sprite, position: Vector2<u32>) -> InputSprite {
+    InputSprite::Simple {
+        sprite,
+        location: InputSpriteLocation {
+            position: position,
+            size: FLOOR_DIMENSIONS,
+            offset: FLOOR_OFFSET,
+        },
+    }
+}
+
+fn wall(sprite: Sprite, position: Vector2<u32>) -> InputSprite {
+    let mut decorations = BTreeMap::new();
+    for (index, direction) in WALL_DIRECTION_ORDER.iter().enumerate() {
+        decorations.insert(*direction, position + Vector2::new(WALL_DIMENSIONS.x * index as u32, 0));
+    }
+    let top = InputSpriteLocation {
+        position: position + Vector2::new(WALL_DIMENSIONS.x * WALL_DIRECTION_ORDER.len() as u32, 0),
+        size: WALL_DIMENSIONS,
+        offset: WALL_OFFSET,
+    };
+    InputSprite::Wall {
+        sprite,
+        top,
+        decorations,
+    }
 }

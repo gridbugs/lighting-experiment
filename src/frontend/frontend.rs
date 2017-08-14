@@ -66,6 +66,10 @@ impl Frontend {
             self.encoder.clear(&self.rtv, [0.0, 0.0, 0.0, 1.0]);
             self.encoder.clear_depth(&self.dsv, 1.0);
 
+            let player_id = entity_store.player.iter().next().expect("Failed to find player");
+            let player_position = entity_store.position.get(&player_id).expect("Failed to find player position");
+            self.renderer.update_offset(*player_position, &mut self.encoder);
+
             self.renderer.render(entity_store, spatial_hash, &mut self.factory, &mut self.encoder);
 
             self.encoder.flush(&mut self.device);

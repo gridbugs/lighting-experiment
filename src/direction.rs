@@ -1,3 +1,4 @@
+use std::ops::{BitOr, BitOrAssign, BitAnd, BitAndAssign};
 use cgmath::Vector2;
 use enum_primitive::FromPrimitive;
 
@@ -77,6 +78,10 @@ impl Direction {
             Direction::West => Direction::South,
             Direction::NorthWest => Direction::SouthWest,
         }
+    }
+
+    pub fn bitmap(self) -> DirectionBitmap {
+        DirectionBitmap::new(1 << self as usize)
     }
 }
 
@@ -198,6 +203,23 @@ impl OrdinalDirection {
             NorthWest => (North, West),
         }
     }
+
+    pub fn cardinal_bitmap(self) -> DirectionBitmap {
+        let (a, b) = self.to_cardinals();
+        a.direction().bitmap() | b.direction().bitmap()
+    }
+}
+
+impl From<CardinalDirection> for Direction {
+    fn from(c: CardinalDirection) -> Self {
+        c.direction()
+    }
+}
+
+impl From<OrdinalDirection> for Direction {
+    fn from(o: OrdinalDirection) -> Self {
+        o.direction()
+    }
 }
 
 macro_rules! make_direction_iter {
@@ -272,5 +294,52 @@ impl From<CardinalDirection> for Vector2<i32> {
 impl From<OrdinalDirection> for Vector2<i32> {
     fn from(direction: OrdinalDirection) -> Self {
         direction.vector()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DirectionBitmap {
+    pub raw: u8,
+}
+
+impl DirectionBitmap {
+    pub fn new(raw: u8) -> Self {
+        DirectionBitmap {
+            raw
+        }
+    }
+
+    pub fn has(self, direction: Direction) -> bool {
+        self.raw & (1 << direction as usize) != 0
+    }
+
+    pub fn empty(self) -> bool {
+        self.raw == 0
+    }
+}
+
+impl BitOr for DirectionBitmap {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        DirectionBitmap::new(self.raw | rhs.raw)
+    }
+}
+
+impl BitOrAssign for DirectionBitmap {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.raw |= rhs.raw;
+    }
+}
+
+impl BitAnd for DirectionBitmap {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        DirectionBitmap::new(self.raw & rhs.raw)
+    }
+}
+
+impl BitAndAssign for DirectionBitmap {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.raw &= rhs.raw;
     }
 }

@@ -1,36 +1,83 @@
+use std::cmp;
 use std::collections::BTreeMap;
+
 use gfx;
 use image::RgbaImage;
 use cgmath::Vector2;
 
-use direction::{Direction, CardinalDirections, OrdinalDirections};
+use direction::{Direction, OrdinalDirections, DirectionBitmap, DirectionsCardinal};
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::common;
-use res::input_sprite::{self, InputSpritePixelCoord};
+use res::input_sprite::{self, InputSprite, InputSpriteLocation};
 use content::sprite;
 
+// one for each combination of wall neighbours
 const TILES_PER_WALL: u32 = 256;
 
 // one for the top and one for each possible decoration
 const MAX_INSTANCES_PER_WALL: u32 = 5;
 
+const SIMPLE_DEPTH: f32 = 0.1;
+const WALL_TOP_DEPTH: f32 = 0.9;
+const WALL_DECORATION_DEPTH: f32 = 0.1;
+
+#[derive(Clone, Copy, Debug)]
+pub struct SpriteLocation {
+    pub position: f32,
+    pub size: Vector2<f32>,
+    pub offset: Vector2<f32>,
+}
+
+impl Default for SpriteLocation {
+    fn default() -> Self {
+        SpriteLocation {
+            position: 0.0,
+            size: Vector2::new(0.0, 0.0),
+            offset: Vector2::new(0.0, 0.0),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct WallSpriteLocation(SpriteLocation);
+
+impl WallSpriteLocation {
+    pub fn position(&self, bitmap: u8) -> f32 {
+        self.0.position + self.0.size.x * bitmap as f32
+    }
+    pub fn size(&self) -> &Vector2<f32> {
+        &self.0.size
+    }
+    pub fn offset(&self) -> &Vector2<f32> {
+        &self.0.offset
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum SpriteResolution {
-    Simple(u32),
-    Wall(u32),
+    Simple(SpriteLocation),
+    Wall(WallSpriteLocation),
 }
 
 impl Default for SpriteResolution {
     fn default() -> Self {
-        SpriteResolution::Simple(0)
+        SpriteResolution::Simple(SpriteLocation::default())
     }
 }
 
-pub struct SpriteTable(Vec<SpriteResolution>);
+#[derive(Debug)]
+pub struct SpriteTable {
+    sprites: Vec<SpriteResolution>,
+}
 
 impl SpriteTable {
-    pub fn get(&self, sprite: sprite::Sprite) -> Option<SpriteResolution> {
-        self.0.get(sprite as usize).map(Clone::clone)
+    pub fn new(sprites: Vec<SpriteResolution>) -> Self {
+        SpriteTable {
+            sprites
+        }
+    }
+    pub fn get(&self, sprite: sprite::Sprite) -> Option<&SpriteResolution> {
+        self.sprites.get(sprite as usize)
     }
 }
 
@@ -46,21 +93,21 @@ gfx_vertex_struct!( Vertex {
 });
 
 gfx_vertex_struct!( Instance {
-    tex_offset: [f32; 2] = "a_TexOffset",
-    index: f32 = "a_Index",
+    in_pix_pos: [f32; 2] = "a_InPixPos",
+    out_pix_pos: [f32; 2] = "a_OutPixPos",
+    pix_size: [f32; 2] = "a_PixSize",
     depth: f32 = "a_Depth",
 });
 
 gfx_constant_struct!( Locals {
-    in_step: [f32; 2] = "u_InStep",
-    out_step: [f32; 2] = "u_OutStep",
-    tex_size: [f32; 2] = "u_TexSize",
+    in_tex_size: [f32; 2] = "u_InTexSize",
+    out_tex_size: [f32; 2] = "u_OutTexSize",
 });
 
 gfx_pipeline!( pipe {
-    locals: gfx::ConstantBuffer<Locals> = "Locals",
     vertex: gfx::VertexBuffer<Vertex> = (),
     instance: gfx::InstanceBuffer<Instance> = (),
+    locals: gfx::ConstantBuffer<Locals> = "Locals",
     tex: gfx::TextureSampler<[f32; 4]> = "t_Texture",
     out: gfx::BlendTarget<ColourFormat> = ("Target0", gfx::state::ColorMask::all(), gfx::preset::blend::ALPHA),
     depth: gfx::DepthTarget<DepthFormat> =
@@ -71,7 +118,7 @@ struct SpriteSheetBuilder<R: gfx::Resources> {
     shader_resource_view: gfx::handle::ShaderResourceView<R, [f32; 4]>,
     width: u32,
     height: u32,
-    input_sprites: Vec<input_sprite::InputSpritePixelCoord>,
+    input_sprites: Vec<input_sprite::InputSprite>,
     sprite_table: Vec<SpriteResolution>,
     image: RgbaImage,
     bundle: gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
@@ -80,30 +127,31 @@ struct SpriteSheetBuilder<R: gfx::Resources> {
 }
 
 impl<R: gfx::Resources> SpriteSheetBuilder<R> {
-    fn new<F>(image: RgbaImage, input_sprites: Vec<InputSpritePixelCoord>, factory: &mut F) -> Self
+    fn new<F>(image: RgbaImage, input_sprites: Vec<InputSprite>, factory: &mut F) -> Self
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
 
-        use self::InputSpritePixelCoord::*;
-
-        let mut num_sprites = 0;
         let mut num_instances = 0;
+        let mut width = 0;
+        let mut height = 0;
 
         for sprite in input_sprites.iter() {
+            use self::InputSprite::*;
             match sprite {
-                &Simple { .. } => {
-                    num_sprites += 1;
+                &Simple { location, .. } => {
                     num_instances += 1;
+                    width += location.size.x;
+                    height = cmp::max(height, location.size.y);
                 }
-                &Wall { .. } => {
-                    num_sprites += TILES_PER_WALL;
+                &Wall { top, .. } => {
                     num_instances += TILES_PER_WALL * MAX_INSTANCES_PER_WALL;
+                    width += top.size.x * TILES_PER_WALL;
+                    height = cmp::max(height, top.size.y);
                 }
             }
         }
 
-        let width = num_sprites * input_sprite::WIDTH_PX;
-        let height = input_sprite::HEIGHT_PX;
+        height += 32;
 
         let (_, srv, rtv) = factory.create_render_target(width as u16, height as u16)
             .expect("Failed to create render target for sprite sheet");
@@ -115,10 +163,10 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
 
         let pso = factory.create_pipeline_simple(
             include_bytes!("shaders/shdr_150_sprite_sheet.vert"),
-            include_bytes!("shaders/shdr_150_general.frag"),
+            include_bytes!("shaders/shdr_150_sprite_sheet.frag"),
             pipe::new()).expect("Failed to create pso");
 
-        let vertex_data: Vec<Vertex> = common::QUAD_VERTICES.iter()
+        let vertex_data: Vec<Vertex> = common::QUAD_VERTICES_REFL.iter()
             .map(|v| {
                 Vertex { pos: *v }
             }).collect();
@@ -141,10 +189,10 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
             .expect("Failed to create depth stencil");
 
         let data = pipe::Data {
-            locals: factory.create_constant_buffer(1),
             vertex: vertex_buffer,
             instance: common::create_instance_buffer(num_instances as usize, factory)
                 .expect("Failed to create instance buffer"),
+            locals: factory.create_constant_buffer(1),
             tex: (texture, sampler),
             out: rtv,
             depth: depth_rtv,
@@ -171,35 +219,41 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
     fn populate<F>(&mut self, factory: &mut F)
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
-
-        use self::InputSpritePixelCoord::*;
-
         let mut mapping = factory.write_mapping(&self.upload)
             .expect("Failed to map upload buffer");
 
+        let mut sprite_sheet_x = 0;
         let mut instance_index = 0;
-        let mut sprite_index = 0;
 
         for input_sprite in self.input_sprites.iter() {
             match input_sprite {
-                &Simple { sprite, coord } => {
-                    self.sprite_table[sprite as usize] = SpriteResolution::Simple(sprite_index);
+                &InputSprite::Simple { sprite, location } => {
+                    self.sprite_table[sprite as usize] = SpriteResolution::Simple(SpriteLocation {
+                        position: sprite_sheet_x as f32,
+                        size: location.size.cast(),
+                        offset: location.offset.cast(),
+                    });
                     mapping[instance_index] = Instance {
-                        tex_offset: coord.cast().into(),
-                        index: sprite_index as f32,
-                        depth: 0.0,
+                        in_pix_pos: location.position.cast().into(),
+                        out_pix_pos: [sprite_sheet_x as f32, 0.0],
+                        pix_size: location.size.cast().into(),
+                        depth: SIMPLE_DEPTH,
                     };
-                    sprite_index += 1;
+                    sprite_sheet_x += location.size.x;
                     instance_index += 1;
                 }
-                &Wall { sprite, top, ref decorations } => {
-                    self.sprite_table[sprite as usize] = SpriteResolution::Wall(sprite_index);
+                &InputSprite::Wall { sprite, top, ref decorations } => {
+                    self.sprite_table[sprite as usize] = SpriteResolution::Wall(WallSpriteLocation(SpriteLocation {
+                        position: sprite_sheet_x as f32,
+                        size: top.size.cast(),
+                        offset: top.offset.cast(),
+                    }));
                     for i in 0..TILES_PER_WALL {
                         let instance_offset = Self::populate_wall(&mut mapping[instance_index..],
-                                                                  i as u8, top, decorations,
-                                                                  sprite_index);
+                                                                  DirectionBitmap::new(i as u8), top,
+                                                                  decorations, sprite_sheet_x);
+                        sprite_sheet_x += top.size.x;
                         instance_index += instance_offset;
-                        sprite_index += 1;
                     }
                 }
             }
@@ -209,47 +263,44 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         self.bundle.slice.instances = Some((self.num_instances as u32, 0));
     }
 
-    fn populate_wall(mapping: &mut [Instance], neighbour_bits: u8, top: Vector2<u32>,
-                     decorations: &BTreeMap<Direction, Vector2<u32>>, sprite_index: u32) -> usize {
-
+    fn populate_wall(mapping: &mut [Instance], neighbour_bits: DirectionBitmap, top: InputSpriteLocation,
+                     decorations: &BTreeMap<Direction, Vector2<u32>>, sprite_sheet_x: u32) -> usize {
         let mut instance_offset = 0;
 
         mapping[instance_offset] = Instance {
-            tex_offset: top.cast().into(),
-            index: sprite_index as f32,
-            depth: 0.6,
+            in_pix_pos: top.position.cast().into(),
+            out_pix_pos: [sprite_sheet_x as f32, 0.0],
+            pix_size: top.size.cast().into(),
+            depth: WALL_TOP_DEPTH,
         };
 
         instance_offset += 1;
-
-        for card in CardinalDirections {
-            let dir_bit = 1 << (card.direction() as usize);
-            if neighbour_bits & dir_bit == 0 {
+        for dir in DirectionsCardinal {
+            if !neighbour_bits.has(dir) {
                 // neighbour is absent
-                let decoration = *decorations.get(&card.direction())
-                    .expect(format!("Missing decoration for {:?}", card.direction()).as_ref());
+                let decoration = *decorations.get(&dir)
+                    .expect(format!("Missing decoration for {:?}", dir).as_ref());
                 mapping[instance_offset] = Instance {
-                    tex_offset: decoration.cast().into(),
-                    index: sprite_index as f32,
-                    depth: 0.5,
+                    in_pix_pos: decoration.cast().into(),
+                    out_pix_pos: [sprite_sheet_x as f32, 0.0],
+                    pix_size: top.size.cast().into(),
+                    depth: WALL_DECORATION_DEPTH,
                 };
                 instance_offset += 1;
             }
         }
 
         for ord in OrdinalDirections {
-            let ord_bit = 1 << (ord.direction() as usize);
-            let (card0, card1) = ord.to_cardinals();
-            let card_bits = (1 << (card0.direction() as usize)) | (1 << (card1.direction() as usize));
-
-            if neighbour_bits & card_bits == card_bits && neighbour_bits & ord_bit == 0 {
+            let card_bits = ord.cardinal_bitmap();
+            if neighbour_bits & card_bits == card_bits && !neighbour_bits.has(ord.direction()) {
                 // both cardinal neighbours are present but ordinal neighbour is absent
                 let decoration = *decorations.get(&ord.direction())
                     .expect(format!("Missing decoration for {:?}", ord.direction()).as_ref());
                 mapping[instance_offset] = Instance {
-                    tex_offset: decoration.cast().into(),
-                    index: sprite_index as f32,
-                    depth: 0.5,
+                    in_pix_pos: decoration.cast().into(),
+                    out_pix_pos: [sprite_sheet_x as f32, 0.0],
+                    pix_size: top.size.cast().into(),
+                    depth: WALL_DECORATION_DEPTH,
                 };
                 instance_offset += 1;
             }
@@ -258,30 +309,23 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         assert!(instance_offset <= MAX_INSTANCES_PER_WALL as usize);
 
         instance_offset
+
     }
 
     fn draw<C, D>(&self, encoder: &mut gfx::Encoder<R, C>, device: &mut D)
         where C: gfx::CommandBuffer<R>,
               D: gfx::traits::Device<Resources=R, CommandBuffer=C>,
     {
-        encoder.clear(&self.bundle.data.out, [0.0, 0.0, 0.0, 1.0]);
+        encoder.clear(&self.bundle.data.out, [0.0, 0.0, 0.0, 0.0]);
         encoder.clear_depth(&self.bundle.data.depth, 1.0);
         encoder.copy_buffer(&self.upload, &self.bundle.data.instance, 0, 0, self.num_instances)
             .expect("Failed to copy instance buffer");
 
-        let tex_dimensions = self.image.dimensions();
-        let tex_width = tex_dimensions.0 as f32;
-        let tex_height = tex_dimensions.1 as f32;
-        let in_step_x = (input_sprite::WIDTH_PX as f32) / tex_width;
-        let in_step_y = (input_sprite::HEIGHT_PX as f32) / tex_height;
-
-        let out_step_x = (input_sprite::WIDTH_PX as f32) / (self.width as f32);
-        let out_step_y = (input_sprite::HEIGHT_PX as f32) / (self.height as f32);
+        let in_tex_dimensions = self.image.dimensions();
 
         encoder.update_constant_buffer(&self.bundle.data.locals, &Locals {
-            in_step: [in_step_x, in_step_y],
-            out_step: [out_step_x, out_step_y],
-            tex_size: [tex_width, tex_height],
+            in_tex_size: [in_tex_dimensions.0 as f32, in_tex_dimensions.1 as f32],
+            out_tex_size: [self.width as f32, self.height as f32],
         });
 
         encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);
@@ -294,13 +338,15 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
             shader_resource_view,
             width,
             height,
-            sprite_table: SpriteTable(sprite_table),
+            sprite_table: SpriteTable {
+                sprites: sprite_table,
+            },
         }
     }
 }
 
 impl<R: gfx::Resources> SpriteSheet<R> {
-    pub fn new<C, F, D>(image: RgbaImage, input_sprites: Vec<InputSpritePixelCoord>,
+    pub fn new<C, F, D>(image: RgbaImage, input_sprites: Vec<InputSprite>,
                         factory: &mut F, encoder: &mut gfx::Encoder<R, C>,
                         device: &mut D) -> Self
         where C: gfx::CommandBuffer<R>,
@@ -313,12 +359,7 @@ impl<R: gfx::Resources> SpriteSheet<R> {
         builder.build()
     }
 
-    pub fn sprite_size(&self) -> (f32, f32) {
-        ((input_sprite::WIDTH_PX as f32) / (self.width as f32),
-         (input_sprite::HEIGHT_PX as f32) / (self.height as f32))
-    }
-
-    pub fn get(&self, sprite: sprite::Sprite) -> Option<SpriteResolution> {
+    pub fn get(&self, sprite: sprite::Sprite) -> Option<&SpriteResolution> {
         self.sprite_table.get(sprite)
     }
 }
