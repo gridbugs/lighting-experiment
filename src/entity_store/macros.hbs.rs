@@ -144,3 +144,31 @@ macro_rules! entity_store_change_clear {
 {{/each}}
     }
 }
+
+macro_rules! enum_component_type {
+    ($name:ident) => {
+        enum_from_primitive! {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub enum $name {
+{{#each components}}
+            {{name}} = {{index}},
+{{/each}}
+        }
+        }
+    }
+}
+
+macro_rules! enum_component_value {
+    ($name:ident) => {
+        #[derive(Debug, Clone)]
+        pub enum $name {
+{{#each components}}
+    {{#if type}}
+            {{name}}({{type}}),
+    {{else}}
+            {{name}},
+    {{/if}}
+{{/each}}
+        }
+    }
+}

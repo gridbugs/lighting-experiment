@@ -110,3 +110,44 @@ fn migration_swap() {
     assert!(!source.solid.contains(&e0));
 }
 
+#[test]
+fn component_type_set() {
+
+    let mut set = ComponentTypeSet::new();
+
+    assert!(set.is_empty());
+    assert!(!set.contains(ComponentType::Position));
+    assert!(!set.contains(ComponentType::Solid));
+
+    set.insert(ComponentType::Position);
+
+    assert!(!set.is_empty());
+    assert!(set.contains(ComponentType::Position));
+    assert!(!set.contains(ComponentType::Solid));
+
+    set.insert(ComponentType::Solid);
+    assert!(!set.is_empty());
+    assert!(set.contains(ComponentType::Position));
+    assert!(set.contains(ComponentType::Solid));
+
+    set.remove(ComponentType::Position);
+    assert!(!set.is_empty());
+    assert!(!set.contains(ComponentType::Position));
+    assert!(set.contains(ComponentType::Solid));
+
+    set.remove(ComponentType::Solid);
+    assert!(set.is_empty());
+    assert!(!set.contains(ComponentType::Position));
+    assert!(!set.contains(ComponentType::Solid));
+
+    let mut iter = set.iter();
+    assert_eq!(iter.next(), None);
+
+    set.insert(ComponentType::Position);
+    set.insert(ComponentType::Solid);
+
+    let mut iter = set.iter();
+    assert_eq!(iter.next(), Some(ComponentType::Position));
+    assert_eq!(iter.next(), Some(ComponentType::Solid));
+    assert_eq!(iter.next(), None);
+}

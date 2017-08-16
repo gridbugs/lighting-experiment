@@ -5,11 +5,11 @@ imports = [
 ]
 
 [components]
-position = { type = 'Vector2<f32>' }
-solid = {}
-opacity = { type = 'f64' }
-door_state = { type = 'DoorState' }
-wall = {}
-player = {}
-sprite = { type = 'Sprite' }
-depth = { type = 'f32' }
+position = { type = 'Vector2<f32>', name = 'Position' }
+solid = { name = 'Solid' }
+opacity = { type = 'f64', name = 'Opacity' }
+door_state = { type = 'DoorState', name = 'DoorState' }
+wall = { name = 'Wall' }
+player = { name = 'Player' }
+sprite = { type = 'Sprite', name = 'Sprite' }
+depth = { type = 'f32', name = 'Depth' }
