@@ -1,6 +1,6 @@
 use entity_store::{EntityStore, EntityStoreChange};
 use spatial_hash::SpatialHashTable;
-use entity_id_allocator::EntityIdAllocator;
+use id_allocator::EntityIdAllocator;
 
 pub struct FrameEnv<'a> {
     pub entity_store: &'a EntityStore,

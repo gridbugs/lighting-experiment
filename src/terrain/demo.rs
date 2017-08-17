@@ -1,6 +1,6 @@
 use cgmath::Vector2;
 use entity_store::EntityStoreChange;
-use entity_id_allocator::EntityIdAllocator;
+use id_allocator::EntityIdAllocator;
 use terrain::TerrainMetadata;
 use prototype;
 
