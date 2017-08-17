@@ -21,7 +21,7 @@ pub use self::entity_vec::*;
 
 pub type EntityMap<T> = EntityVecMap<T>;
 pub type EntityMapIter<'a, T> = EntityVecMapIter<'a, T>;
-pub type EntitySet = fnv::FnvHashSet<EntityId>;
+pub type EntitySet = EntityVecSet;
 
 pub type ChangeEntityMap<T> = fnv::FnvHashMap<EntityId, T>;
 pub type ChangeEntityMapIter<'a, T> = hash_map::Iter<'a, EntityId, T>;
