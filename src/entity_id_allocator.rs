@@ -1,7 +1,7 @@
 use entity_store::EntityId;
 
 pub struct EntityIdAllocator {
-    next: u64,
+    next: EntityId,
 }
 
 impl EntityIdAllocator {
