@@ -147,13 +147,13 @@ impl<R: gfx::Resources> TileRenderer<R> {
 
         for (id, position) in entity_store.position.iter() {
 
-            let depth = if let Some(depth) = entity_store.depth.get(id) {
+            let depth = if let Some(depth) = entity_store.depth.get(&id) {
                 *depth
             } else {
                 continue;
             };
 
-            let sprite = if let Some(sprite) = entity_store.sprite.get(id) {
+            let sprite = if let Some(sprite) = entity_store.sprite.get(&id) {
                 *sprite
             } else {
                 continue;
@@ -194,7 +194,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
                 };
                 count += 1;
             } else {
-                break;
+                panic!("Out of instances!");
             }
         }
 

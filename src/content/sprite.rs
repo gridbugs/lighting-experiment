@@ -1,5 +1,5 @@
 enum_from_primitive! {
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Sprite {
     Angler,
     InnerFloor,
