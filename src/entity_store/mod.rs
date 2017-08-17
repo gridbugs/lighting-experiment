@@ -48,7 +48,7 @@ impl EntityStore {
     }
 }
 
-pub type EntityId = u64;
+pub type EntityId = u16;
 
 #[derive(Debug, Clone, Copy)]
 pub enum DataChangeType<T> {
