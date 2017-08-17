@@ -37,111 +37,35 @@ macro_rules! entity_store_cons {
     }
 }
 
-macro_rules! remove_entity {
-    ($self:expr, $entity:expr, $store:expr) => {
+macro_rules! commit {
+    ($self:ident, $entity_change:ident) => {
         {
+            let EntityChange { id, change } = $entity_change;
+            match change {
+                Change::Insert(value) => {
+                    match value {
 {{#each components}}
     {{#if type}}
-            if $store.{{@key}}.contains_key(&$entity) {
-                $self.{{@key}}.remove($entity);
+                        ComponentValue::{{name}}(value) => { $self.{{@key}}.insert(id, value); },
+    {{else}}
+                        ComponentValue::{{name}} => { $self.{{@key}}.insert(id); },
+    {{/if}}
+{{/each}}
+                    }
+                }
+                Change::Remove(typ) => {
+                    match typ {
+{{#each components}}
+    {{#if type}}
+                        ComponentType::{{name}} => { $self.{{@key}}.remove(&id); },
+    {{else}}
+                        ComponentType::{{name}} => { $self.{{@key}}.remove(&id); },
+    {{/if}}
+{{/each}}
+                    }
+                }
             }
-    {{else}}
-            if $store.{{@key}}.contains(&$entity) {
-                $self.{{@key}}.remove($entity);
-            }
-    {{/if}}
-{{/each}}
         }
-
-    }
-}
-
-macro_rules! entity_store_change_decl {
-    ($EntityStoreChange:ident) => {
-        #[derive(Debug, Clone)]
-        pub struct $EntityStoreChange {
-{{#each components}}
-    {{#if type}}
-            pub {{@key}}: DataComponentChange<{{type}}>,
-    {{else}}
-            pub {{@key}}: FlagComponentChange,
-    {{/if}}
-{{/each}}
-        }
-    }
-}
-
-macro_rules! entity_store_change_cons {
-    ($EntityStoreChange:ident) => {
-        $EntityStoreChange {
-{{#each components}}
-    {{#if type}}
-            {{@key}}: DataComponentChange(ChangeEntityMap::default()),
-    {{else}}
-            {{@key}}: FlagComponentChange(ChangeEntityMap::default()),
-    {{/if}}
-{{/each}}
-        }
-    }
-}
-
-macro_rules! commit_change {
-    ($self:ident, $source:ident) => {
-        {
-{{#each components}}
-    {{#if type}}
-    for (id, change) in $source.{{@key}}.0.drain() {
-        match change {
-            DataChangeType::Insert(v) => { $self.{{@key}}.insert(id, v); }
-            DataChangeType::Remove => { $self.{{@key}}.remove(&id); }
-        }
-    }
-    {{else}}
-    for (id, change) in $source.{{@key}}.0.drain() {
-        match change {
-            FlagChangeType::Insert => { $self.{{@key}}.insert(id); }
-            FlagChangeType::Remove => { $self.{{@key}}.remove(&id); }
-        }
-    }
-    {{/if}}
-{{/each}}
-        }
-    }
-}
-
-macro_rules! commit_change_into {
-    ($self:ident, $source:ident, $dest:ident) => {
-        {
-{{#each components}}
-    {{#if type}}
-    for (id, change) in $source.{{@key}}.0.drain() {
-        if let Some(existing) = match change {
-            DataChangeType::Insert(v) => $self.{{@key}}.insert(id, v),
-            DataChangeType::Remove => $self.{{@key}}.remove(&id),
-        } {
-            $dest.{{@key}}.insert(id, existing);
-        }
-    }
-    {{else}}
-    for (id, change) in $source.{{@key}}.0.drain() {
-        if match change {
-            FlagChangeType::Insert => $self.{{@key}}.insert(id),
-            FlagChangeType::Remove => $self.{{@key}}.remove(&id),
-        } {
-            $dest.{{@key}}.insert(id);
-        }
-    }
-    {{/if}}
-{{/each}}
-        }
-    }
-}
-
-macro_rules! entity_store_change_clear {
-    ($self:expr) => {
-{{#each components}}
-        $self.{{@key}}.0.clear();
-{{/each}}
     }
 }
 
@@ -167,6 +91,60 @@ macro_rules! enum_component_value {
             {{name}}({{type}}),
     {{else}}
             {{name}},
+    {{/if}}
+{{/each}}
+        }
+    }
+}
+
+macro_rules! insert_shorthands {
+    ($insert:ident) => {
+        pub mod $insert {
+            use entity_store::{EntityId, EntityChange, Change, ComponentValue};
+            entity_store_imports!{}
+
+{{#each components}}
+    {{#if type}}
+            pub fn {{@key}}(id: EntityId, value: {{type}}) -> EntityChange {
+                EntityChange {
+                    id,
+                    change: Change::Insert(ComponentValue::{{name}}(value)),
+                }
+            }
+    {{else}}
+            pub fn {{@key}}(id: EntityId) -> EntityChange {
+                EntityChange {
+                    id,
+                    change: Change::Insert(ComponentValue::{{name}}),
+                }
+            }
+    {{/if}}
+{{/each}}
+        }
+    }
+}
+
+
+macro_rules! remove_shorthands {
+    ($remove:ident) => {
+        pub mod $remove {
+            use entity_store::{EntityId, EntityChange, Change, ComponentType};
+
+{{#each components}}
+    {{#if type}}
+            pub fn {{@key}}(id: EntityId) -> EntityChange {
+                EntityChange {
+                    id,
+                    change: Change::Remove(ComponentType::{{name}}),
+                }
+            }
+    {{else}}
+            pub fn {{@key}}(id: EntityId) -> EntityChange {
+                EntityChange {
+                    id,
+                    change: Change::Remove(ComponentType::{{name}}),
+                }
+            }
     {{/if}}
 {{/each}}
         }

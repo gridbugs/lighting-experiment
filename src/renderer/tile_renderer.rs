@@ -146,7 +146,6 @@ impl<R: gfx::Resources> TileRenderer<R> {
         let mut count = 0;
 
         for (id, position) in entity_store.position.iter() {
-
             let depth = if let Some(depth) = entity_store.depth.get(&id) {
                 *depth
             } else {
@@ -182,15 +181,13 @@ impl<R: gfx::Resources> TileRenderer<R> {
             let scaled_position = position
                 .mul_element_wise(Vector2::new(input_sprite::WIDTH_PX, input_sprite::HEIGHT_PX).cast());
 
-            let cell_depth = 1.0 - position.y.floor() / (spatial_hash.height() as f32);
-
             if let Some(instance_slot) = mapper_iter_mut.next() {
                 *instance_slot = Instance {
                     sprite_sheet_pix_coord: [sprite_position, 0.0],
                     out_pix_coord: scaled_position.into(),
                     pix_size: sprite_size.into(),
                     pix_offset: sprite_offset.into(),
-                    depth: cell_depth + depth / 100.0,
+                    depth: depth,
                 };
                 count += 1;
             } else {

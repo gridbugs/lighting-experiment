@@ -3,7 +3,9 @@
 #![allow(unused_variables)]
 #![allow(unused_mut)]
 use std::collections::HashSet;
-use entity_store::{EntityId, EntityStore, EntityStoreChange, DataChangeType, FlagChangeType};
+use fnv;
+
+use entity_store::{EntityId, EntityStore, EntityChange, Change, ComponentValue, ComponentType};
 use static_grid::{self, StaticGrid};
 use limits::LimitsRect;
 use neighbour_count::NeighbourCount;
@@ -17,8 +19,6 @@ mod tests;
 
 spatial_hash_imports!{}
 
-type Position = position_type!();
-
 spatial_hash_cell_decl!{SpatialHashCell}
 
 impl Default for SpatialHashCell {
@@ -28,16 +28,20 @@ impl Default for SpatialHashCell {
 }
 
 impl SpatialHashCell {
-    fn remove(&mut self, entity_id: EntityId, store: &EntityStore) {
+    fn remove(&mut self, entity_id: EntityId, store: &EntityStore, time: u64) {
         remove!(self, entity_id, store);
+        self.entities.remove(&entity_id);
+        self.last_updated = time;
     }
 
-    fn insert(&mut self, entity_id: EntityId, store: &EntityStore) {
+    fn insert(&mut self, entity_id: EntityId, store: &EntityStore, time: u64) {
         insert!(self, entity_id, store);
+        self.entities.insert(entity_id);
+        self.last_updated = time;
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SpatialHashTable {
     grid: StaticGrid<SpatialHashCell>,
 }
@@ -72,39 +76,15 @@ impl SpatialHashTable {
         self.grid.get_signed(position.cast())
     }
 
-    pub fn update(&mut self, store: &EntityStore, change: &EntityStoreChange, time: u64) {
-        for (entity_id, change) in position!(change).iter() {
-            match change {
-                &DataChangeType::Insert(position) => {
-                    if let Some(current) = position!(store).get(entity_id) {
-                        if let Some(mut cell) = self.grid.get_signed_mut(current.cast()) {
-                            cell.remove(*entity_id, store);
-                            cell.entities.remove(entity_id);
-                            cell.last_updated = time;
-                        }
-                        remove_neighbours!(self, *entity_id, store, current);
-                    }
-                    if let Some(mut cell) = self.grid.get_signed_mut(position.cast()) {
-                        cell.insert(*entity_id, store);
-                        cell.entities.insert(*entity_id);
-                        cell.last_updated = time;
-                    }
-                    insert_neighbours!(self, *entity_id, store, position);
-                }
-                &DataChangeType::Remove => {
-                    if let Some(current) = position!(store).get(entity_id) {
-                        if let Some(mut cell) = self.grid.get_signed_mut(current.cast()) {
-                            cell.remove(*entity_id, store);
-                            cell.entities.remove(entity_id);
-                            cell.last_updated = time;
-                        }
-                        remove_neighbours!(self, *entity_id, store, current);
-                    }
-                }
+    pub fn update(&mut self, store: &EntityStore, entity_change: &EntityChange, time: u64) {
+        match &entity_change.change {
+            &Change::Insert(ref component) => {
+                insert_match!(self, store, entity_change.id, component, time)
+            }
+            &Change::Remove(typ) => {
+                remove_match!(self, store, entity_change.id, typ, time)
             }
         }
-
-        update_component_loops!(self, store, change, time);
     }
 
     pub fn iter(&self) -> Iter {

@@ -80,6 +80,7 @@ struct SpatialHashFieldDesc {
 struct SpatialHashDescOut {
     imports: BTreeSet<String>,
     position_component: String,
+    position_name: String,
     position_type: String,
     components: BTreeMap<String, SpatialHashComponentDescOut>,
 }
@@ -88,6 +89,7 @@ struct SpatialHashDescOut {
 struct SpatialHashComponentDescOut {
     #[serde(rename = "type", default = "ret_none")]
     type_name: Option<String>,
+    name: String,
     fields: BTreeMap<String, SpatialHashFieldDescOut>,
 }
 
@@ -203,6 +205,7 @@ fn render_spatial_hash_template_internal<P: AsRef<Path>>(desc: SpatialHashDesc,
 
         let mut component = components_out.entry(field.component.clone()).or_insert_with(|| SpatialHashComponentDescOut {
             type_name: component_desc.type_name.clone(),
+            name: component_desc.name.clone(),
             fields: BTreeMap::new(),
         });
 
@@ -222,6 +225,9 @@ fn render_spatial_hash_template_internal<P: AsRef<Path>>(desc: SpatialHashDesc,
         position_type: components.get(&position_component)
             .expect(&format!("No such component: {}", &position_component))
             .type_name.clone().expect("Position component must have associated data"),
+        position_name: components.get(&position_component)
+            .expect(&format!("No such component: {}", &position_component))
+            .name.clone(),
         components: components_out,
     };
 

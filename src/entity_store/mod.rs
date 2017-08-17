@@ -5,10 +5,7 @@ use fnv;
 #[macro_use] mod macros;
 
 #[path = "constants.gen.rs"]
-#[macro_use] mod constants;
-
-#[macro_use] pub mod post_change;
-#[macro_use] pub mod migration;
+mod constants;
 
 #[cfg(test)]
 mod tests;
@@ -35,86 +32,43 @@ impl EntityStore {
         entity_store_cons!(EntityStore)
     }
 
-    pub fn commit_change(&mut self, change: &mut EntityStoreChange) {
-        commit_change!(self, change)
-    }
-
-    pub fn commit_change_into_change(&mut self, change: &mut EntityStoreChange, dest: &mut EntityStoreChange) {
-        commit_change_into!(self, change, dest)
-    }
-
-    pub fn commit_change_into_store(&mut self, change: &mut EntityStoreChange, dest: &mut EntityStore) {
-        commit_change_into!(self, change, dest)
+    pub fn commit(&mut self, entity_change: EntityChange) {
+        commit!(self, entity_change)
     }
 }
 
 pub type EntityId = u16;
 
-#[derive(Debug, Clone, Copy)]
-pub enum DataChangeType<T> {
-    Insert(T),
-    Remove,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum FlagChangeType {
-    Insert,
-    Remove,
-}
-
-#[derive(Debug, Clone)]
-pub struct DataComponentChange<T>(ChangeEntityMap<DataChangeType<T>>);
-#[derive(Debug, Clone)]
-pub struct FlagComponentChange(ChangeEntityMap<FlagChangeType>);
-
-pub type DataComponentChangeIter<'a, T> = ChangeEntityMapIter<'a, DataChangeType<T>>;
-pub type FlagComponentChangeIter<'a> = ChangeEntityMapIter<'a, FlagChangeType>;
-
-impl<T> DataComponentChange<T> {
-    pub fn get(&self, id: &EntityId) -> Option<&DataChangeType<T>> {
-        self.0.get(&id)
-    }
-    pub fn iter(&self) -> DataComponentChangeIter<T> {
-        self.0.iter()
-    }
-    pub fn insert(&mut self, id: EntityId, value: T) {
-        self.0.insert(id, DataChangeType::Insert(value));
-    }
-    pub fn remove(&mut self, id: EntityId) {
-        self.0.insert(id, DataChangeType::Remove);
-    }
-    pub fn cancel(&mut self, id: EntityId) -> Option<DataChangeType<T>> {
-        self.0.remove(&id)
-    }
-}
-impl FlagComponentChange {
-    pub fn iter(&self) -> FlagComponentChangeIter {
-        self.0.iter()
-    }
-    pub fn insert(&mut self, id: EntityId) {
-        self.0.insert(id, FlagChangeType::Insert);
-    }
-    pub fn remove(&mut self, id: EntityId) {
-        self.0.insert(id, FlagChangeType::Remove);
-    }
-    pub fn cancel(&mut self, id: EntityId) -> Option<FlagChangeType> {
-        self.0.remove(&id)
-    }
-}
-
-entity_store_change_decl!{EntityStoreChange}
-
-impl EntityStoreChange {
-    pub fn new() -> Self {
-        entity_store_change_cons!(EntityStoreChange)
-    }
-    pub fn remove_entity(&mut self, entity: EntityId, store: &EntityStore) {
-        remove_entity!(self, entity, store);
-    }
-    pub fn clear(&mut self) {
-        entity_store_change_clear!(self);
-    }
-}
-
 enum_component_type!{ComponentType}
 enum_component_value!{ComponentValue}
+
+#[derive(Debug, Clone)]
+pub enum Change {
+    Insert(ComponentValue),
+    Remove(ComponentType),
+}
+
+pub struct EntityChange {
+    pub id: EntityId,
+    pub change: Change,
+}
+
+impl EntityChange {
+    pub fn new(id: EntityId, change: Change) -> Self {
+        Self {
+            id,
+            change,
+        }
+    }
+
+    pub fn insert(id: EntityId, value: ComponentValue) -> Self {
+        Self::new(id, Change::Insert(value))
+    }
+
+    pub fn remove(id: EntityId, typ: ComponentType) -> Self {
+        Self::new(id, Change::Remove(typ))
+    }
+}
+
+insert_shorthands!{insert}
+remove_shorthands!{remove}

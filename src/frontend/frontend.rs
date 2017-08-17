@@ -75,6 +75,7 @@ impl Frontend {
             self.encoder.flush(&mut self.device);
             self.window.swap_buffers().expect("Failed to swap buffers");
             self.device.cleanup();
+
         }
     }
 }

@@ -1,21 +1,23 @@
 use frontend::Frontend;
 use terrain::demo;
-use entity_store::{EntityStore, EntityStoreChange};
+use entity_store::EntityStore;
 use spatial_hash::SpatialHashTable;
-use id_allocator::EntityIdAllocator;
+use entity_id_allocator::EntityIdAllocator;
 
 pub fn launch(mut frontend: Frontend) {
 
     let mut allocator = EntityIdAllocator::new();
-    let mut change = EntityStoreChange::new();
+    let mut changes = Vec::new();
     let mut entity_store = EntityStore::new();
 
-    let metadata = demo::generate(&mut change, &mut allocator);
+    let metadata = demo::generate(&mut changes, &mut allocator);
 
     let mut spatial_hash = SpatialHashTable::new(metadata.width, metadata.height);
 
-    spatial_hash.update(&entity_store, &change, 0);
-    entity_store.commit_change(&mut change);
+    for c in changes.drain(..) {
+        spatial_hash.update(&entity_store, &c, 0);
+        entity_store.commit(c);
+    }
 
     frontend.spin(&entity_store, &spatial_hash);
 }

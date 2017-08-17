@@ -1,29 +1,29 @@
-use entity_store::EntityId;
+use num::Integer;
 
-pub struct EntityIdAllocator {
-    next: EntityId,
-    free_list: Vec<EntityId>,
+pub struct IdAllocator<T: Integer + Copy>  {
+    next: T,
+    free_list: Vec<T>,
 }
 
-impl EntityIdAllocator {
+impl<T: Integer + Copy> IdAllocator<T> {
     pub fn new() -> Self {
-        EntityIdAllocator {
-            next: 0,
+        Self {
+            next: T::zero(),
             free_list: Vec::new(),
         }
     }
 
-    pub fn allocate(&mut self) -> EntityId {
+    pub fn allocate(&mut self) -> T {
         if let Some(id) = self.free_list.pop() {
             id
         } else {
             let id = self.next;
-            self.next += 1;
+            self.next = self.next + T::one();
             id
         }
     }
 
-    pub fn free(&mut self, id: EntityId) {
+    pub fn free(&mut self, id: T) {
         self.free_list.push(id);
     }
 }

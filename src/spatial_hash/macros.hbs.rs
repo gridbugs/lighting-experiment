@@ -8,21 +8,9 @@ macro_rules! spatial_hash_imports {
     }
 }
 
-macro_rules! position_type {
-    () => {
-        {{position_type}}
-    }
-}
-
-macro_rules! position {
-    ($store:expr) => {
-        $store.{{position_component}}
-    }
-}
-
 macro_rules! spatial_hash_cell_decl {
     ($SpatialHashCell:ident) => {
-        #[derive(Serialize, Deserialize)]
+        #[derive(Debug, Serialize, Deserialize)]
         pub struct $SpatialHashCell {
 {{#each components}}
     {{#each fields}}
@@ -31,7 +19,7 @@ macro_rules! spatial_hash_cell_decl {
         {{/unless}}
     {{/each}}
 {{/each}}
-            pub entities: HashSet<EntityId>,
+            pub entities: fnv::FnvHashSet<EntityId>,
             pub last_updated: u64,
 
         }
@@ -48,7 +36,7 @@ macro_rules! spatial_hash_cell_cons {
         {{/unless}}
     {{/each}}
 {{/each}}
-            entities: HashSet::new(),
+            entities: fnv::FnvHashSet::default(),
             last_updated: 0,
         }
     }
@@ -164,144 +152,174 @@ macro_rules! remove_neighbours {
     }
 }
 
-macro_rules! update_component_loops {
-    ($self:expr, $store:expr, $change:expr, $time:expr) => {
+macro_rules! insert_match {
+    ($self:expr, $store:expr, $id:expr, $component:expr, $time:expr) => {
+        match $component {
+            &ComponentValue::{{position_name}}(position) => {
+                if let Some(current) = $store.{{position_component}}.get(&$id) {
+                    if let Some(mut cell) = $self.grid.get_signed_mut(current.cast()) {
+                        cell.remove($id, $store, $time);
+                    }
+                    remove_neighbours!($self, $id, $store, current);
+                }
+                if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
+                    cell.insert($id, $store, $time);
+                }
+                insert_neighbours!($self, $id, $store, position);
+            }
 {{#each components}}
-        for (entity_id, change) in $change.{{@key}}.iter() {
-            match change {
     {{#if type}}
-                &DataChangeType::Insert(v) => {
-                    if let Some(position) = post_change_get!($store, $change, *entity_id, {{../position_component}}) {
+            &ComponentValue::{{name}}(value) => {
+                if let Some(position) = $store.{{../position_component}}.get(&$id) {
         {{#if fields.neighbour_count}}
-                        if !$store.{{@key}}.contains_key(entity_id) {
-                            for d in Directions {
-                                if let Some(mut cell) = $self.grid.get_signed_mut(position.cast() + d.vector()) {
-                                    cell.{{fields.neighbour_count.aggregate_name}}.inc(d.opposite());
-                                }
+                    if !$store.{{@key}}.contains_key(&$id) {
+                        for d in Directions {
+                            if let Some(mut cell) = $self.grid.get_signed_mut(position.cast() + d.vector()) {
+                                cell.{{fields.neighbour_count.aggregate_name}}.inc(d.opposite());
                             }
                         }
+                    }
         {{/if}}
-                        if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
-                            if let Some(old) = $store.{{@key}}.get(entity_id) {
+                    if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
+                        if let Some(old) = $store.{{@key}}.get(&$id) {
         {{#if fields.f64_total}}
-                                let increase = v - *old;
-                                cell.{{fields.f64_total.aggregate_name}} += increase;
-                                cell.last_updated = $time;
+                            let increase = value - *old;
+                            cell.{{fields.f64_total.aggregate_name}} += increase;
+                            cell.last_updated = $time;
         {{/if}}
-                            } else {
+                        } else {
         {{#if fields.f64_total}}
-                                cell.{{fields.f64_total.aggregate_name}} += v;
-                                cell.last_updated = $time;
+                            cell.{{fields.f64_total.aggregate_name}} += value;
+                            cell.last_updated = $time;
         {{/if}}
         {{#if fields.count}}
-                                cell.{{fields.count.aggregate_name}} += 1;
-                                cell.last_updated = $time;
+                            cell.{{fields.count.aggregate_name}} += 1;
+                            cell.last_updated = $time;
         {{/if}}
         {{#if fields.set}}
-                                cell.{{fields.set.aggregate_name}}.insert(*entity_id);
-                                cell.last_updated = $time;
+                            cell.{{fields.set.aggregate_name}}.insert($id);
+                            cell.last_updated = $time;
         {{/if}}
+                        }
+        {{#if fields.void}}
+                        cell.last_updated = $time;
+        {{/if}}
+                    }
+
+
+                }
+            }
+    {{else}}
+            &ComponentValue::{{name}} => {
+                if let Some(position) = $store.{{../position_component}}.get(&$id) {
+        {{#if fields.neighbour_count}}
+                    if !$store.{{@key}}.contains(&$id) {
+                        for d in Directions {
+                            if let Some(mut cell) = $self.grid.get_signed_mut(position.cast() + d.vector()) {
+                                cell.{{fields.neighbour_count.aggregate_name}}.inc(d.opposite());
                             }
+                        }
+                    }
+        {{/if}}
+                    if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
+                        if !$store.{{@key}}.contains(&$id) {
+        {{#if fields.count}}
+                            cell.{{fields.count.aggregate_name}} += 1;
+                            cell.last_updated = $time;
+        {{/if}}
+        {{#if fields.set}}
+                            cell.{{fields.set.aggregate_name}}.insert($id);
+                            cell.last_updated = $time;
+        {{/if}}
         {{#if fields.void}}
                             cell.last_updated = $time;
         {{/if}}
                         }
                     }
                 }
-                &DataChangeType::Remove => {
-                    if let Some(position) = post_change_get!($store, $change, *entity_id, {{../position_component}}) {
-        {{#if fields.neighbour_count}}
-                        if $store.{{@key}}.contains_key(entity_id) {
-                            for d in Directions {
-                                if let Some(mut cell) = $self.grid.get_signed_mut(position.cast() + d.vector()) {
-                                    cell.{{fields.neighbour_count.aggregate_name}}.dec(d.opposite());
-                                }
-                            }
-                        }
-        {{/if}}
-                        if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
-        {{#if fields.f64_total}}
-                            if let Some(value) = $store.{{@key}}.get(entity_id) {
-                                cell.{{fields.f64_total.aggregate_name}} -= *value;
-                                cell.last_updated = $time;
-                            }
-        {{/if}}
-                            if $store.{{@key}}.contains_key(entity_id) {
-        {{#if fields.count}}
-                                cell.{{fields.count.aggregate_name}} -= 1;
-                                cell.last_updated = $time;
-        {{/if}}
-        {{#if fields.set}}
-                                cell.{{fields.set.aggregate_name}}.remove(entity_id);
-                                cell.last_updated = $time;
-        {{/if}}
-        {{#if fields.void}}
-                                cell.last_updated = $time;
-        {{/if}}
-                            }
-                        }
-                    }
-                }
-    {{else}}
-                &FlagChangeType::Insert => {
-                    if let Some(position) = post_change_get!($store, $change, *entity_id, {{../position_component}}) {
-        {{#if fields.neighbour_count}}
-                        if !$store.{{@key}}.contains(entity_id) {
-                            for d in Directions {
-                                if let Some(mut cell) = $self.grid.get_signed_mut(position.cast() + d.vector()) {
-                                    cell.{{fields.neighbour_count.aggregate_name}}.inc(d.opposite());
-                                }
-                            }
-                        }
-        {{/if}}
-                        if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
-                            if !$store.{{@key}}.contains(entity_id) {
-        {{#if fields.count}}
-                                cell.{{fields.count.aggregate_name}} += 1;
-                                cell.last_updated = $time;
-        {{/if}}
-        {{#if fields.set}}
-                                cell.{{fields.set.aggregate_name}}.insert(*entity_id);
-                                cell.last_updated = $time;
-        {{/if}}
-        {{#if fields.void}}
-                                cell.last_updated = $time;
-        {{/if}}
-                            }
-                        }
-                    }
-                }
-                &FlagChangeType::Remove => {
-                    if let Some(position) = post_change_get!($store, $change, *entity_id, {{../position_component}}) {
-        {{#if fields.neighbour_count}}
-                        if $store.{{@key}}.contains(entity_id) {
-                            for d in Directions {
-                                if let Some(mut cell) = $self.grid.get_signed_mut(position.cast() + d.vector()) {
-                                    cell.{{fields.neighbour_count.aggregate_name}}.dec(d.opposite());
-                                }
-                            }
-                        }
-        {{/if}}
-                        if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
-                            if $store.{{@key}}.contains(entity_id) {
-        {{#if fields.count}}
-                                cell.{{fields.count.aggregate_name}} -= 1;
-                                cell.last_updated = $time;
-        {{/if}}
-        {{#if fields.set}}
-                                cell.{{fields.set.aggregate_name}}.remove(entity_id);
-                                cell.last_updated = $time;
-        {{/if}}
-        {{#if fields.void}}
-                                cell.last_updated = $time;
-        {{/if}}
-                            }
-                        }
-                    }
-                }
-    {{/if}}
             }
-        }
+    {{/if}}
 {{/each}}
+            _ => {}
+        }
+    }
+}
+
+macro_rules! remove_match {
+    ($self:expr, $store:expr, $id:expr, $typ:expr, $time:expr) => {
+        match $typ {
+            ComponentType::{{position_name}} => {
+                if let Some(current) = $store.{{position_component}}.get(&$id) {
+                    if let Some(mut cell) = $self.grid.get_signed_mut(current.cast()) {
+                        cell.remove($id, $store, $time);
+                    }
+                    remove_neighbours!($self, $id, $store, current);
+                }
+            }
+{{#each components}}
+            ComponentType::{{name}} => {
+                if let Some(position) = $store.{{../position_component}}.get(&$id) {
+    {{#if type}}
+        {{#if fields.neighbour_count}}
+                    if $store.{{@key}}.contains_key(entity_id) {
+                        for d in Directions {
+                            if let Some(mut cell) = $self.grid.get_signed_mut(position.cast() + d.vector()) {
+                                cell.{{fields.neighbour_count.aggregate_name}}.dec(d.opposite());
+                            }
+                        }
+                    }
+        {{/if}}
+                    if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
+        {{#if fields.f64_total}}
+                        if let Some(value) = $store.{{@key}}.get(&$id) {
+                            cell.{{fields.f64_total.aggregate_name}} -= *value;
+                            cell.last_updated = $time;
+                        }
+        {{/if}}
+                        if $store.{{@key}}.contains_key(&$id) {
+        {{#if fields.count}}
+                            cell.{{fields.count.aggregate_name}} -= 1;
+                            cell.last_updated = $time;
+        {{/if}}
+        {{#if fields.set}}
+                            cell.{{fields.set.aggregate_name}}.remove(&$id);
+                            cell.last_updated = $time;
+        {{/if}}
+        {{#if fields.void}}
+                            cell.last_updated = $time;
+        {{/if}}
+                        }
+                    }
+    {{else}}
+        {{#if fields.neighbour_count}}
+                    if $store.{{@key}}.contains(&$id) {
+                        for d in Directions {
+                            if let Some(mut cell) = $self.grid.get_signed_mut(position.cast() + d.vector()) {
+                                cell.{{fields.neighbour_count.aggregate_name}}.dec(d.opposite());
+                            }
+                        }
+                    }
+        {{/if}}
+                    if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
+                        if $store.{{@key}}.contains(&$id) {
+        {{#if fields.count}}
+                            cell.{{fields.count.aggregate_name}} -= 1;
+                            cell.last_updated = $time;
+        {{/if}}
+        {{#if fields.set}}
+                            cell.{{fields.set.aggregate_name}}.remove(&$id);
+                            cell.last_updated = $time;
+        {{/if}}
+        {{#if fields.void}}
+                            cell.last_updated = $time;
+        {{/if}}
+                        }
+                    }
+    {{/if}}
+                }
+            }
+{{/each}}
+            _ => {}
+        }
     }
 }
