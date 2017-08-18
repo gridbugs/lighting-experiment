@@ -7,5 +7,9 @@ in vec2 v_TexCoord;
 out vec4 Target0;
 
 void main() {
-    Target0 = texture(t_Texture, v_TexCoord);
+    vec4 colour = texture(t_Texture, v_TexCoord);
+    if (colour.a < 0.5) {
+        discard;
+    }
+    Target0 = colour;
 }
