@@ -7,6 +7,7 @@ extern crate serde;
 #[macro_use] extern crate enum_primitive;
 extern crate fnv;
 extern crate num;
+#[macro_use] extern crate itertools;
 
 #[macro_use] extern crate gfx;
 extern crate glutin;

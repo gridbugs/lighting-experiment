@@ -12,6 +12,7 @@ toml = "0.4"
 enum_primitive = "0.1"
 fnv = "1.0"
 num = "0.1"
+itertools = "0.6"
 
 gfx = "0.16"
 gfx_window_glutin = "0.17"

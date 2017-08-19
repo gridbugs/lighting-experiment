@@ -3,7 +3,8 @@ use image;
 use cgmath::Vector2;
 
 use renderer::tile_renderer::TileRenderer;
-use renderer::formats::{DepthFormat, ColourFormat};
+use renderer::scale::Scale;
+use renderer::formats::ColourFormat;
 use renderer::sprite_sheet::SpriteSheet;
 
 use entity_store::EntityStore;
@@ -13,11 +14,11 @@ use res::{input_sprite, paths, files};
 
 pub struct Renderer<R: gfx::Resources> {
     tile_renderer: TileRenderer<R>,
+    scale: Scale<R>,
 }
 
 impl<R: gfx::Resources> Renderer<R> {
     pub fn new<C, F, D>(rtv: &gfx::handle::RenderTargetView<R, ColourFormat>,
-                        dsv: &gfx::handle::DepthStencilView<R, DepthFormat>,
                         factory: &mut F,
                         encoder: &mut gfx::Encoder<R, C>,
                         device: &mut D) -> Self
@@ -34,20 +35,30 @@ impl<R: gfx::Resources> Renderer<R> {
             SpriteSheet::new(image, input_sprite::input_sprites(),
                              factory, encoder, device);
 
-        let tile_renderer = TileRenderer::new(sprite_sheet, rtv.clone(), dsv.clone(), factory);
+        let (width_px, height_px, ..) = rtv.get_dimensions();
+
+        let (tile_renderer, srv) = TileRenderer::new(sprite_sheet, width_px, height_px, factory);
+        let scale = Scale::new(rtv.clone(), srv, factory);
 
         tile_renderer.init(encoder);
 
         Renderer {
             tile_renderer,
+            scale,
         }
     }
-
 
     pub fn update_offset<C>(&self, player_position: Vector2<f32>, encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {
         self.tile_renderer.update_offset(player_position, encoder);
+    }
+
+    pub fn clear<C>(&self, encoder: &mut gfx::Encoder<R, C>)
+        where C: gfx::CommandBuffer<R>,
+    {
+        self.tile_renderer.clear(encoder);
+        self.scale.clear(encoder);
     }
 
     pub fn render<C, F>(&mut self,
@@ -60,5 +71,6 @@ impl<R: gfx::Resources> Renderer<R> {
     {
         self.tile_renderer.update_entities(entity_store, spatial_hash, factory);
         self.tile_renderer.draw(encoder);
+        self.scale.draw(encoder);
     }
 }

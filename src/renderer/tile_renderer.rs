@@ -11,6 +11,8 @@ use spatial_hash::SpatialHashTable;
 
 use res::input_sprite;
 
+const NUM_ROWS: u16 = 15;
+const HEIGHT_PX: u16 = NUM_ROWS * input_sprite::HEIGHT_PX as u16;
 const MAX_NUM_INSTANCES: usize = 4096;
 
 gfx_vertex_struct!( Vertex {
@@ -55,9 +57,9 @@ pub struct TileRenderer<R: gfx::Resources> {
 
 impl<R: gfx::Resources> TileRenderer<R> {
     pub fn new<F>(sprite_sheet: SpriteSheet<R>,
-                  rtv: gfx::handle::RenderTargetView<R, ColourFormat>,
-                  dsv: gfx::handle::DepthStencilView<R, DepthFormat>,
-                  factory: &mut F) -> Self
+                  window_width_px: u16,
+                  window_height_px: u16,
+                  factory: &mut F) -> (Self, gfx::handle::ShaderResourceView<R, [f32; 4]>)
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
         let pso = factory.create_pipeline_simple(
@@ -81,29 +83,32 @@ impl<R: gfx::Resources> TileRenderer<R> {
             gfx::texture::SamplerInfo::new(gfx::texture::FilterMethod::Scale,
                                            gfx::texture::WrapMode::Tile));
 
+        let width_px = ((window_width_px as u32 * HEIGHT_PX as u32) / window_height_px as u32) as u16;
+        let (_, srv, colour_rtv) = factory.create_render_target(width_px, HEIGHT_PX)
+            .expect("Failed to create render target for sprite sheet");
+        let (_, _, depth_rtv) = factory.create_depth_stencil(width_px, HEIGHT_PX)
+            .expect("Failed to create depth stencil");
+
         let data = pipe::Data {
             dimensions: factory.create_constant_buffer(1),
             offset: factory.create_constant_buffer(1),
             vertex: vertex_buffer,
             instance: common::create_instance_buffer(MAX_NUM_INSTANCES, factory)
                 .expect("Failed to create instance buffer"),
-            out_colour: rtv,
-            out_depth: dsv,
+            out_colour: colour_rtv,
+            out_depth: depth_rtv,
             tex: (sprite_sheet.shader_resource_view.clone(), sampler),
         };
 
-
-        let (width_px, height_px, ..) = data.out_colour.get_dimensions();
-
-        TileRenderer {
+        (TileRenderer {
             bundle: gfx::pso::bundle::Bundle::new(slice, pso, data),
             upload: factory.create_upload_buffer(MAX_NUM_INSTANCES)
                 .expect("Failed to create upload buffer"),
             sprite_sheet,
             width_px,
-            height_px,
+            height_px: HEIGHT_PX,
             num_instances: 0,
-        }
+        }, srv)
     }
 
     pub fn init<C>(&self, encoder: &mut gfx::Encoder<R, C>)
@@ -113,6 +118,13 @@ impl<R: gfx::Resources> TileRenderer<R> {
             sprite_sheet_size: [self.sprite_sheet.width as f32, self.sprite_sheet.height as f32],
             output_size: [self.width_px as f32, self.height_px as f32],
         });
+    }
+
+    pub fn clear<C>(&self, encoder: &mut gfx::Encoder<R, C>)
+        where C: gfx::CommandBuffer<R>,
+    {
+        encoder.clear(&self.bundle.data.out_colour, [0.0, 0.0, 0.0, 1.0]);
+        encoder.clear_depth(&self.bundle.data.out_depth, 1.0);
     }
 
     pub fn draw<C>(&self, encoder: &mut gfx::Encoder<R, C>)

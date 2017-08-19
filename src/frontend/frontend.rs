@@ -18,7 +18,6 @@ pub struct Frontend {
     encoder: gfx::Encoder<gfx_device_gl::Resources, gfx_device_gl::CommandBuffer>,
     factory: gfx_device_gl::Factory,
     rtv: gfx::handle::RenderTargetView<gfx_device_gl::Resources, ColourFormat>,
-    dsv: gfx::handle::DepthStencilView<gfx_device_gl::Resources, DepthFormat>,
 }
 
 impl Frontend {
@@ -29,12 +28,12 @@ impl Frontend {
         let events_loop = glutin::EventsLoop::new();
         let context = glutin::ContextBuilder::new();
 
-        let (window, mut device, mut factory, rtv, dsv) =
+        let (window, mut device, mut factory, rtv, _dsv) =
             gfx_window_glutin::init::<ColourFormat, DepthFormat>(builder, context, &events_loop);
 
         let mut encoder = factory.create_command_buffer().into();
 
-        let renderer = Renderer::new(&rtv, &dsv, &mut factory, &mut encoder, &mut device);
+        let renderer = Renderer::new(&rtv, &mut factory, &mut encoder, &mut device);
 
         Frontend {
             events_loop,
@@ -44,7 +43,6 @@ impl Frontend {
             encoder,
             factory,
             rtv,
-            dsv,
         }
     }
 
@@ -63,8 +61,7 @@ impl Frontend {
                 }
             });
 
-            self.encoder.clear(&self.rtv, [0.0, 0.0, 0.0, 1.0]);
-            self.encoder.clear_depth(&self.dsv, 1.0);
+            self.renderer.clear(&mut self.encoder);
 
             let player_id = entity_store.player.iter().next().expect("Failed to find player");
             let player_position = entity_store.position.get(&player_id).expect("Failed to find player position");

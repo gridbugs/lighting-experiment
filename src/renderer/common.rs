@@ -10,6 +10,11 @@ pub const QUAD_TEX_COORDS: [[f32; 2]; 4] = [[0.0, 0.0],
                                             [1.0, 1.0],
                                             [1.0, 0.0]];
 
+pub const QUAD_TEX_COORDS_UPSIDE_DOWN: [[f32; 2]; 4] = [[0.0, 1.0],
+                                                        [0.0, 0.0],
+                                                        [1.0, 0.0],
+                                                        [1.0, 1.0]];
+
 pub const QUAD_VERTICES_REFL: [[f32; 2]; 4] = QUAD_TEX_COORDS;
 
 pub const QUAD_INDICES: [u16; 6] = [0, 1, 2, 2, 3, 0];
