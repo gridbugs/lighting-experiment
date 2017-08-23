@@ -18,7 +18,7 @@ vec4 sample_texture(vec2 texel_coord) {
 
 void main() {
 
-    vec2 sample_point = v_Texel + vec2(0.001);
+    vec2 sample_point = v_Texel + vec2(0.001); // XXX: Why is this offset necessary?
 
     // Vector from centre of texel containing sampling point to
     // the sampling point itself.
