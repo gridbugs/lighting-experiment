@@ -27,7 +27,6 @@ mod id_allocator;
 mod entity_id_allocator;
 mod frame_env;
 
-mod depth;
 mod prototype;
 mod terrain;
 mod content;

@@ -6,6 +6,7 @@ use renderer::sprite_sheet::{SpriteSheet, SpriteResolution};
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::common;
 
+use content::DepthType;
 use entity_store::EntityStore;
 use spatial_hash::SpatialHashTable;
 
@@ -162,8 +163,8 @@ impl<R: gfx::Resources> TileRenderer<R> {
         let mut count = 0;
 
         for (id, position) in entity_store.position.iter() {
-            let depth = if let Some(depth) = entity_store.depth.get(&id) {
-                *depth
+            let depth_type = if let Some(depth_type) = entity_store.depth.get(&id) {
+                *depth_type
             } else {
                 continue;
             };
@@ -196,6 +197,11 @@ impl<R: gfx::Resources> TileRenderer<R> {
 
             let scaled_position = position
                 .mul_element_wise(Vector2::new(input_sprite::WIDTH_PX, input_sprite::HEIGHT_PX).cast());
+
+            let depth = match depth_type {
+                DepthType::Vertical => 1.0 - position.x / spatial_hash.height() as f32,
+                DepthType::Horizontal => 1.0,
+            };
 
             if let Some(instance_slot) = mapper_iter_mut.next() {
                 *instance_slot = Instance {
