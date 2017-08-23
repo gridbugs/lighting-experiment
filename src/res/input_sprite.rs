@@ -40,8 +40,8 @@ pub enum InputSprite {
 }
 
 const WALL_START: Vector2<u32> = Vector2 { x: 0, y: 0 };
-const WALL_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 20 };
-const WALL_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 4 };
+const WALL_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 22 };
+const WALL_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 6 };
 const WALL_DIRECTION_ORDER: [Direction; 8] = [
     Direction::North,
     Direction::East,
@@ -57,11 +57,11 @@ const WALL_BLOCK_DIMENSIONS: Vector2<u32> = Vector2 {
     y: WALL_DIMENSIONS.y * 9,
 };
 
-const CHARACTER_START: Vector2<u32> = Vector2 { x: 0, y: 20 };
+const CHARACTER_START: Vector2<u32> = Vector2 { x: 0, y: 22 };
 const CHARACTER_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 20 };
-const CHARACTER_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 4 };
+const CHARACTER_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 8 };
 
-const FLOOR_START: Vector2<u32> = Vector2 { x: 0, y: 40 };
+const FLOOR_START: Vector2<u32> = Vector2 { x: 0, y: 42 };
 const FLOOR_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 16 };
 const FLOOR_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
 
