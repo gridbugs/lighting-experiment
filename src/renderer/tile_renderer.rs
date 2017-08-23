@@ -2,12 +2,13 @@ use gfx;
 
 use cgmath::{Vector2, ElementWise};
 
-use renderer::sprite_sheet::{SpriteSheet, SpriteResolution};
+use renderer::sprite_sheet::{SpriteSheet, SpriteTable, SpriteResolution};
 use renderer::formats::{ColourFormat, DepthFormat};
+use renderer::instance_manager::InstanceManager;
 use renderer::common;
 
-use content::DepthType;
-use entity_store::EntityStore;
+use content::{DepthType, Sprite};
+use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 
 use res::input_sprite;
@@ -22,15 +23,17 @@ gfx_vertex_struct!( Vertex {
 
 gfx_vertex_struct!( Instance {
     sprite_sheet_pix_coord: [f32; 2] = "a_SpriteSheetPixCoord",
-    out_pix_coord: [f32; 2] = "a_OutPixCoord",
+    position: [f32; 2] = "a_Position",
     pix_size: [f32; 2] = "a_PixSize",
     pix_offset: [f32; 2] = "a_PixOffset",
     depth: f32 = "a_Depth",
+    enabled: u32 = "a_Enabled",
 });
 
 gfx_constant_struct!( Dimensions {
     sprite_sheet_size: [f32; 2] = "u_SpriteSheetSize",
     output_size: [f32; 2] = "u_OutputSize",
+    cell_size: [f32; 2] = "u_CellSize",
 });
 
 gfx_constant_struct!( Offset {
@@ -47,6 +50,29 @@ gfx_pipeline!( pipe {
     out_depth: gfx::DepthTarget<DepthFormat> = gfx::preset::depth::LESS_EQUAL_WRITE,
 });
 
+impl Default for Instance {
+    fn default() -> Self {
+        Self {
+            // the sprite sheet ensures there's a blank sprite here
+            sprite_sheet_pix_coord: [0.0, 0.0],
+            position: [0.0, 0.0],
+            pix_size: [input_sprite::WIDTH_PX as f32, input_sprite::HEIGHT_PX as f32],
+            pix_offset: [0.0, 0.0],
+            depth: -1.0,
+            enabled: 0,
+        }
+    }
+}
+
+impl Instance {
+    pub fn update_sprite_info(&mut self, sprite_info: SpriteRenderInfo) {
+        let SpriteRenderInfo { position, size, offset } = sprite_info;
+        self.sprite_sheet_pix_coord = position;
+        self.pix_size = size;
+        self.pix_offset = offset;
+    }
+}
+
 pub struct TileRenderer<R: gfx::Resources> {
     bundle: gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     upload: gfx::handle::Buffer<R, Instance>,
@@ -54,6 +80,50 @@ pub struct TileRenderer<R: gfx::Resources> {
     width_px: u16,
     height_px: u16,
     num_instances: usize,
+    instance_manager: InstanceManager,
+}
+
+pub struct SpriteRenderInfo {
+    pub position: [f32; 2],
+    pub size: [f32; 2],
+    pub offset: [f32; 2],
+}
+
+impl SpriteRenderInfo {
+    pub fn resolve(sprite: Sprite, sprite_table: &SpriteTable,
+               position: Vector2<f32>, spatial_hash: &SpatialHashTable) -> Option<Self> {
+        if let Some(sprite_resolution) = sprite_table.get(sprite) {
+            let (position_x, size, offset) = match sprite_resolution {
+                &SpriteResolution::Simple(location) => {
+                    (location.position, location.size, location.offset)
+                }
+                &SpriteResolution::Wall(location) => {
+                    if let Some(sh_cell) = spatial_hash.get_float(position) {
+                        let bitmap = sh_cell.wall_neighbours.bitmap_raw();
+                        (location.position(bitmap), *location.size(), *location.offset())
+                    } else {
+                        return None;
+                    }
+                }
+            };
+
+            return Some(Self {
+                position: [position_x, 0.0],
+                size: size.into(),
+                offset: offset.into(),
+            });
+        }
+
+        None
+    }
+
+    pub fn blank() -> Self {
+        Self {
+            position: [0.0, 0.0],
+            size: [input_sprite::WIDTH_PX as f32, input_sprite::HEIGHT_PX as f32],
+            offset: [0.0, 0.0],
+        }
+    }
 }
 
 impl<R: gfx::Resources> TileRenderer<R> {
@@ -109,6 +179,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             width_px,
             height_px: HEIGHT_PX,
             num_instances: 0,
+            instance_manager: InstanceManager::new(),
         }, srv)
     }
 
@@ -122,6 +193,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
         encoder.update_constant_buffer(&self.bundle.data.dimensions, &Dimensions {
             sprite_sheet_size: [self.sprite_sheet.width as f32, self.sprite_sheet.height as f32],
             output_size: [self.width_px as f32, self.height_px as f32],
+            cell_size: [input_sprite::WIDTH_PX as f32, input_sprite::HEIGHT_PX as f32],
         });
     }
 
@@ -151,16 +223,27 @@ impl<R: gfx::Resources> TileRenderer<R> {
         });
     }
 
-    pub fn update_entities<F>(&mut self, entity_store: &EntityStore, spatial_hash: &SpatialHashTable,
-                              factory: &mut F)
+    pub fn frame<F>(&mut self, factory: &mut F) -> RendererFrame<R>
+        where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
+    {
+        let writer = factory.write_mapping(&self.upload)
+            .expect("Failed to map upload buffer");
+
+        RendererFrame {
+            writer,
+            bundle: &mut self.bundle,
+            sprite_table: &self.sprite_sheet.sprite_table,
+            instance_manager: &mut self.instance_manager,
+            num_instances: &mut self.num_instances,
+        }
+    }
+
+    pub fn update_all<F>(&mut self, entity_store: &EntityStore, spatial_hash: &SpatialHashTable,
+                         factory: &mut F)
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
         let mut mapper = factory.write_mapping(&self.upload)
             .expect("Failed to map upload buffer");
-
-        let mut mapper_iter_mut = mapper.iter_mut();
-
-        let mut count = 0;
 
         for (id, position) in entity_store.position.iter() {
             let depth_type = if let Some(depth_type) = entity_store.depth.get(&id) {
@@ -175,49 +258,52 @@ impl<R: gfx::Resources> TileRenderer<R> {
                 continue;
             };
 
-            let (sprite_position, sprite_size, sprite_offset) =
-                if let Some(sprite_resolution) = self.sprite_sheet.get(sprite) {
-
-                match sprite_resolution {
-                    &SpriteResolution::Simple(location) => {
-                        (location.position, location.size, location.offset)
-                    }
-                    &SpriteResolution::Wall(location) => {
-                        if let Some(sh_cell) = spatial_hash.get_float(*position) {
-                            let bitmap = sh_cell.wall_neighbours.bitmap_raw();
-                            (location.position(bitmap), *location.size(), *location.offset())
-                        } else {
-                            continue;
-                        }
-                    }
-                }
+            let sprite_info = if let Some(sprite_info) = SpriteRenderInfo::resolve(sprite, &self.sprite_sheet.sprite_table,
+                                                                                   *position, spatial_hash) {
+                sprite_info
             } else {
                 continue;
             };
-
-            let scaled_position = position
-                .mul_element_wise(Vector2::new(input_sprite::WIDTH_PX, input_sprite::HEIGHT_PX).cast());
 
             let depth = match depth_type {
                 DepthType::Vertical => 1.0 - position.x / spatial_hash.height() as f32,
                 DepthType::Horizontal => 1.0,
             };
 
-            if let Some(instance_slot) = mapper_iter_mut.next() {
-                *instance_slot = Instance {
-                    sprite_sheet_pix_coord: [sprite_position, 0.0],
-                    out_pix_coord: scaled_position.into(),
-                    pix_size: sprite_size.into(),
-                    pix_offset: sprite_offset.into(),
-                    depth: depth,
-                };
-                count += 1;
-            } else {
-                panic!("Out of instances!");
-            }
+            let instance_index = self.instance_manager.index(id);
+            mapper[instance_index] = Instance {
+                sprite_sheet_pix_coord: sprite_info.position,
+                position: position.cast().into(),
+                pix_size: sprite_info.size,
+                pix_offset: sprite_info.offset,
+                depth: depth,
+                enabled: 1,
+            };
+
         }
 
-        self.bundle.slice.instances = Some((count, 0));
-        self.num_instances = count as usize;
+        let num_instances = self.instance_manager.num_instances();
+        self.bundle.slice.instances = Some((num_instances, 0));
+        self.num_instances = num_instances as usize;
+    }
+}
+
+pub struct RendererFrame<'a, R: gfx::Resources> {
+    writer: gfx::mapping::Writer<'a, R, Instance>,
+    bundle: &'a mut gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
+    sprite_table: &'a SpriteTable,
+    instance_manager: &'a mut InstanceManager,
+    num_instances: &'a mut usize,
+}
+
+impl<'a, R: gfx::Resources> RendererFrame<'a, R> {
+    pub fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
+        self.instance_manager.update(&mut self.writer, change, entity_store, spatial_hash, self.sprite_table);
+    }
+
+    pub fn finalise(self) {
+        let num_instances = self.instance_manager.num_instances();
+        *self.num_instances = num_instances as usize;
+        self.bundle.slice.instances = Some((num_instances, 0));
     }
 }

@@ -2,7 +2,7 @@ use gfx;
 use image;
 use cgmath::Vector2;
 
-use renderer::tile_renderer::TileRenderer;
+use renderer::tile_renderer::{TileRenderer, RendererFrame};
 use renderer::scale::Scale;
 use renderer::formats::ColourFormat;
 use renderer::sprite_sheet::SpriteSheet;
@@ -64,16 +64,25 @@ impl<R: gfx::Resources> Renderer<R> {
         self.scale.clear(encoder);
     }
 
-    pub fn render<C, F>(&mut self,
-                        entity_store: &EntityStore,
-                        spatial_hash: &SpatialHashTable,
-                        factory: &mut F,
-                        encoder: &mut gfx::Encoder<R, C>)
-        where C: gfx::CommandBuffer<R>,
-              F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
+    pub fn update_all<F>(&mut self,
+                         entity_store: &EntityStore,
+                         spatial_hash: &SpatialHashTable,
+                         factory: &mut F)
+        where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
-        self.tile_renderer.update_entities(entity_store, spatial_hash, factory);
+        self.tile_renderer.update_all(entity_store, spatial_hash, factory);
+    }
+
+    pub fn render<C>(&mut self, encoder: &mut gfx::Encoder<R, C>)
+        where C: gfx::CommandBuffer<R>,
+    {
         self.tile_renderer.draw(encoder);
         self.scale.draw(encoder);
+    }
+
+    pub fn frame<F>(&mut self, factory: &mut F) -> RendererFrame<R>
+        where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
+    {
+        self.tile_renderer.frame(factory)
     }
 }

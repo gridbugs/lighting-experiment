@@ -23,6 +23,10 @@ impl<T: Integer + Copy> IdAllocator<T> {
         }
     }
 
+    pub fn max(&self) -> T {
+        self.next - T::one()
+    }
+
     pub fn free(&mut self, id: T) {
         self.free_list.push(id);
     }

@@ -9,7 +9,7 @@ use direction::{Direction, OrdinalDirections, DirectionBitmap, DirectionsCardina
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::common;
 use res::input_sprite::{self, InputSprite, InputSpriteLocation};
-use content::sprite;
+use content::sprite::{self, Sprite};
 
 // one for each combination of wall neighbours
 const TILES_PER_WALL: u32 = 256;
@@ -222,7 +222,14 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         let mut mapping = factory.write_mapping(&self.upload)
             .expect("Failed to map upload buffer");
 
-        let mut sprite_sheet_x = 0;
+        // leave a blank sprite at the start
+        self.sprite_table[Sprite::Blank as usize] = SpriteResolution::Simple(SpriteLocation {
+            position: 0.0,
+            size: input_sprite::DIMENSIONS.cast().into(),
+            offset: Vector2::new(0.0, 0.0),
+        });
+        let mut sprite_sheet_x = input_sprite::WIDTH_PX;
+
         let mut instance_index = 0;
 
         for input_sprite in self.input_sprites.iter() {

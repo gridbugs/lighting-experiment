@@ -19,5 +19,5 @@ pub fn launch(mut frontend: Frontend) {
         entity_store.commit(c);
     }
 
-    frontend.spin(&entity_store, &spatial_hash);
+    frontend.spin(&mut entity_store, &mut spatial_hash);
 }

@@ -5,10 +5,12 @@ use glutin::GlContext;
 use gfx_window_glutin;
 use gfx_device_gl;
 
-use entity_store::EntityStore;
+use entity_store::{EntityStore, insert};
 use spatial_hash::SpatialHashTable;
 
 use renderer::{Renderer, ColourFormat, DepthFormat};
+
+use content::Sprite;
 
 pub struct Frontend {
     events_loop: glutin::EventsLoop,
@@ -46,7 +48,11 @@ impl Frontend {
         }
     }
 
-    pub fn spin(&mut self, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
+    pub fn spin(&mut self, entity_store: &mut EntityStore, spatial_hash: &mut SpatialHashTable) {
+
+        self.renderer.update_all(entity_store, spatial_hash, &mut self.factory);
+
+        let mut count = 0;
 
         let mut running = true;
         while running {
@@ -61,18 +67,33 @@ impl Frontend {
                 }
             });
 
-            self.renderer.clear(&mut self.encoder);
-
             let player_id = entity_store.player.iter().next().expect("Failed to find player");
+
+            if count % 45 == 0 {
+                let change = if count % 90 == 0 {
+                    insert::sprite(player_id, Sprite::Angler)
+                } else {
+                    insert::sprite(player_id, Sprite::AnglerBob)
+                };
+                let mut frame = self.renderer.frame(&mut self.factory);
+                frame.update(&change, entity_store, spatial_hash);
+                frame.finalise();
+
+                spatial_hash.update(entity_store, &change, count);
+                entity_store.commit(change);
+            }
+
+
             let player_position = entity_store.position.get(&player_id).expect("Failed to find player position");
             self.renderer.update_offset(*player_position, &mut self.encoder);
 
-            self.renderer.render(entity_store, spatial_hash, &mut self.factory, &mut self.encoder);
+            self.renderer.clear(&mut self.encoder);
+            self.renderer.render(&mut self.encoder);
 
             self.encoder.flush(&mut self.device);
             self.window.swap_buffers().expect("Failed to swap buffers");
             self.device.cleanup();
-
+            count += 1;
         }
     }
 }

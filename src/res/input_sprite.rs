@@ -13,6 +13,7 @@ pub fn input_sprites() -> Vec<InputSprite> {
 
     vec![
         character(Angler, CHARACTER_START + Vector2::new(0, 0).mul_element_wise(CHARACTER_DIMENSIONS)),
+        character(AnglerBob, CHARACTER_START + Vector2::new(1, 0).mul_element_wise(CHARACTER_DIMENSIONS)),
         floor(InnerFloor, FLOOR_START + Vector2::new(0, 0).mul_element_wise(FLOOR_DIMENSIONS)),
         floor(OuterFloor, FLOOR_START + Vector2::new(0, 1).mul_element_wise(FLOOR_DIMENSIONS)),
         wall(OuterWall, WALL_START + Vector2::new(0, 0).mul_element_wise(WALL_BLOCK_DIMENSIONS)),
