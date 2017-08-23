@@ -3,8 +3,8 @@ use cgmath::{Vector2, ElementWise};
 use direction::Direction;
 use content::Sprite;
 
-pub const WIDTH_PX: u32 = 32;
-pub const HEIGHT_PX: u32 = 32;
+pub const WIDTH_PX: u32 = 16;
+pub const HEIGHT_PX: u32 = 16;
 pub const DIMENSIONS: Vector2<u32> = Vector2 { x: WIDTH_PX, y: HEIGHT_PX };
 
 pub fn input_sprites() -> Vec<InputSprite> {
@@ -40,8 +40,8 @@ pub enum InputSprite {
 }
 
 const WALL_START: Vector2<u32> = Vector2 { x: 0, y: 0 };
-const WALL_DIMENSIONS: Vector2<u32> = Vector2 { x: 32, y: 40 };
-const WALL_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 8 };
+const WALL_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 20 };
+const WALL_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 4 };
 const WALL_DIRECTION_ORDER: [Direction; 8] = [
     Direction::North,
     Direction::East,
@@ -57,12 +57,12 @@ const WALL_BLOCK_DIMENSIONS: Vector2<u32> = Vector2 {
     y: WALL_DIMENSIONS.y * 9,
 };
 
-const CHARACTER_START: Vector2<u32> = Vector2 { x: 0, y: 40 };
-const CHARACTER_DIMENSIONS: Vector2<u32> = Vector2 { x: 32, y: 32 };
-const CHARACTER_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
+const CHARACTER_START: Vector2<u32> = Vector2 { x: 0, y: 20 };
+const CHARACTER_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 20 };
+const CHARACTER_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 4 };
 
-const FLOOR_START: Vector2<u32> = Vector2 { x: 0, y: 72 };
-const FLOOR_DIMENSIONS: Vector2<u32> = Vector2 { x: 32, y: 32 };
+const FLOOR_START: Vector2<u32> = Vector2 { x: 0, y: 40 };
+const FLOOR_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 16 };
 const FLOOR_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
 
 fn character(sprite: Sprite, position: Vector2<u32>) -> InputSprite {
