@@ -111,6 +111,10 @@ impl<R: gfx::Resources> TileRenderer<R> {
         }, srv)
     }
 
+    pub fn dimensions(&self) -> (u16, u16) {
+        (self.width_px, self.height_px)
+    }
+
     pub fn init<C>(&self, encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {

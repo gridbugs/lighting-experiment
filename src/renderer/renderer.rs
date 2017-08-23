@@ -38,9 +38,12 @@ impl<R: gfx::Resources> Renderer<R> {
         let (width_px, height_px, ..) = rtv.get_dimensions();
 
         let (tile_renderer, srv) = TileRenderer::new(sprite_sheet, width_px, height_px, factory);
-        let scale = Scale::new(rtv.clone(), srv, factory);
+
+        let (srv_width, srv_height) = tile_renderer.dimensions();
+        let scale = Scale::new(rtv.clone(), srv, srv_width, srv_height, factory);
 
         tile_renderer.init(encoder);
+        scale.init(encoder);
 
         Renderer {
             tile_renderer,
