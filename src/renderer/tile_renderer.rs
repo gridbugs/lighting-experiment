@@ -235,6 +235,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             sprite_table: &self.sprite_sheet.sprite_table,
             instance_manager: &mut self.instance_manager,
             num_instances: &mut self.num_instances,
+            player_position: None,
         }
     }
 
@@ -294,6 +295,7 @@ pub struct RendererFrame<'a, R: gfx::Resources> {
     sprite_table: &'a SpriteTable,
     instance_manager: &'a mut InstanceManager,
     num_instances: &'a mut usize,
+    player_position: Option<Vector2<f32>>,
 }
 
 impl<'a, R: gfx::Resources> RendererFrame<'a, R> {
@@ -301,9 +303,14 @@ impl<'a, R: gfx::Resources> RendererFrame<'a, R> {
         self.instance_manager.update(&mut self.writer, change, entity_store, spatial_hash, self.sprite_table);
     }
 
-    pub fn finalise(self) {
+    pub fn set_player_position(&mut self, player_position: Vector2<f32>) {
+        self.player_position = Some(player_position);
+    }
+
+    pub fn finalise(self) -> Option<Vector2<f32>> {
         let num_instances = self.instance_manager.num_instances();
         *self.num_instances = num_instances as usize;
         self.bundle.slice.instances = Some((num_instances, 0));
+        self.player_position
     }
 }

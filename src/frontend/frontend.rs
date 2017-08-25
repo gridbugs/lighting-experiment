@@ -5,21 +5,34 @@ use glutin::GlContext;
 use gfx_window_glutin;
 use gfx_device_gl;
 
-use entity_store::{EntityStore, insert};
+use entity_store::EntityStore;
 use spatial_hash::SpatialHashTable;
 
-use renderer::{Renderer, ColourFormat, DepthFormat};
+use renderer::{Renderer, ColourFormat, DepthFormat, RendererFrame};
 
-use content::Sprite;
+use input::InputEvent;
+use frontend::input::convert_event;
 
-pub struct Frontend {
+type Resources = gfx_device_gl::Resources;
+pub type FrontendOutputFrame<'a> = RendererFrame<'a, Resources>;
+pub type FrontendInputEvent = InputEvent;
+
+pub struct FrontendInput {
     events_loop: glutin::EventsLoop,
+}
+
+pub struct FrontendOutput {
     window: glutin::GlWindow,
     device: gfx_device_gl::Device,
-    renderer: Renderer<gfx_device_gl::Resources>,
-    encoder: gfx::Encoder<gfx_device_gl::Resources, gfx_device_gl::CommandBuffer>,
+    renderer: Renderer<Resources>,
+    encoder: gfx::Encoder<Resources, gfx_device_gl::CommandBuffer>,
     factory: gfx_device_gl::Factory,
-    rtv: gfx::handle::RenderTargetView<gfx_device_gl::Resources, ColourFormat>,
+    rtv: gfx::handle::RenderTargetView<Resources, ColourFormat>,
+}
+
+pub struct Frontend {
+    pub input: FrontendInput,
+    pub output: FrontendOutput,
 }
 
 impl Frontend {
@@ -38,62 +51,56 @@ impl Frontend {
         let renderer = Renderer::new(&rtv, &mut factory, &mut encoder, &mut device);
 
         Frontend {
-            events_loop,
-            window,
-            device,
-            renderer,
-            encoder,
-            factory,
-            rtv,
+            input: FrontendInput {
+                events_loop,
+            },
+            output: FrontendOutput {
+                window,
+                device,
+                renderer,
+                encoder,
+                factory,
+                rtv,
+            },
         }
     }
+}
 
-    pub fn spin(&mut self, entity_store: &mut EntityStore, spatial_hash: &mut SpatialHashTable) {
-
-        self.renderer.update_all(entity_store, spatial_hash, &mut self.factory);
-
-        let mut count = 0;
-
-        let mut running = true;
-        while running {
-
-            self.events_loop.poll_events(|event| {
-                match event {
-                    glutin::Event::WindowEvent { event, .. } => match event {
-                        glutin::WindowEvent::Closed => running = false,
-                        _ => (),
-                    },
-                    _ => (),
-                }
-            });
-
-            let player_id = entity_store.player.iter().next().expect("Failed to find player");
-
-            if count % 45 == 0 {
-                let change = if count % 90 == 0 {
-                    insert::sprite(player_id, Sprite::Angler)
-                } else {
-                    insert::sprite(player_id, Sprite::AnglerBob)
-                };
-                let mut frame = self.renderer.frame(&mut self.factory);
-                frame.update(&change, entity_store, spatial_hash);
-                frame.finalise();
-
-                spatial_hash.update(entity_store, &change, count);
-                entity_store.commit(change);
+impl FrontendInput {
+    pub fn with_input<F: FnMut(FrontendInputEvent)>(&mut self, mut f: F) {
+        self.events_loop.poll_events(|event| {
+            if let Some(input_event) = convert_event(event) {
+                f(input_event);
             }
+        });
+    }
+}
 
+impl FrontendOutput {
+    pub fn init(&mut self, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
+        self.renderer.update_all(entity_store, spatial_hash, &mut self.factory);
+    }
 
-            let player_position = entity_store.position.get(&player_id).expect("Failed to find player position");
-            self.renderer.update_offset(*player_position, &mut self.encoder);
+    pub fn with_frame<F: FnMut(&mut FrontendOutputFrame)>(&mut self, mut f: F) {
+        let maybe_offset = {
+            let mut frame = self.renderer.frame(&mut self.factory);
+            f(&mut frame);
+            frame.finalise()
+        };
 
-            self.renderer.clear(&mut self.encoder);
-            self.renderer.render(&mut self.encoder);
-
-            self.encoder.flush(&mut self.device);
-            self.window.swap_buffers().expect("Failed to swap buffers");
-            self.device.cleanup();
-            count += 1;
+        if let Some(offset) = maybe_offset {
+            self.renderer.update_offset(offset, &mut self.encoder);
         }
+
+        self.draw();
+    }
+
+    pub fn draw(&mut self) {
+        self.renderer.clear(&mut self.encoder);
+        self.renderer.render(&mut self.encoder);
+
+        self.encoder.flush(&mut self.device);
+        self.window.swap_buffers().expect("Failed to swap buffers");
+        self.device.cleanup();
     }
 }
