@@ -11,6 +11,7 @@ use content::{DepthType, Sprite};
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 
+use frontend::OutputWorldState;
 use res::input_sprite;
 
 const NUM_ROWS: u16 = 15;
@@ -223,19 +224,21 @@ impl<R: gfx::Resources> TileRenderer<R> {
         });
     }
 
-    pub fn frame<F>(&mut self, factory: &mut F) -> RendererFrame<R>
+    pub fn world_state<F>(&mut self, factory: &mut F) -> RendererWorldState<R>
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
         let writer = factory.write_mapping(&self.upload)
             .expect("Failed to map upload buffer");
 
-        RendererFrame {
+        RendererWorldState {
             writer,
             bundle: &mut self.bundle,
             sprite_table: &self.sprite_sheet.sprite_table,
             instance_manager: &mut self.instance_manager,
             num_instances: &mut self.num_instances,
             player_position: None,
+            width_px: self.width_px,
+            height_px: self.height_px,
         }
     }
 
@@ -289,28 +292,42 @@ impl<R: gfx::Resources> TileRenderer<R> {
     }
 }
 
-pub struct RendererFrame<'a, R: gfx::Resources> {
+pub struct RendererWorldState<'a, R: gfx::Resources> {
     writer: gfx::mapping::Writer<'a, R, Instance>,
     bundle: &'a mut gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     sprite_table: &'a SpriteTable,
     instance_manager: &'a mut InstanceManager,
     num_instances: &'a mut usize,
     player_position: Option<Vector2<f32>>,
+    width_px: u16,
+    height_px: u16,
 }
 
-impl<'a, R: gfx::Resources> RendererFrame<'a, R> {
-    pub fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
+impl<'a, R: gfx::Resources> OutputWorldState<'a> for RendererWorldState<'a, R> {
+    fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
         self.instance_manager.update(&mut self.writer, change, entity_store, spatial_hash, self.sprite_table);
     }
 
-    pub fn set_player_position(&mut self, player_position: Vector2<f32>) {
+    fn set_player_position(&mut self, player_position: Vector2<f32>) {
         self.player_position = Some(player_position);
     }
+}
 
-    pub fn finalise(self) -> Option<Vector2<f32>> {
+impl<'a, R: gfx::Resources> RendererWorldState<'a, R> {
+    pub fn finalise<C>(mut self, encoder: &mut gfx::Encoder<R, C>)
+        where C: gfx::CommandBuffer<R>,
+    {
         let num_instances = self.instance_manager.num_instances();
         *self.num_instances = num_instances as usize;
         self.bundle.slice.instances = Some((num_instances, 0));
-        self.player_position
+
+        if let Some(player_position) = self.player_position {
+            let mid = (player_position + Vector2::new(0.5, 0.5))
+                .mul_element_wise(Vector2::new(input_sprite::WIDTH_PX, input_sprite::HEIGHT_PX).cast());
+            let offset = Vector2::new(mid.x - (self.width_px / 2) as f32, mid.y - (self.height_px / 2) as f32);
+            encoder.update_constant_buffer(&self.bundle.data.offset, &Offset {
+                scroll_offset_pix: offset.into(),
+            });
+        }
     }
 }

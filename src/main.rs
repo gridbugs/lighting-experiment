@@ -34,9 +34,10 @@ mod res;
 
 mod launch;
 mod frontend;
+mod glutin_frontend;
 mod renderer;
 mod input;
 
 fn main() {
-    launch::launch(frontend::Frontend::new());
+    launch::launch(glutin_frontend::create());
 }

@@ -1,4 +1,4 @@
-use frontend::Frontend;
+use frontend::{Frontend, FrontendOutput, FrontendInput, OutputWorldState};
 use terrain::demo;
 use entity_store::{EntityStore, insert};
 use spatial_hash::SpatialHashTable;
@@ -6,7 +6,7 @@ use entity_id_allocator::EntityIdAllocator;
 use input::InputEvent;
 use content::Sprite;
 
-pub fn launch(mut frontend: Frontend) {
+pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend: Frontend<I, O>) {
 
     let mut allocator = EntityIdAllocator::new();
     let mut changes = Vec::new();
@@ -17,12 +17,13 @@ pub fn launch(mut frontend: Frontend) {
 
     let mut spatial_hash = SpatialHashTable::new(metadata.width, metadata.height);
 
-    for c in changes.drain(..) {
-        spatial_hash.update(&entity_store, &c, 0);
-        entity_store.commit(c);
-    }
-
-    frontend.output.init(&entity_store, &spatial_hash);
+    frontend.output.with_world_state(|state| {
+        for c in changes.drain(..) {
+            state.update(&c, &entity_store, &spatial_hash);
+            spatial_hash.update(&entity_store, &c, 0);
+            entity_store.commit(c);
+        }
+    });
 
     let mut running = true;
     let mut count = 0;
@@ -35,7 +36,7 @@ pub fn launch(mut frontend: Frontend) {
             }
         });
 
-        frontend.output.with_frame(|frame| {
+        frontend.output.with_world_state(|state| {
 
             if count % 45 == 0 {
                 let change = if count % 90 == 0 {
@@ -44,15 +45,17 @@ pub fn launch(mut frontend: Frontend) {
                     insert::sprite(player_id, Sprite::AnglerBob)
                 };
 
-                frame.update(&change, &entity_store, &spatial_hash);
+                state.update(&change, &entity_store, &spatial_hash);
 
                 let player_position = entity_store.position.get(&player_id).cloned().expect("Failed to find player position");
-                frame.set_player_position(player_position);
+                state.set_player_position(player_position);
 
                 spatial_hash.update(&entity_store, &change, count);
                 entity_store.commit(change);
             }
         });
+
+        frontend.output.draw();
 
         count += 1;
     }

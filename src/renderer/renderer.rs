@@ -2,7 +2,7 @@ use gfx;
 use image;
 use cgmath::Vector2;
 
-use renderer::tile_renderer::{TileRenderer, RendererFrame};
+use renderer::tile_renderer::{TileRenderer, RendererWorldState};
 use renderer::scale::Scale;
 use renderer::formats::ColourFormat;
 use renderer::sprite_sheet::SpriteSheet;
@@ -80,9 +80,9 @@ impl<R: gfx::Resources> Renderer<R> {
         self.scale.draw(encoder);
     }
 
-    pub fn frame<F>(&mut self, factory: &mut F) -> RendererFrame<R>
+    pub fn world_state<F>(&mut self, factory: &mut F) -> RendererWorldState<R>
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
-        self.tile_renderer.frame(factory)
+        self.tile_renderer.world_state(factory)
     }
 }
