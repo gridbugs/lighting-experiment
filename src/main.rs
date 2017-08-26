@@ -8,6 +8,7 @@ extern crate serde;
 extern crate fnv;
 extern crate num;
 #[macro_use] extern crate itertools;
+#[macro_use] extern crate maplit;
 
 #[macro_use] extern crate gfx;
 extern crate glutin;
@@ -37,6 +38,8 @@ mod frontend;
 mod glutin_frontend;
 mod renderer;
 mod input;
+mod control;
+mod control_table;
 
 fn main() {
     launch::launch(glutin_frontend::create());

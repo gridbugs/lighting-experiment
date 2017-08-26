@@ -9,7 +9,7 @@ use frontend::{Frontend, FrontendOutput, FrontendInput};
 
 use renderer::{Renderer, ColourFormat, DepthFormat, RendererWorldState};
 
-use input::InputEvent;
+use input::Input;
 
 mod input;
 use self::input::convert_event;
@@ -61,7 +61,7 @@ pub fn create() -> GlutinFrontend {
 }
 
 impl FrontendInput for GlutinFrontendInput {
-    fn with_input<F: FnMut(InputEvent)>(&mut self, mut f: F) {
+    fn with_input<F: FnMut(Input)>(&mut self, mut f: F) {
         self.events_loop.poll_events(|event| {
             if let Some(input_event) = convert_event(event) {
                 f(input_event);

@@ -3,10 +3,20 @@ use terrain::demo;
 use entity_store::{EntityStore, insert};
 use spatial_hash::SpatialHashTable;
 use entity_id_allocator::EntityIdAllocator;
-use input::InputEvent;
 use content::Sprite;
+use control_table::GameControlTable;
+use control::{ActionControl, MetaControl, GameControl};
+use input::BindableInput;
+use direction::CardinalDirection;
 
 pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend: Frontend<I, O>) {
+
+    let control_table = GameControlTable::new(hashmap!{
+        BindableInput::Up => ActionControl::Move(CardinalDirection::North),
+        BindableInput::Right => ActionControl::Move(CardinalDirection::East),
+        BindableInput::Down => ActionControl::Move(CardinalDirection::South),
+        BindableInput::Left => ActionControl::Move(CardinalDirection::West),
+    });
 
     let mut allocator = EntityIdAllocator::new();
     let mut changes = Vec::new();
@@ -30,9 +40,11 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend: Fro
     while running {
 
         frontend.input.with_input(|input| {
-            match input {
-                InputEvent::Quit => running = false,
-                _ => (),
+            if let Some(control) = control_table.get(input) {
+                match control {
+                    GameControl::Meta(MetaControl::Quit) => running = false,
+                    _ => {}
+                }
             }
         });
 

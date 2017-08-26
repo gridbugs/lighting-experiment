@@ -3,7 +3,7 @@ use cgmath::Vector2;
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 
-use input::InputEvent;
+use input::Input;
 
 pub trait OutputWorldState<'a> {
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable);
@@ -17,7 +17,7 @@ pub trait FrontendOutput<'a> {
 }
 
 pub trait FrontendInput {
-    fn with_input<F: FnMut(InputEvent)>(&mut self, f: F);
+    fn with_input<F: FnMut(Input)>(&mut self, f: F);
 }
 
 pub struct Frontend<Input: FrontendInput, Output: for<'a> FrontendOutput<'a>> {
