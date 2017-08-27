@@ -68,6 +68,10 @@ impl SpatialHashTable {
         self.grid.get(coord)
     }
 
+    pub fn get_valid(&self, coord: Vector2<u32>) -> Option<&SpatialHashCell> {
+        self.grid.get_valid(coord)
+    }
+
     pub fn get_signed(&self, coord: Vector2<i32>) -> Option<&SpatialHashCell> {
         self.grid.get_signed(coord)
     }
@@ -94,10 +98,20 @@ impl SpatialHashTable {
     pub fn coord_iter(&self) -> CoordIter {
         self.grid.coord_iter()
     }
+
+    pub fn neighbour_coord_iter<IntoOffset, Iter, IntoIter>
+        (&self, base: Vector2<u32>, into_iter: IntoIter) -> NeighbourCoordIter<IntoOffset, Iter>
+    where IntoOffset: Into<Vector2<i32>>,
+          Iter: Iterator<Item=IntoOffset>,
+          IntoIter: IntoIterator<Item=IntoOffset, IntoIter=Iter>,
+    {
+        self.grid.neighbour_coord_iter(base, into_iter)
+    }
 }
 
 pub type Iter<'a> = static_grid::Iter<'a, SpatialHashCell>;
 pub type CoordIter = static_grid::CoordIter;
+pub type NeighbourCoordIter<C, I> = static_grid::NeighbourCoordIter<C, I>;
 
 impl LimitsRect for SpatialHashTable {
     fn x_min(&self) -> i32 { self.grid.x_min() }

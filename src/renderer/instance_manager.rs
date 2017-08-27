@@ -6,6 +6,7 @@ use id_allocator::IdAllocator;
 use renderer::tile_renderer::{Instance, SpriteRenderInfo};
 use renderer::sprite_sheet::SpriteTable;
 
+use direction::Directions;
 use content::DepthType;
 
 type InstanceIndex = u16;
@@ -74,6 +75,19 @@ impl InstanceManager {
                         if let Some(sprite_info) = SpriteRenderInfo::resolve(
                             sprite, sprite_table, *position, spatial_hash
                         ) {
+                            if let Some(wall_info) = sprite_info.wall_info {
+                                for (coord, dir) in izip!(spatial_hash.neighbour_coord_iter(position.cast(), Directions), Directions) {
+                                    if let Some(cell) = spatial_hash.get_valid(coord) {
+                                        for wall_id in cell.wall_set.iter() {
+                                            if let Some(index) = self.index_table.get(wall_id).cloned() {
+                                                let bitmap = cell.wall_neighbours.bitmap() | dir.opposite().bitmap();
+                                                let sprite_position = wall_info.position(bitmap.raw);
+                                                instances[index as usize].sprite_sheet_pix_coord = sprite_position.into();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             instances[index as usize].update_sprite_info(sprite_info);
                         }
                     }

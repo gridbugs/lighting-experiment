@@ -67,7 +67,7 @@ impl Default for Instance {
 
 impl Instance {
     pub fn update_sprite_info(&mut self, sprite_info: SpriteRenderInfo) {
-        let SpriteRenderInfo { position, size, offset } = sprite_info;
+        let SpriteRenderInfo { position, size, offset, .. } = sprite_info;
         self.sprite_sheet_pix_coord = position;
         self.pix_size = size;
         self.pix_offset = offset;
@@ -89,20 +89,36 @@ pub struct SpriteRenderInfo {
     pub position: [f32; 2],
     pub size: [f32; 2],
     pub offset: [f32; 2],
+    pub wall_info: Option<WallSpriteRenderInfo>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct WallSpriteRenderInfo {
+    base_x: f32,
+    size: f32,
+}
+
+impl WallSpriteRenderInfo {
+    pub fn position(self, bitmap: u8) -> Vector2<f32> {
+        Vector2::new(self.base_x + self.size * bitmap as f32, 0.0)
+    }
 }
 
 impl SpriteRenderInfo {
     pub fn resolve(sprite: Sprite, sprite_table: &SpriteTable,
                position: Vector2<f32>, spatial_hash: &SpatialHashTable) -> Option<Self> {
         if let Some(sprite_resolution) = sprite_table.get(sprite) {
-            let (position_x, size, offset) = match sprite_resolution {
+            let (position_x, size, offset, wall_info) = match sprite_resolution {
                 &SpriteResolution::Simple(location) => {
-                    (location.position, location.size, location.offset)
+                    (location.position, location.size, location.offset, None)
                 }
                 &SpriteResolution::Wall(location) => {
                     if let Some(sh_cell) = spatial_hash.get_float(position) {
                         let bitmap = sh_cell.wall_neighbours.bitmap_raw();
-                        (location.position(bitmap), *location.size(), *location.offset())
+                        (location.position(bitmap), *location.size(), *location.offset(), Some(WallSpriteRenderInfo {
+                            base_x: location.base(),
+                            size: location.size().x,
+                        }))
                     } else {
                         return None;
                     }
@@ -113,6 +129,7 @@ impl SpriteRenderInfo {
                 position: [position_x, 0.0],
                 size: size.into(),
                 offset: offset.into(),
+                wall_info,
             });
         }
 
@@ -124,6 +141,7 @@ impl SpriteRenderInfo {
             position: [0.0, 0.0],
             size: [input_sprite::WIDTH_PX as f32, input_sprite::HEIGHT_PX as f32],
             offset: [0.0, 0.0],
+            wall_info: None,
         }
     }
 }

@@ -42,6 +42,9 @@ impl Default for SpriteLocation {
 pub struct WallSpriteLocation(SpriteLocation);
 
 impl WallSpriteLocation {
+    pub fn base(&self) -> f32 {
+        self.0.position
+    }
     pub fn position(&self, bitmap: u8) -> f32 {
         self.0.position + self.0.size.x * bitmap as f32
     }
