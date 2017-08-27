@@ -110,18 +110,36 @@ impl<R: gfx::Resources> Scale<R> {
         encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);
     }
 
-    pub fn handle_resize<C>(&mut self,
-                            out_rtv: gfx::handle::RenderTargetView<R, ColourFormat>,
-                            in_srv: gfx::handle::ShaderResourceView<R, [f32; 4]>,
-                            srv_width: u16,
-                            srv_height: u16,
-                            encoder: &mut gfx::Encoder<R, C>)
+    pub fn handle_resize<C, F>(&mut self,
+                               out_rtv: gfx::handle::RenderTargetView<R, ColourFormat>,
+                               in_srv: gfx::handle::ShaderResourceView<R, [f32; 4]>,
+                               srv_width: u16,
+                               srv_height: u16,
+                               encoder: &mut gfx::Encoder<R, C>,
+                               factory: &mut F)
         where C: gfx::CommandBuffer<R>,
+              F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
         self.in_width = srv_width;
         self.in_height = srv_height;
         self.bundle.data.out_colour = out_rtv;
         self.bundle.data.tex.0 = in_srv;
+
+        let vertex_data: Vec<Vertex> = izip!(&common::QUAD_VERTICES, &common::QUAD_TEX_COORDS_UPSIDE_DOWN)
+            .map(|(v, t)| {
+                Vertex {
+                    pos: *v,
+                    texel: [t[0] * srv_width as f32, t[1] * srv_height as f32],
+                }
+            }).collect();
+
+        let (vertex_buffer, slice) =
+            factory.create_vertex_buffer_with_slice(
+                &vertex_data,
+                &common::QUAD_INDICES[..]);
+
+        self.bundle.data.vertex = vertex_buffer;
+        self.bundle.slice = slice;
 
         self.init(encoder);
     }

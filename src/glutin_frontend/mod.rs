@@ -87,7 +87,6 @@ impl<'a> FrontendOutput<'a> for GlutinFrontendOutput {
         self.device.cleanup();
     }
     fn handle_resize(&mut self, _width: u16, _height: u16) {
-        return;
         let (rtv, dsv) = gfx_window_glutin::new_views(&self.window);
         self.renderer.handle_resize(&rtv, &mut self.encoder, &mut self.factory);
         self.rtv = rtv;

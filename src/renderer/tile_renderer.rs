@@ -82,6 +82,7 @@ pub struct TileRenderer<R: gfx::Resources> {
     height_px: u16,
     num_instances: usize,
     instance_manager: InstanceManager,
+    mid_position: Vector2<f32>,
 }
 
 pub struct SpriteRenderInfo {
@@ -194,6 +195,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             height_px: HEIGHT_PX,
             num_instances: 0,
             instance_manager: InstanceManager::new(),
+            mid_position: Vector2::new(0.0, 0.0),
         }, srv)
     }
 
@@ -241,6 +243,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             player_position: None,
             width_px: self.width_px,
             height_px: self.height_px,
+            mid_position: &mut self.mid_position,
         }
     }
 
@@ -259,6 +262,11 @@ impl<R: gfx::Resources> TileRenderer<R> {
 
         self.init(encoder);
 
+        let scroll_offset = compute_scroll_offset(self.width_px, self.height_px, self.mid_position);
+        encoder.update_constant_buffer(&self.bundle.data.offset, &Offset {
+            scroll_offset_pix: scroll_offset.into(),
+        });
+
         srv
     }
 }
@@ -270,6 +278,7 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
     instance_manager: &'a mut InstanceManager,
     num_instances: &'a mut usize,
     player_position: Option<Vector2<f32>>,
+    mid_position: &'a mut Vector2<f32>,
     width_px: u16,
     height_px: u16,
 }
@@ -293,12 +302,17 @@ impl<'a, R: gfx::Resources> RendererWorldState<'a, R> {
         self.bundle.slice.instances = Some((num_instances, 0));
 
         if let Some(player_position) = self.player_position {
-            let mid = (player_position + Vector2::new(0.5, 0.5))
-                .mul_element_wise(Vector2::new(input_sprite::WIDTH_PX, input_sprite::HEIGHT_PX).cast());
-            let offset = Vector2::new(mid.x - (self.width_px / 2) as f32, mid.y - (self.height_px / 2) as f32);
+            *self.mid_position = player_position;
+            let scroll_offset = compute_scroll_offset(self.width_px, self.height_px, player_position);
             encoder.update_constant_buffer(&self.bundle.data.offset, &Offset {
-                scroll_offset_pix: offset.into(),
+                scroll_offset_pix: scroll_offset.into(),
             });
         }
     }
+}
+
+fn compute_scroll_offset(width: u16, height: u16, mid_position: Vector2<f32>) -> Vector2<f32> {
+    let mid = (mid_position + Vector2::new(0.5, 0.5))
+        .mul_element_wise(Vector2::new(input_sprite::WIDTH_PX, input_sprite::HEIGHT_PX).cast());
+    Vector2::new(mid.x - (width / 2) as f32, mid.y - (height / 2) as f32)
 }

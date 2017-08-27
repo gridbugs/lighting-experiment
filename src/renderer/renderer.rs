@@ -75,6 +75,6 @@ impl<R: gfx::Resources> Renderer<R> {
         let (width, height, ..) = rtv.get_dimensions();
         let srv = self.tile_renderer.handle_resize(width, height, encoder, factory);
         let (srv_width, srv_height) = self.tile_renderer.dimensions();
-        self.scale.handle_resize(rtv.clone(), srv, srv_width, srv_height, encoder);
+        self.scale.handle_resize(rtv.clone(), srv, srv_width, srv_height, encoder, factory);
     }
 }
