@@ -1,4 +1,4 @@
-use entity_store::{EntityStore, EntityChange, Change, EntityId,
+use entity_store::{EntityStore, EntityChange, Change,
                    ComponentValue, ComponentType, EntityVecMap};
 use spatial_hash::SpatialHashTable;
 use id_allocator::IdAllocator;
@@ -25,16 +25,6 @@ impl InstanceManager {
 
     pub fn num_instances(&self) -> u32 {
         self.index_allocator.max() as u32
-    }
-
-    pub fn index(&mut self, id: EntityId) -> usize {
-        if let Some(index) = self.index_table.get(&id).cloned() {
-            index as usize
-        } else {
-            let index = self.index_allocator.allocate();
-            self.index_table.insert(id, index);
-            index as usize
-        }
     }
 
     pub fn update(&mut self,

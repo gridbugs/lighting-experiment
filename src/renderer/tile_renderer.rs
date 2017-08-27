@@ -7,7 +7,7 @@ use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::instance_manager::InstanceManager;
 use renderer::common;
 
-use content::{DepthType, Sprite};
+use content::Sprite;
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 
@@ -213,17 +213,6 @@ impl<R: gfx::Resources> TileRenderer<R> {
         encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);
     }
 
-    pub fn update_offset<C>(&self, player_position: Vector2<f32>, encoder: &mut gfx::Encoder<R, C>)
-        where C: gfx::CommandBuffer<R>,
-    {
-        let mid = (player_position + Vector2::new(0.5, 0.5))
-            .mul_element_wise(Vector2::new(input_sprite::WIDTH_PX, input_sprite::HEIGHT_PX).cast());
-        let offset = Vector2::new(mid.x - (self.width_px / 2) as f32, mid.y - (self.height_px / 2) as f32);
-        encoder.update_constant_buffer(&self.bundle.data.offset, &Offset {
-            scroll_offset_pix: offset.into(),
-        });
-    }
-
     pub fn world_state<F>(&mut self, factory: &mut F) -> RendererWorldState<R>
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
@@ -240,55 +229,6 @@ impl<R: gfx::Resources> TileRenderer<R> {
             width_px: self.width_px,
             height_px: self.height_px,
         }
-    }
-
-    pub fn update_all<F>(&mut self, entity_store: &EntityStore, spatial_hash: &SpatialHashTable,
-                         factory: &mut F)
-        where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
-    {
-        let mut mapper = factory.write_mapping(&self.upload)
-            .expect("Failed to map upload buffer");
-
-        for (id, position) in entity_store.position.iter() {
-            let depth_type = if let Some(depth_type) = entity_store.depth.get(&id) {
-                *depth_type
-            } else {
-                continue;
-            };
-
-            let sprite = if let Some(sprite) = entity_store.sprite.get(&id) {
-                *sprite
-            } else {
-                continue;
-            };
-
-            let sprite_info = if let Some(sprite_info) = SpriteRenderInfo::resolve(sprite, &self.sprite_sheet.sprite_table,
-                                                                                   *position, spatial_hash) {
-                sprite_info
-            } else {
-                continue;
-            };
-
-            let depth = match depth_type {
-                DepthType::Vertical => 1.0 - position.x / spatial_hash.height() as f32,
-                DepthType::Horizontal => 1.0,
-            };
-
-            let instance_index = self.instance_manager.index(id);
-            mapper[instance_index] = Instance {
-                sprite_sheet_pix_coord: sprite_info.position,
-                position: position.cast().into(),
-                pix_size: sprite_info.size,
-                pix_offset: sprite_info.offset,
-                depth: depth,
-                enabled: 1,
-            };
-
-        }
-
-        let num_instances = self.instance_manager.num_instances();
-        self.bundle.slice.instances = Some((num_instances, 0));
-        self.num_instances = num_instances as usize;
     }
 }
 
