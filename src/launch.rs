@@ -5,18 +5,23 @@ use spatial_hash::SpatialHashTable;
 use entity_id_allocator::EntityIdAllocator;
 use content::Sprite;
 use control_table::GameControlTable;
-use control::{ActionControl, MetaControl, GameControl};
-use input::BindableInput;
+use control::Control;
+use input::{Input, Bindable, Unbindable, System};
 use direction::CardinalDirection;
 
-pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend: Frontend<I, O>) {
-
-    let control_table = GameControlTable::new(hashmap!{
-        BindableInput::Up => ActionControl::Move(CardinalDirection::North),
-        BindableInput::Right => ActionControl::Move(CardinalDirection::East),
-        BindableInput::Down => ActionControl::Move(CardinalDirection::South),
-        BindableInput::Left => ActionControl::Move(CardinalDirection::West),
-    });
+pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Frontend<I, O>) {
+    let Frontend { mut input, mut output } = frontend;
+    let control_table = {
+        use self::Bindable::*;
+        use self::Control::*;
+        use self::CardinalDirection::*;
+        GameControlTable::new(hashmap!{
+            Up => Move(North),
+            Right => Move(East),
+            Down => Move(South),
+            Left => Move(West),
+        })
+    };
 
     let mut allocator = EntityIdAllocator::new();
     let mut changes = Vec::new();
@@ -27,7 +32,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend: Fro
 
     let mut spatial_hash = SpatialHashTable::new(metadata.width, metadata.height);
 
-    frontend.output.with_world_state(|state| {
+    output.with_world_state(|state| {
         for c in changes.drain(..) {
             state.update(&c, &entity_store, &spatial_hash);
             spatial_hash.update(&entity_store, &c, 0);
@@ -39,16 +44,38 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend: Fro
     let mut count = 0;
     while running {
 
-        frontend.input.with_input(|input| {
-            if let Some(control) = control_table.get(input) {
-                match control {
-                    GameControl::Meta(MetaControl::Quit) => running = false,
-                    _ => {}
+        input.with_input(|input| {
+            use self::Input::*;
+            match input {
+                Bindable(b) => {
+                    if let Some(control) = control_table.get(b) {
+                        use self::Control::*;
+                        match control {
+                            Move(direction) => {
+                                println!("Moving {:?}", direction);
+                            }
+                        }
+                    }
+                }
+                Unbindable(u) => {
+                    use self::Unbindable::*;
+                    match u {
+                        Escape => {}
+                    }
+                }
+                System(s) => {
+                    use self::System::*;
+                    match s {
+                        Quit => running = false,
+                        Resize(w, h) => {
+                            output.handle_resize(w, h);
+                        }
+                    }
                 }
             }
         });
 
-        frontend.output.with_world_state(|state| {
+        output.with_world_state(|state| {
 
             if count % 45 == 0 {
                 let change = if count % 90 == 0 {
@@ -67,7 +94,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend: Fro
             }
         });
 
-        frontend.output.draw();
+        output.draw();
 
         count += 1;
     }

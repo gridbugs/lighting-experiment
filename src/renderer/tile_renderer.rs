@@ -128,6 +128,22 @@ impl SpriteRenderInfo {
 }
 
 impl<R: gfx::Resources> TileRenderer<R> {
+    fn scaled_width(window_width_px: u16, window_height_px: u16) -> u16 {
+        ((window_width_px as u32 * HEIGHT_PX as u32) / window_height_px as u32) as u16
+    }
+    fn create_targets<F>(window_width_px: u16, window_height_px: u16, factory: &mut F)
+        -> (u16, gfx::handle::ShaderResourceView<R, [f32; 4]>,
+            gfx::handle::RenderTargetView<R, ColourFormat>,
+            gfx::handle::DepthStencilView<R, DepthFormat>)
+        where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
+    {
+        let width_px = Self::scaled_width(window_width_px, window_height_px);
+        let (_, srv, colour_rtv) = factory.create_render_target(width_px, HEIGHT_PX)
+            .expect("Failed to create render target for sprite sheet");
+        let (_, _, depth_rtv) = factory.create_depth_stencil(width_px, HEIGHT_PX)
+            .expect("Failed to create depth stencil");
+        (width_px, srv, colour_rtv, depth_rtv)
+    }
     pub fn new<F>(sprite_sheet: SpriteSheet<R>,
                   window_width_px: u16,
                   window_height_px: u16,
@@ -155,11 +171,8 @@ impl<R: gfx::Resources> TileRenderer<R> {
             gfx::texture::SamplerInfo::new(gfx::texture::FilterMethod::Scale,
                                            gfx::texture::WrapMode::Tile));
 
-        let width_px = ((window_width_px as u32 * HEIGHT_PX as u32) / window_height_px as u32) as u16;
-        let (_, srv, colour_rtv) = factory.create_render_target(width_px, HEIGHT_PX)
-            .expect("Failed to create render target for sprite sheet");
-        let (_, _, depth_rtv) = factory.create_depth_stencil(width_px, HEIGHT_PX)
-            .expect("Failed to create depth stencil");
+        let (width_px, srv, colour_rtv, depth_rtv) =
+            Self::create_targets(window_width_px, window_height_px, factory);
 
         let data = pipe::Data {
             dimensions: factory.create_constant_buffer(1),
@@ -229,6 +242,24 @@ impl<R: gfx::Resources> TileRenderer<R> {
             width_px: self.width_px,
             height_px: self.height_px,
         }
+    }
+
+    pub fn handle_resize<C, F>(&mut self, width: u16, height: u16,
+                               encoder: &mut gfx::Encoder<R, C>, factory: &mut F)
+        -> gfx::handle::ShaderResourceView<R, [f32; 4]>
+        where C: gfx::CommandBuffer<R>,
+              F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
+    {
+        let (target_width_px, srv, colour_rtv, depth_rtv) =
+            Self::create_targets(width, height, factory);
+
+        self.width_px = target_width_px;
+        self.bundle.data.out_colour = colour_rtv;
+        self.bundle.data.out_depth = depth_rtv;
+
+        self.init(encoder);
+
+        srv
     }
 }
 

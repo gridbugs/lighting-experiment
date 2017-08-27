@@ -109,4 +109,20 @@ impl<R: gfx::Resources> Scale<R> {
     {
         encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);
     }
+
+    pub fn handle_resize<C>(&mut self,
+                            out_rtv: gfx::handle::RenderTargetView<R, ColourFormat>,
+                            in_srv: gfx::handle::ShaderResourceView<R, [f32; 4]>,
+                            srv_width: u16,
+                            srv_height: u16,
+                            encoder: &mut gfx::Encoder<R, C>)
+        where C: gfx::CommandBuffer<R>,
+    {
+        self.in_width = srv_width;
+        self.in_height = srv_height;
+        self.bundle.data.out_colour = out_rtv;
+        self.bundle.data.tex.0 = in_srv;
+
+        self.init(encoder);
+    }
 }

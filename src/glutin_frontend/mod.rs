@@ -23,6 +23,7 @@ pub struct GlutinFrontendOutput {
     encoder: gfx::Encoder<Resources, gfx_device_gl::CommandBuffer>,
     factory: gfx_device_gl::Factory,
     rtv: gfx::handle::RenderTargetView<Resources, ColourFormat>,
+    dsv: gfx::handle::DepthStencilView<Resources, DepthFormat>,
 }
 
 pub struct GlutinFrontendInput {
@@ -32,13 +33,12 @@ pub struct GlutinFrontendInput {
 pub type GlutinFrontend = Frontend<GlutinFrontendInput, GlutinFrontendOutput>;
 
 pub fn create() -> GlutinFrontend {
-    let builder = glutin::WindowBuilder::new()
-        .with_fullscreen(glutin::get_primary_monitor());
+    let builder = glutin::WindowBuilder::new();
 
     let events_loop = glutin::EventsLoop::new();
     let context = glutin::ContextBuilder::new();
 
-    let (window, mut device, mut factory, rtv, _dsv) =
+    let (window, mut device, mut factory, rtv, dsv) =
         gfx_window_glutin::init::<ColourFormat, DepthFormat>(builder, context, &events_loop);
 
     let mut encoder = factory.create_command_buffer().into();
@@ -56,6 +56,7 @@ pub fn create() -> GlutinFrontend {
             encoder,
             factory,
             rtv,
+            dsv,
         },
     }
 }
@@ -84,5 +85,12 @@ impl<'a> FrontendOutput<'a> for GlutinFrontendOutput {
         self.encoder.flush(&mut self.device);
         self.window.swap_buffers().expect("Failed to swap buffers");
         self.device.cleanup();
+    }
+    fn handle_resize(&mut self, _width: u16, _height: u16) {
+        return;
+        let (rtv, dsv) = gfx_window_glutin::new_views(&self.window);
+        self.renderer.handle_resize(&rtv, &mut self.encoder, &mut self.factory);
+        self.rtv = rtv;
+        self.dsv = dsv;
     }
 }

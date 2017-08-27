@@ -66,4 +66,15 @@ impl<R: gfx::Resources> Renderer<R> {
     {
         self.tile_renderer.world_state(factory)
     }
+
+    pub fn handle_resize<C, F>(&mut self, rtv: &gfx::handle::RenderTargetView<R, ColourFormat>,
+                               encoder: &mut gfx::Encoder<R, C>, factory: &mut F)
+        where C: gfx::CommandBuffer<R>,
+              F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
+    {
+        let (width, height, ..) = rtv.get_dimensions();
+        let srv = self.tile_renderer.handle_resize(width, height, encoder, factory);
+        let (srv_width, srv_height) = self.tile_renderer.dimensions();
+        self.scale.handle_resize(rtv.clone(), srv, srv_width, srv_height, encoder);
+    }
 }

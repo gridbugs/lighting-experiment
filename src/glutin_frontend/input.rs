@@ -1,14 +1,14 @@
 use glutin::{Event, WindowEvent, ModifiersState, ElementState, VirtualKeyCode};
-use input::{Input, BindableInput, UnbindableInput};
+use input::{Input, Bindable, Unbindable, System};
 
-fn to_char_event(ch: char, keymod: ModifiersState) -> Option<BindableInput> {
+fn to_char_event(ch: char, keymod: ModifiersState) -> Option<Bindable> {
     if ch.is_alphabetic() {
         if keymod.shift {
             let chars = ch.to_uppercase().collect::<Vec<char>>();
-            return Some(BindableInput::Char(chars[0]));
+            return Some(Bindable::Char(chars[0]));
         } else {
             // ch must be lowercase
-            return Some(BindableInput::Char(ch));
+            return Some(Bindable::Char(ch));
         }
     }
 
@@ -33,21 +33,23 @@ fn to_char_event(ch: char, keymod: ModifiersState) -> Option<BindableInput> {
         ch
     };
 
-    Some(BindableInput::Char(translated_ch))
+    Some(Bindable::Char(translated_ch))
 }
 
 fn convert_key(keycode: VirtualKeyCode, keymod: ModifiersState) -> Option<Input> {
+    use self::Unbindable::*;
     if keycode == VirtualKeyCode::Escape {
-        return Some(Input::Unbindable(UnbindableInput::Escape));
+        return Some(Input::Unbindable(Escape));
     }
 
+    use self::Bindable::*;
     let maybe_event = match keycode {
-        VirtualKeyCode::Up => Some(BindableInput::Up),
-        VirtualKeyCode::Down => Some(BindableInput::Down),
-        VirtualKeyCode::Left => Some(BindableInput::Left),
-        VirtualKeyCode::Right => Some(BindableInput::Right),
-        VirtualKeyCode::Space => Some(BindableInput::Space),
-        VirtualKeyCode::Return => Some(BindableInput::Return),
+        VirtualKeyCode::Up => Some(Up),
+        VirtualKeyCode::Down => Some(Down),
+        VirtualKeyCode::Left => Some(Left),
+        VirtualKeyCode::Right => Some(Right),
+        VirtualKeyCode::Space => Some(Space),
+        VirtualKeyCode::Return => Some(Return),
         VirtualKeyCode::A => to_char_event('a', keymod),
         VirtualKeyCode::B => to_char_event('b', keymod),
         VirtualKeyCode::C => to_char_event('c', keymod),
@@ -104,8 +106,10 @@ pub fn convert_event(event: Event) -> Option<Input> {
         return None;
     };
 
+    use self::System::*;
     match event {
-        WindowEvent::Closed => return Some(Input::Unbindable(UnbindableInput::Quit)),
+        WindowEvent::Closed => return Some(Input::System(Quit)),
+        WindowEvent::Resized(w, h) => return Some(Input::System(Resize(w as u16, h as u16))),
         WindowEvent::KeyboardInput { input, .. } => {
             if input.state == ElementState::Pressed {
                 if let Some(keycode) = input.virtual_keycode {
