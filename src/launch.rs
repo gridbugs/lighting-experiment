@@ -1,16 +1,17 @@
+use std::collections::VecDeque;
 use frontend::{Frontend, FrontendOutput, FrontendInput, OutputWorldState};
 use terrain::demo;
-use entity_store::{EntityStore, insert};
+use entity_store::{EntityStore, ComponentValue, Change};
 use spatial_hash::SpatialHashTable;
 use entity_id_allocator::EntityIdAllocator;
-use content::Sprite;
+use content::ActionType;
 use control_table::GameControlTable;
 use control::Control;
 use input::{Input, Bindable, Unbindable, System};
 use direction::CardinalDirection;
 
 pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Frontend<I, O>) {
-    let Frontend { mut input, mut output } = frontend;
+    let Frontend { input: mut frontend_input, output: mut frontend_output } = frontend;
     let control_table = {
         use self::Bindable::*;
         use self::Control::*;
@@ -32,19 +33,29 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
 
     let mut spatial_hash = SpatialHashTable::new(metadata.width, metadata.height);
 
-    output.with_world_state(|state| {
+    frontend_output.with_world_state(|state| {
         for c in changes.drain(..) {
             state.update(&c, &entity_store, &spatial_hash);
             spatial_hash.update(&entity_store, &c, 0);
+
+            if c.id == player_id {
+                if let Change::Insert(ComponentValue::Position(new_position)) = c.change {
+                    state.set_player_position(new_position);
+                }
+            }
+
             entity_store.commit(c);
         }
     });
+
+    let mut proposed_actions = VecDeque::new();
+    let mut staged_changes = VecDeque::new();
 
     let mut running = true;
     let mut count = 0;
     while running {
 
-        input.with_input(|input| {
+        frontend_input.with_input(|input| {
             use self::Input::*;
             match input {
                 Bindable(b) => {
@@ -52,7 +63,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
                         use self::Control::*;
                         match control {
                             Move(direction) => {
-                                println!("Moving {:?}", direction);
+                                proposed_actions.push_back(ActionType::Walk(player_id, direction));
                             }
                         }
                     }
@@ -68,33 +79,40 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
                     match s {
                         Quit => running = false,
                         Resize(w, h) => {
-                            output.handle_resize(w, h);
+                            frontend_output.handle_resize(w, h);
                         }
                     }
                 }
             }
         });
 
-        output.with_world_state(|state| {
+        if count % 30 == 0 {
+            proposed_actions.push_back(ActionType::Bob(player_id));
+        }
 
-            if count % 45 == 0 {
-                let change = if count % 90 == 0 {
-                    insert::sprite(player_id, Sprite::Angler)
-                } else {
-                    insert::sprite(player_id, Sprite::AnglerBob)
-                };
+        for a in proposed_actions.drain(..) {
+            a.populate(&entity_store, &mut staged_changes);
+        }
+
+        frontend_output.with_world_state(|state| {
+
+            for change in staged_changes.drain(..) {
 
                 state.update(&change, &entity_store, &spatial_hash);
 
-                let player_position = entity_store.position.get(&player_id).cloned().expect("Failed to find player position");
-                state.set_player_position(player_position);
-
                 spatial_hash.update(&entity_store, &change, count);
+
+                if change.id == player_id {
+                    if let Change::Insert(ComponentValue::Position(new_position)) = change.change {
+                        state.set_player_position(new_position);
+                    }
+                }
+
                 entity_store.commit(change);
             }
         });
 
-        output.draw();
+        frontend_output.draw();
 
         count += 1;
     }

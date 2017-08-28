@@ -21,6 +21,7 @@ mod static_grid;
 mod limits;
 mod direction;
 mod neighbour_count;
+mod append;
 
 #[macro_use] mod entity_store;
 mod spatial_hash;

@@ -63,7 +63,7 @@ impl InstanceManager {
 
                 if let Some(depth_type) = entity_store.depth.get(&id) {
                     let depth = match *depth_type {
-                        DepthType::Vertical => 1.0 - position.x / spatial_hash.height() as f32,
+                        DepthType::Vertical => 1.0 - position.y / spatial_hash.height() as f32,
                         DepthType::Horizontal => 1.0,
                     };
                     instance.depth = depth;
@@ -97,7 +97,7 @@ impl InstanceManager {
                 if let Some(index) = self.index_table.get(&id).cloned() {
                     if let Some(position) = entity_store.position.get(&id) {
                         let depth = match depth_type {
-                            DepthType::Vertical => 1.0 - position.x / spatial_hash.height() as f32,
+                            DepthType::Vertical => 1.0 - position.y / spatial_hash.height() as f32,
                             DepthType::Horizontal => 1.0,
                         };
                         instances[index as usize].depth = depth;

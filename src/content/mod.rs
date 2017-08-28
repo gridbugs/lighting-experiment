@@ -6,3 +6,8 @@ pub use self::sprite::Sprite;
 
 pub mod depth_type;
 pub use self::depth_type::DepthType;
+
+pub mod action;
+pub use self::action::ActionType;
+
+pub mod bob;
