@@ -1,4 +1,7 @@
 use std::collections::VecDeque;
+use std::time::{Instant, Duration};
+use std::mem;
+
 use frontend::{Frontend, FrontendOutput, FrontendInput, OutputWorldState};
 use terrain::demo;
 use entity_store::{EntityStore, ComponentValue, EntityChange};
@@ -9,6 +12,7 @@ use control_table::GameControlTable;
 use control::Control;
 use input::{Input, Bindable, Unbindable, System};
 use direction::CardinalDirection;
+use content::{ChangeDesc, AnimationStatus};
 
 pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Frontend<I, O>) {
     let Frontend { input: mut frontend_input, output: mut frontend_output } = frontend;
@@ -50,10 +54,24 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
 
     let mut proposed_actions = VecDeque::new();
     let mut staged_changes = VecDeque::new();
+    let mut change_descs = VecDeque::new();
+
+    let mut animations = VecDeque::new();
+    let mut animations_swap = VecDeque::new();
 
     let mut running = true;
     let mut count = 0;
+
+    let bob_duration = Duration::from_millis(500);
+    let mut bob_acc = Duration::from_millis(0);
+
+    let mut frame_instant = Instant::now();
+
     while running {
+
+        let now = Instant::now();
+        let frame_duration = now - frame_instant;
+        frame_instant = now;
 
         frontend_input.with_input(|input| {
             use self::Input::*;
@@ -86,13 +104,33 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
             }
         });
 
-        if count % 30 == 0 {
+        bob_acc += frame_duration;
+        if bob_acc >= bob_duration {
+            bob_acc -= bob_duration;
             proposed_actions.push_back(ActionType::Bob(player_id));
         }
 
         for a in proposed_actions.drain(..) {
-            a.populate(&entity_store, &mut staged_changes);
+            a.populate(&entity_store, &mut change_descs);
         }
+
+        for desc in change_descs.drain(..) {
+            use self::ChangeDesc::*;
+            match desc {
+                Immediate(change) => staged_changes.push_back(change),
+                Animation(_eventual_change, animation) => {
+                    animations.push_back(animation);
+                }
+            }
+        }
+
+        for mut animation in animations.drain(..) {
+            let status = animation.populate(frame_duration, &mut staged_changes);
+            if status == AnimationStatus::Running {
+                animations_swap.push_back(animation);
+            }
+        }
+        mem::swap(&mut animations, &mut animations_swap);
 
         frontend_output.with_world_state(|state| {
 
