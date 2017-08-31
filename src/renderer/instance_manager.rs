@@ -1,4 +1,4 @@
-use entity_store::{EntityStore, EntityChange, Change,
+use entity_store::{EntityStore, EntityChange,
                    ComponentValue, ComponentType, EntityVecMap};
 use spatial_hash::SpatialHashTable;
 use id_allocator::IdAllocator;
@@ -36,12 +36,10 @@ impl InstanceManager {
                   sprite_table: &SpriteTable) {
 
         use self::ComponentValue::*;
-        use self::Change::*;
+        use self::EntityChange::*;
 
-        let id = entity_change.id;
-
-        match &entity_change.change {
-            &Insert(Position(position)) => {
+        match entity_change {
+            &Insert(id, Position(position)) => {
                 let index = if let Some(index) = self.index_table.get(&id).cloned() {
                     index
                 } else {
@@ -69,7 +67,7 @@ impl InstanceManager {
                     instance.depth = depth;
                 }
             }
-            &Insert(Sprite(sprite)) => {
+            &Insert(id, Sprite(sprite)) => {
                 if let Some(index) = self.index_table.get(&id).cloned() {
                     if let Some(position) = entity_store.position.get(&id) {
                         if let Some(sprite_info) = SpriteRenderInfo::resolve(
@@ -93,7 +91,7 @@ impl InstanceManager {
                     }
                 }
             }
-            &Insert(Depth(depth_type)) => {
+            &Insert(id, Depth(depth_type)) => {
                 if let Some(index) = self.index_table.get(&id).cloned() {
                     if let Some(position) = entity_store.position.get(&id) {
                         let depth = match depth_type {
@@ -104,14 +102,14 @@ impl InstanceManager {
                     }
                 }
             }
-            &Remove(ComponentType::Position) => {
+            &Remove(id, ComponentType::Position) => {
                 if let Some(index) = self.index_table.get(&id).cloned() {
                     instances[index as usize].enabled = 0;
                     self.index_allocator.free(index);
                     self.index_table.remove(&id);
                 }
             }
-            &Remove(ComponentType::Sprite) => {
+            &Remove(id, ComponentType::Sprite) => {
                 if let Some(index) = self.index_table.get(&id).cloned() {
                     instances[index as usize].update_sprite_info(SpriteRenderInfo::blank());
                 }

@@ -5,7 +5,7 @@
 use std::collections::HashSet;
 use fnv;
 
-use entity_store::{EntityId, EntityStore, EntityChange, Change, ComponentValue, ComponentType};
+use entity_store::{EntityId, EntityStore, EntityChange, ComponentValue, ComponentType};
 use static_grid::{self, StaticGrid};
 use limits::LimitsRect;
 use neighbour_count::NeighbourCount;
@@ -81,12 +81,12 @@ impl SpatialHashTable {
     }
 
     pub fn update(&mut self, store: &EntityStore, entity_change: &EntityChange, time: u64) {
-        match &entity_change.change {
-            &Change::Insert(ref component) => {
-                insert_match!(self, store, entity_change.id, component, time)
+        match entity_change {
+            &EntityChange::Insert(id, ref component) => {
+                insert_match!(self, store, id, component, time)
             }
-            &Change::Remove(typ) => {
-                remove_match!(self, store, entity_change.id, typ, time)
+            &EntityChange::Remove(id, typ) => {
+                remove_match!(self, store, id, typ, time)
             }
         }
     }

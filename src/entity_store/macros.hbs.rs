@@ -40,9 +40,8 @@ macro_rules! entity_store_cons {
 macro_rules! commit {
     ($self:ident, $entity_change:ident) => {
         {
-            let EntityChange { id, change } = $entity_change;
-            match change {
-                Change::Insert(value) => {
+            match $entity_change {
+                EntityChange::Insert(id, value) => {
                     match value {
 {{#each components}}
     {{#if type}}
@@ -53,7 +52,7 @@ macro_rules! commit {
 {{/each}}
                     }
                 }
-                Change::Remove(typ) => {
+                EntityChange::Remove(id, typ) => {
                     match typ {
 {{#each components}}
     {{#if type}}
@@ -100,23 +99,17 @@ macro_rules! enum_component_value {
 macro_rules! insert_shorthands {
     ($insert:ident) => {
         pub mod $insert {
-            use entity_store::{EntityId, EntityChange, Change, ComponentValue};
+            use entity_store::{EntityId, EntityChange, ComponentValue};
             entity_store_imports!{}
 
 {{#each components}}
     {{#if type}}
             pub fn {{@key}}(id: EntityId, value: {{type}}) -> EntityChange {
-                EntityChange {
-                    id,
-                    change: Change::Insert(ComponentValue::{{name}}(value)),
-                }
+                EntityChange::Insert(id, ComponentValue::{{name}}(value))
             }
     {{else}}
             pub fn {{@key}}(id: EntityId) -> EntityChange {
-                EntityChange {
-                    id,
-                    change: Change::Insert(ComponentValue::{{name}}),
-                }
+                EntityChange::Insert(id, ComponentValue::{{name}})
             }
     {{/if}}
 {{/each}}
@@ -128,24 +121,12 @@ macro_rules! insert_shorthands {
 macro_rules! remove_shorthands {
     ($remove:ident) => {
         pub mod $remove {
-            use entity_store::{EntityId, EntityChange, Change, ComponentType};
+            use entity_store::{EntityId, EntityChange, ComponentType};
 
 {{#each components}}
-    {{#if type}}
             pub fn {{@key}}(id: EntityId) -> EntityChange {
-                EntityChange {
-                    id,
-                    change: Change::Remove(ComponentType::{{name}}),
-                }
+                EntityChange::Remove(id, ComponentType::{{name}})
             }
-    {{else}}
-            pub fn {{@key}}(id: EntityId) -> EntityChange {
-                EntityChange {
-                    id,
-                    change: Change::Remove(ComponentType::{{name}}),
-                }
-            }
-    {{/if}}
 {{/each}}
         }
     }

@@ -37,30 +37,17 @@ enum_component_type!{ComponentType}
 enum_component_value!{ComponentValue}
 
 #[derive(Debug, Clone)]
-pub enum Change {
-    Insert(ComponentValue),
-    Remove(ComponentType),
-}
-
-pub struct EntityChange {
-    pub id: EntityId,
-    pub change: Change,
+pub enum EntityChange {
+    Insert(EntityId, ComponentValue),
+    Remove(EntityId, ComponentType),
 }
 
 impl EntityChange {
-    pub fn new(id: EntityId, change: Change) -> Self {
-        Self {
-            id,
-            change,
+    pub fn id(&self) -> EntityId {
+        match self {
+            &EntityChange::Insert(id, ..) => id,
+            &EntityChange::Remove(id, ..) => id,
         }
-    }
-
-    pub fn insert(id: EntityId, value: ComponentValue) -> Self {
-        Self::new(id, Change::Insert(value))
-    }
-
-    pub fn remove(id: EntityId, typ: ComponentType) -> Self {
-        Self::new(id, Change::Remove(typ))
     }
 }
 

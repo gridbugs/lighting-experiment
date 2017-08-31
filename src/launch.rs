@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use frontend::{Frontend, FrontendOutput, FrontendInput, OutputWorldState};
 use terrain::demo;
-use entity_store::{EntityStore, ComponentValue, Change};
+use entity_store::{EntityStore, ComponentValue, EntityChange};
 use spatial_hash::SpatialHashTable;
 use entity_id_allocator::EntityIdAllocator;
 use content::ActionType;
@@ -38,8 +38,8 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
             state.update(&c, &entity_store, &spatial_hash);
             spatial_hash.update(&entity_store, &c, 0);
 
-            if c.id == player_id {
-                if let Change::Insert(ComponentValue::Position(new_position)) = c.change {
+            if let EntityChange::Insert(id, ComponentValue::Position(new_position)) = c {
+                if id == player_id {
                     state.set_player_position(new_position);
                 }
             }
@@ -102,8 +102,8 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
 
                 spatial_hash.update(&entity_store, &change, count);
 
-                if change.id == player_id {
-                    if let Change::Insert(ComponentValue::Position(new_position)) = change.change {
+                if let EntityChange::Insert(id, ComponentValue::Position(new_position)) = change {
+                    if id == player_id {
                         state.set_player_position(new_position);
                     }
                 }
