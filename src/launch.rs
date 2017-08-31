@@ -80,6 +80,9 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
             use self::Input::*;
             match input {
                 Bindable(b) => {
+                    if !animations.is_empty() {
+                        return;
+                    }
                     if let Some(control) = control_table.get(b) {
                         use self::Control::*;
                         match control {
