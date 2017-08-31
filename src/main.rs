@@ -35,6 +35,7 @@ mod content;
 mod res;
 
 mod launch;
+mod policy;
 mod frontend;
 mod glutin_frontend;
 mod renderer;

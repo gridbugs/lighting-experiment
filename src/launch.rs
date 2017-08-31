@@ -13,6 +13,7 @@ use control::Control;
 use input::{Input, Bindable, Unbindable, System};
 use direction::CardinalDirection;
 use content::{ChangeDesc, AnimationStatus};
+use policy;
 
 pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Frontend<I, O>) {
     let Frontend { input: mut frontend_input, output: mut frontend_output } = frontend;
@@ -54,7 +55,9 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
 
     let mut proposed_actions = VecDeque::new();
     let mut staged_changes = VecDeque::new();
+
     let mut change_descs = VecDeque::new();
+    let mut change_descs_swap = VecDeque::new();
 
     let mut animations = VecDeque::new();
     let mut animations_swap = VecDeque::new();
@@ -114,13 +117,26 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
             a.populate(&entity_store, &mut change_descs);
         }
 
-        for desc in change_descs.drain(..) {
-            use self::ChangeDesc::*;
-            match desc {
-                Immediate(change) => staged_changes.push_back(change),
-                Animation(_eventual_change, animation) => {
-                    animations.push_back(animation);
+        loop {
+            for desc in change_descs.drain(..) {
+                use self::ChangeDesc::*;
+                match desc {
+                    Immediate(change) => {
+                        if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs_swap) {
+                            staged_changes.push_back(change);
+                        }
+                    }
+                    Animation(eventual_change, animation) => {
+                        if policy::check(&eventual_change, &entity_store, &spatial_hash, &mut change_descs_swap) {
+                            animations.push_back(animation);
+                        }
+                    }
                 }
+            }
+            if change_descs_swap.is_empty() {
+                break;
+            } else {
+                mem::swap(&mut change_descs, &mut change_descs_swap);
             }
         }
 

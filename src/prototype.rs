@@ -8,6 +8,7 @@ pub fn angler<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: 
     changes.append(insert::player(id));
     changes.append(insert::sprite(id, Sprite::Angler));
     changes.append(insert::depth(id, DepthType::Vertical));
+    changes.append(insert::collider(id));
 }
 
 pub fn outer_wall<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
