@@ -1,3 +1,4 @@
+use cgmath::Vector2;
 use entity_store::{EntityStore, EntityChange,
                    ComponentValue, ComponentType, EntityVecMap};
 use spatial_hash::SpatialHashTable;
@@ -7,7 +8,7 @@ use renderer::tile_renderer::{Instance, SpriteRenderInfo};
 use renderer::sprite_sheet::SpriteTable;
 
 use direction::Directions;
-use content::DepthType;
+use content::Sprite;
 
 type InstanceIndex = u16;
 
@@ -26,6 +27,28 @@ impl InstanceManager {
 
     pub fn num_instances(&self) -> u32 {
         self.index_allocator.max() as u32
+    }
+
+    fn update_sprite(&mut self, instances: &mut [Instance], spatial_hash: &SpatialHashTable, sprite_table: &SpriteTable,
+                     index: InstanceIndex, position: Vector2<f32>, sprite: Sprite) {
+        if let Some(sprite_info) = SpriteRenderInfo::resolve(
+            sprite, sprite_table, position, spatial_hash
+        ) {
+            if let Some(wall_info) = sprite_info.wall_info {
+                for (coord, dir) in izip!(spatial_hash.neighbour_coord_iter(position.cast(), Directions), Directions) {
+                    if let Some(cell) = spatial_hash.get_valid(coord) {
+                        for wall_id in cell.wall_set.iter() {
+                            if let Some(index) = self.index_table.get(wall_id).cloned() {
+                                let bitmap = cell.wall_neighbours.bitmap() | dir.opposite().bitmap();
+                                let sprite_position = wall_info.position(bitmap.raw);
+                                instances[index as usize].sprite_sheet_pix_coord = sprite_position.into();
+                            }
+                        }
+                    }
+                }
+            }
+            instances[index as usize].update_sprite_info(sprite_info);
+        }
     }
 
     pub fn update(&mut self,
@@ -47,58 +70,31 @@ impl InstanceManager {
                     self.index_table.insert(id, index);
                     index
                 };
-                let instance = &mut instances[index as usize];
-                instance.position = position.into();
-                instance.enabled = 1;
+                {
+                    let instance = &mut instances[index as usize];
+                    instance.position = position.into();
+                    instance.enabled = 1;
 
-                if let Some(sprite) = entity_store.sprite.get(&id) {
-                    if let Some(sprite_info) = SpriteRenderInfo::resolve(
-                        *sprite, sprite_table, position, spatial_hash
-                    ) {
-                        instance.update_sprite_info(sprite_info);
+                    if let Some(depth_type) = entity_store.depth.get(&id) {
+                        instance.update_depth(position.y, spatial_hash.height() as f32, *depth_type);
                     }
                 }
 
-                if let Some(depth_type) = entity_store.depth.get(&id) {
-                    let depth = match *depth_type {
-                        DepthType::Vertical => 1.0 - position.y / spatial_hash.height() as f32,
-                        DepthType::Horizontal => 1.0,
-                    };
-                    instance.depth = depth;
+                if let Some(sprite) = entity_store.sprite.get(&id) {
+                    self.update_sprite(instances, spatial_hash, sprite_table, index, position, *sprite);
                 }
             }
             &Insert(id, Sprite(sprite)) => {
                 if let Some(index) = self.index_table.get(&id).cloned() {
                     if let Some(position) = entity_store.position.get(&id) {
-                        if let Some(sprite_info) = SpriteRenderInfo::resolve(
-                            sprite, sprite_table, *position, spatial_hash
-                        ) {
-                            if let Some(wall_info) = sprite_info.wall_info {
-                                for (coord, dir) in izip!(spatial_hash.neighbour_coord_iter(position.cast(), Directions), Directions) {
-                                    if let Some(cell) = spatial_hash.get_valid(coord) {
-                                        for wall_id in cell.wall_set.iter() {
-                                            if let Some(index) = self.index_table.get(wall_id).cloned() {
-                                                let bitmap = cell.wall_neighbours.bitmap() | dir.opposite().bitmap();
-                                                let sprite_position = wall_info.position(bitmap.raw);
-                                                instances[index as usize].sprite_sheet_pix_coord = sprite_position.into();
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            instances[index as usize].update_sprite_info(sprite_info);
-                        }
+                        self.update_sprite(instances, spatial_hash, sprite_table, index, *position, sprite);
                     }
                 }
             }
             &Insert(id, Depth(depth_type)) => {
                 if let Some(index) = self.index_table.get(&id).cloned() {
                     if let Some(position) = entity_store.position.get(&id) {
-                        let depth = match depth_type {
-                            DepthType::Vertical => 1.0 - position.y / spatial_hash.height() as f32,
-                            DepthType::Horizontal => 1.0,
-                        };
-                        instances[index as usize].depth = depth;
+                        instances[index as usize].update_depth(position.y, spatial_hash.height() as f32, depth_type);
                     }
                 }
             }

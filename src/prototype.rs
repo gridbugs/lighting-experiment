@@ -31,3 +31,9 @@ pub fn outer_floor<A: Append<EntityChange>>(changes: &mut A, id: EntityId, posit
     changes.append(insert::sprite(id, Sprite::OuterFloor));
     changes.append(insert::depth(id, DepthType::Horizontal));
 }
+
+pub fn door<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
+    changes.append(insert::position(id, position));
+    changes.append(insert::sprite(id, Sprite::Door));
+    changes.append(insert::depth(id, DepthType::Vertical));
+}

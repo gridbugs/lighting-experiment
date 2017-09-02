@@ -3,7 +3,6 @@
 
 extern crate cgmath;
 #[macro_use] extern crate serde_derive;
-extern crate serde;
 #[macro_use] extern crate enum_primitive;
 extern crate fnv;
 extern crate num;
@@ -14,7 +13,6 @@ extern crate num;
 extern crate glutin;
 extern crate gfx_window_glutin;
 extern crate gfx_device_gl;
-extern crate genmesh;
 extern crate image;
 
 mod static_grid;

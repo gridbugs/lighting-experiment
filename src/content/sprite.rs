@@ -7,7 +7,8 @@ pub enum Sprite {
     InnerFloor,
     OuterFloor,
     OuterWall,
+    Door,
 }
 }
 
-pub const NUM_SPRITES: usize = 6;
+pub const NUM_SPRITES: usize = 7;

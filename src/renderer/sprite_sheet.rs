@@ -5,7 +5,7 @@ use gfx;
 use image::RgbaImage;
 use cgmath::Vector2;
 
-use direction::{Direction, OrdinalDirections, DirectionBitmap, DirectionsCardinal};
+use direction::{Direction, OrdinalDirections, DirectionBitmap, CardinalDirection};
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::common;
 use res::input_sprite::{self, InputSprite, InputSpriteLocation};
@@ -13,6 +13,9 @@ use content::sprite::{self, Sprite};
 
 // one for each combination of wall neighbours
 const TILES_PER_WALL: u32 = 256;
+
+// one for front and one for top
+const INSTANCES_PER_DOOR: u32 = 2;
 
 // one for the top and one for each possible decoration
 const MAX_INSTANCES_PER_WALL: u32 = 5;
@@ -60,6 +63,10 @@ impl WallSpriteLocation {
 pub enum SpriteResolution {
     Simple(SpriteLocation),
     Wall(WallSpriteLocation),
+    Door {
+        top: SpriteLocation,
+        front: SpriteLocation,
+    },
 }
 
 impl Default for SpriteResolution {
@@ -135,7 +142,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
     {
 
         let mut num_instances = 0;
-        let mut width = 0;
+        let mut width = input_sprite::WIDTH_PX; // leave room for blank sprite
         let mut height = 0;
 
         for sprite in input_sprites.iter() {
@@ -151,10 +158,13 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                     width += top.size.x * TILES_PER_WALL;
                     height = cmp::max(height, top.size.y);
                 }
+                &Door { top, front, .. } => {
+                    num_instances += INSTANCES_PER_DOOR;
+                    width += top.size.x + front.size.x;
+                    height = cmp::max(cmp::max(top.size.y, front.size.y), height);
+                }
             }
         }
-
-        height += 32;
 
         let (_, srv, rtv) = factory.create_render_target(width as u16, height as u16)
             .expect("Failed to create render target for sprite sheet");
@@ -231,8 +241,9 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
             size: input_sprite::DIMENSIONS.cast().into(),
             offset: Vector2::new(0.0, 0.0),
         });
-        let mut sprite_sheet_x = input_sprite::WIDTH_PX;
 
+        // leave room for blank sprite
+        let mut sprite_sheet_x = input_sprite::WIDTH_PX;
         let mut instance_index = 0;
 
         for input_sprite in self.input_sprites.iter() {
@@ -266,6 +277,43 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                         instance_index += instance_offset;
                     }
                 }
+                &InputSprite::Door { sprite, top, front } => {
+                    let front_x = sprite_sheet_x;
+                    sprite_sheet_x += front.size.x;
+                    let top_x = sprite_sheet_x;
+                    sprite_sheet_x += top.size.x;
+
+                    self.sprite_table[sprite as usize] = SpriteResolution::Door {
+                        front: SpriteLocation {
+                            position: front_x as f32,
+                            size: front.size.cast(),
+                            offset: front.offset.cast(),
+                        },
+                        top: SpriteLocation {
+                            position: top_x as f32,
+                            size: top.size.cast(),
+                            offset: top.offset.cast(),
+                        },
+                    };
+
+                    mapping[instance_index] = Instance {
+                        in_pix_pos: front.position.cast().into(),
+                        out_pix_pos: [front_x as f32, 0.0],
+                        pix_size: front.size.cast().into(),
+                        depth: SIMPLE_DEPTH,
+                    };
+                    instance_index += 1;
+
+                    mapping[instance_index] = Instance {
+                        in_pix_pos: top.position.cast().into(),
+                        out_pix_pos: [top_x as f32, 0.0],
+                        pix_size: top.size.cast().into(),
+                        depth: SIMPLE_DEPTH,
+                    };
+                    instance_index += 1;
+
+
+                }
             }
         }
 
@@ -285,7 +333,9 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         };
 
         instance_offset += 1;
-        for dir in DirectionsCardinal {
+        use self::CardinalDirection::*;
+        for cdir in &[North, East, West, South] {
+            let dir = cdir.direction();
             if !neighbour_bits.has(dir) {
                 // neighbour is absent
                 let decoration = *decorations.get(&dir)
@@ -332,7 +382,6 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
             .expect("Failed to copy instance buffer");
 
         let in_tex_dimensions = self.image.dimensions();
-
         encoder.update_constant_buffer(&self.bundle.data.locals, &Locals {
             in_tex_size: [in_tex_dimensions.0 as f32, in_tex_dimensions.1 as f32],
             out_tex_size: [self.width as f32, self.height as f32],

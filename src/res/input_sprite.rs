@@ -13,10 +13,11 @@ pub fn input_sprites() -> Vec<InputSprite> {
 
     vec![
         character(Angler, CHARACTER_START + Vector2::new(0, 0).mul_element_wise(CHARACTER_DIMENSIONS)),
-        character(AnglerBob, CHARACTER_START + Vector2::new(1, 0).mul_element_wise(CHARACTER_DIMENSIONS)),
         floor(InnerFloor, FLOOR_START + Vector2::new(0, 0).mul_element_wise(FLOOR_DIMENSIONS)),
         floor(OuterFloor, FLOOR_START + Vector2::new(0, 1).mul_element_wise(FLOOR_DIMENSIONS)),
         wall(OuterWall, WALL_START + Vector2::new(0, 0).mul_element_wise(WALL_BLOCK_DIMENSIONS)),
+        door(Door, DOOR_START + Vector2::new(0, 0).mul_element_wise(DOOR_BLOCK_DIMENSIONS)),
+        character(AnglerBob, CHARACTER_START + Vector2::new(1, 0).mul_element_wise(CHARACTER_DIMENSIONS)),
     ]
 }
 
@@ -37,6 +38,11 @@ pub enum InputSprite {
         sprite: Sprite,
         top: InputSpriteLocation,
         decorations: BTreeMap<Direction, Vector2<u32>>,
+    },
+    Door {
+        sprite: Sprite,
+        top: InputSpriteLocation,
+        front: InputSpriteLocation,
     },
 }
 
@@ -65,6 +71,13 @@ const CHARACTER_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 8 };
 const FLOOR_START: Vector2<u32> = Vector2 { x: 0, y: 42 };
 const FLOOR_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 16 };
 const FLOOR_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
+
+const DOOR_START: Vector2<u32> = Vector2 { x: 0, y: 74 };
+const DOOR_FRONT_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 22 };
+const DOOR_TOP_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 22 };
+const DOOR_FRONT_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 6 };
+const DOOR_TOP_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 10 };
+const DOOR_BLOCK_DIMENSIONS: Vector2<u32> = Vector2 { x: 32, y: 22 };
 
 fn character(sprite: Sprite, position: Vector2<u32>) -> InputSprite {
     InputSprite::Simple {
@@ -103,4 +116,20 @@ fn wall(sprite: Sprite, position: Vector2<u32>) -> InputSprite {
         top,
         decorations,
     }
+}
+
+fn door(sprite: Sprite, position: Vector2<u32>) -> InputSprite {
+    let front = InputSpriteLocation {
+        position,
+        size: DOOR_FRONT_DIMENSIONS,
+        offset: DOOR_FRONT_OFFSET,
+    };
+
+    let top = InputSpriteLocation {
+        position: position + Vector2::new(DOOR_FRONT_DIMENSIONS.x, 0),
+        size: DOOR_TOP_DIMENSIONS,
+        offset: DOOR_TOP_OFFSET,
+    };
+
+    InputSprite::Door { sprite, front, top }
 }

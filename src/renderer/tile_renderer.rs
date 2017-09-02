@@ -7,7 +7,8 @@ use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::instance_manager::InstanceManager;
 use renderer::common;
 
-use content::Sprite;
+use direction::Direction;
+use content::{Sprite, DepthType};
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 
@@ -72,6 +73,13 @@ impl Instance {
         self.pix_size = size;
         self.pix_offset = offset;
     }
+
+    pub fn update_depth(&mut self, y_position: f32, max_y_position: f32, depth_type: DepthType) {
+        self.depth = match depth_type {
+            DepthType::Vertical => 1.0 - y_position / max_y_position,
+            DepthType::Horizontal => 1.0,
+        };
+    }
 }
 
 pub struct TileRenderer<R: gfx::Resources> {
@@ -119,6 +127,18 @@ impl SpriteRenderInfo {
                             base_x: location.base(),
                             size: location.size().x,
                         }))
+                    } else {
+                        return None;
+                    }
+                }
+                &SpriteResolution::Door { ref top, ref front } => {
+                    if let Some(sh_cell) = spatial_hash.get_float(position) {
+                        let location = if sh_cell.wall_neighbours.has(Direction::North) {
+                            top
+                        } else {
+                            front
+                        };
+                        (location.position, location.size, location.offset, None)
                     } else {
                         return None;
                     }
@@ -312,7 +332,7 @@ impl<'a, R: gfx::Resources> OutputWorldState<'a> for RendererWorldState<'a, R> {
 }
 
 impl<'a, R: gfx::Resources> RendererWorldState<'a, R> {
-    pub fn finalise<C>(mut self, encoder: &mut gfx::Encoder<R, C>)
+    pub fn finalise<C>(self, encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {
         let num_instances = self.instance_manager.num_instances();

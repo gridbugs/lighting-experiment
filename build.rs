@@ -203,7 +203,7 @@ fn render_spatial_hash_template_internal<P: AsRef<Path>>(desc: SpatialHashDesc,
             other => panic!("No such aggregate: {}", other),
         };
 
-        let mut component = components_out.entry(field.component.clone()).or_insert_with(|| SpatialHashComponentDescOut {
+        let component = components_out.entry(field.component.clone()).or_insert_with(|| SpatialHashComponentDescOut {
             type_name: component_desc.type_name.clone(),
             name: component_desc.name.clone(),
             fields: BTreeMap::new(),
