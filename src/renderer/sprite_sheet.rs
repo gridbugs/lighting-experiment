@@ -15,7 +15,7 @@ use content::sprite::{self, Sprite};
 const TILES_PER_WALL: u32 = 256;
 
 // one for front and one for top
-const INSTANCES_PER_DOOR: u32 = 2;
+const INSTANCES_PER_WALL_FIT: u32 = 2;
 
 // one for the top and one for each possible decoration
 const MAX_INSTANCES_PER_WALL: u32 = 5;
@@ -63,7 +63,7 @@ impl WallSpriteLocation {
 pub enum SpriteResolution {
     Simple(SpriteLocation),
     Wall(WallSpriteLocation),
-    Door {
+    WallFit {
         top: SpriteLocation,
         front: SpriteLocation,
     },
@@ -158,8 +158,8 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                     width += top.size.x * TILES_PER_WALL;
                     height = cmp::max(height, top.size.y);
                 }
-                &Door { top, front, .. } => {
-                    num_instances += INSTANCES_PER_DOOR;
+                &WallFit { top, front, .. } => {
+                    num_instances += INSTANCES_PER_WALL_FIT;
                     width += top.size.x + front.size.x;
                     height = cmp::max(cmp::max(top.size.y, front.size.y), height);
                 }
@@ -277,13 +277,13 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                         instance_index += instance_offset;
                     }
                 }
-                &InputSprite::Door { sprite, top, front } => {
+                &InputSprite::WallFit { sprite, top, front } => {
                     let front_x = sprite_sheet_x;
                     sprite_sheet_x += front.size.x;
                     let top_x = sprite_sheet_x;
                     sprite_sheet_x += top.size.x;
 
-                    self.sprite_table[sprite as usize] = SpriteResolution::Door {
+                    self.sprite_table[sprite as usize] = SpriteResolution::WallFit {
                         front: SpriteLocation {
                             position: front_x as f32,
                             size: front.size.cast(),

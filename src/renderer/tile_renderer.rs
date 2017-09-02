@@ -8,7 +8,7 @@ use renderer::instance_manager::InstanceManager;
 use renderer::common;
 
 use direction::Direction;
-use content::{Sprite, DepthType};
+use content::{Sprite, DepthType, DepthInfo};
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 
@@ -74,10 +74,18 @@ impl Instance {
         self.pix_offset = offset;
     }
 
-    pub fn update_depth(&mut self, y_position: f32, max_y_position: f32, depth_type: DepthType) {
-        self.depth = match depth_type {
-            DepthType::Vertical => 1.0 - y_position / max_y_position,
-            DepthType::Horizontal => 1.0,
+    pub fn update_depth(&mut self, y_position: f32, max_y_position: f32, depth: DepthInfo) {
+        self.depth = match depth.typ {
+            DepthType::YAxis => {
+                let mut y_position_with_offset = y_position + depth.offset;
+                if y_position_with_offset > max_y_position {
+                    y_position_with_offset = max_y_position;
+                } else if y_position_with_offset < 0.0 {
+                    y_position_with_offset = 0.0;
+                }
+                1.0 - y_position_with_offset / max_y_position
+            }
+            DepthType::Bottom => 1.0,
         };
     }
 }
@@ -107,6 +115,15 @@ pub struct WallSpriteRenderInfo {
 }
 
 impl WallSpriteRenderInfo {
+    pub fn resolve(sprite: Sprite, sprite_table: &SpriteTable) -> Option<Self> {
+        if let Some(&SpriteResolution::Wall(location)) = sprite_table.get(sprite) {
+            return Some(Self {
+                base_x: location.base(),
+                size: location.size().x,
+            });
+        }
+        None
+    }
     pub fn position(self, bitmap: u8) -> Vector2<f32> {
         Vector2::new(self.base_x + self.size * bitmap as f32, 0.0)
     }
@@ -131,7 +148,7 @@ impl SpriteRenderInfo {
                         return None;
                     }
                 }
-                &SpriteResolution::Door { ref top, ref front } => {
+                &SpriteResolution::WallFit { ref top, ref front } => {
                     if let Some(sh_cell) = spatial_hash.get_float(position) {
                         let location = if sh_cell.wall_neighbours.has(Direction::North) {
                             top

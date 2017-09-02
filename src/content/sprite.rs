@@ -4,11 +4,14 @@ pub enum Sprite {
     Blank = 0,
     Angler,
     AnglerBob,
-    InnerFloor,
     OuterFloor,
+    InnerFloor,
     OuterWall,
-    Door,
+    InnerWall,
+    OuterDoor,
+    InnerDoor,
+    Window,
 }
 }
 
-pub const NUM_SPRITES: usize = 7;
+pub const NUM_SPRITES: usize = 10;

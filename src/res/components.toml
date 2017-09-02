@@ -2,7 +2,7 @@ imports = [
     'cgmath::Vector2',
     'content::DoorState',
     'content::Sprite',
-    'content::DepthType',
+    'content::DepthInfo',
 ]
 
 [components]
@@ -14,4 +14,4 @@ door_state = { type = 'DoorState', name = 'DoorState' }
 wall = { name = 'Wall' }
 player = { name = 'Player' }
 sprite = { type = 'Sprite', name = 'Sprite' }
-depth = { type = 'DepthType', name = 'Depth' }
+depth = { type = 'DepthInfo', name = 'Depth' }

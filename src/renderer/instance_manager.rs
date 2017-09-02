@@ -4,7 +4,7 @@ use entity_store::{EntityStore, EntityChange,
 use spatial_hash::SpatialHashTable;
 use id_allocator::IdAllocator;
 
-use renderer::tile_renderer::{Instance, SpriteRenderInfo};
+use renderer::tile_renderer::{Instance, SpriteRenderInfo, WallSpriteRenderInfo};
 use renderer::sprite_sheet::SpriteTable;
 
 use direction::Directions;
@@ -26,22 +26,27 @@ impl InstanceManager {
     }
 
     pub fn num_instances(&self) -> u32 {
-        self.index_allocator.max() as u32
+        self.index_allocator.peek() as u32
     }
 
-    fn update_sprite(&mut self, instances: &mut [Instance], spatial_hash: &SpatialHashTable, sprite_table: &SpriteTable,
+    fn update_sprite(&mut self, instances: &mut [Instance],
+                     entity_store: &EntityStore,spatial_hash: &SpatialHashTable, sprite_table: &SpriteTable,
                      index: InstanceIndex, position: Vector2<f32>, sprite: Sprite) {
         if let Some(sprite_info) = SpriteRenderInfo::resolve(
             sprite, sprite_table, position, spatial_hash
         ) {
-            if let Some(wall_info) = sprite_info.wall_info {
+            if sprite_info.wall_info.is_some() {
                 for (coord, dir) in izip!(spatial_hash.neighbour_coord_iter(position.cast(), Directions), Directions) {
                     if let Some(cell) = spatial_hash.get_valid(coord) {
                         for wall_id in cell.wall_set.iter() {
                             if let Some(index) = self.index_table.get(wall_id).cloned() {
-                                let bitmap = cell.wall_neighbours.bitmap() | dir.opposite().bitmap();
-                                let sprite_position = wall_info.position(bitmap.raw);
-                                instances[index as usize].sprite_sheet_pix_coord = sprite_position.into();
+                                if let Some(wall_sprite) = entity_store.sprite.get(wall_id) {
+                                    if let Some(wall_info) = WallSpriteRenderInfo::resolve(*wall_sprite, sprite_table) {
+                                        let bitmap = cell.wall_neighbours.bitmap() | dir.opposite().bitmap();
+                                        let sprite_position = wall_info.position(bitmap.raw);
+                                        instances[index as usize].sprite_sheet_pix_coord = sprite_position.into();
+                                    }
+                                }
                             }
                         }
                     }
@@ -81,13 +86,14 @@ impl InstanceManager {
                 }
 
                 if let Some(sprite) = entity_store.sprite.get(&id) {
-                    self.update_sprite(instances, spatial_hash, sprite_table, index, position, *sprite);
+                    self.update_sprite(instances, entity_store, spatial_hash, sprite_table, index, position, *sprite);
                 }
+
             }
             &Insert(id, Sprite(sprite)) => {
                 if let Some(index) = self.index_table.get(&id).cloned() {
                     if let Some(position) = entity_store.position.get(&id) {
-                        self.update_sprite(instances, spatial_hash, sprite_table, index, *position, sprite);
+                        self.update_sprite(instances, entity_store, spatial_hash, sprite_table, index, *position, sprite);
                     }
                 }
             }
