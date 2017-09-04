@@ -18,8 +18,25 @@ pub fn input_sprites() -> Vec<InputSprite> {
         floor(OuterFloor, [0, 1], None, None),
         wall(InnerWall, [0, 0], None, None),
         wall(OuterWall, [0, 1], None, None),
+
         door(InnerDoor, [0, 0]),
+        door(InnerDoorOpening1, [1, 0]),
+        door(InnerDoorOpening2, [2, 0]),
+        door(InnerDoorOpening3, [3, 0]),
+        door(InnerDoorOpening4, [4, 0]),
+        door(InnerDoorOpening5, [5, 0]),
+        door(InnerDoorOpening6, [6, 0]),
+        door(InnerDoorOpen, [7, 0]),
+
         door(OuterDoor, [0, 1]),
+        door(OuterDoorOpening1, [1, 1]),
+        door(OuterDoorOpening2, [2, 1]),
+        door(OuterDoorOpening3, [3, 1]),
+        door(OuterDoorOpening4, [4, 1]),
+        door(OuterDoorOpening5, [5, 1]),
+        door(OuterDoorOpening6, [6, 1]),
+        door(OuterDoorOpen, [7, 1]),
+
         general_wall_fit(Window, [0, 0], None, None),
     ]
 }

@@ -18,6 +18,7 @@ use res::input_sprite;
 const NUM_ROWS: u16 = 15;
 const HEIGHT_PX: u16 = NUM_ROWS * input_sprite::HEIGHT_PX as u16;
 const MAX_NUM_INSTANCES: usize = 4096;
+const MAX_Y: f32 = 1000.0;
 
 gfx_vertex_struct!( Vertex {
     pos: [f32; 2] = "a_Pos",
@@ -29,13 +30,14 @@ gfx_vertex_struct!( Instance {
     pix_size: [f32; 2] = "a_PixSize",
     pix_offset: [f32; 2] = "a_PixOffset",
     depth: f32 = "a_Depth",
-    enabled: u32 = "a_Enabled",
+    depth_type: u32 = "a_DepthType",
 });
 
 gfx_constant_struct!( Dimensions {
     sprite_sheet_size: [f32; 2] = "u_SpriteSheetSize",
     output_size: [f32; 2] = "u_OutputSize",
     cell_size: [f32; 2] = "u_CellSize",
+    max_y: f32 = "u_MaxY",
 });
 
 gfx_constant_struct!( Offset {
@@ -52,6 +54,13 @@ gfx_pipeline!( pipe {
     out_depth: gfx::DepthTarget<DepthFormat> = gfx::preset::depth::LESS_EQUAL_WRITE,
 });
 
+pub mod depth_type {
+    pub const DISABLED: u32 = 0;
+    pub const FIXED: u32 = 1;
+    pub const GRADIENT: u32 = 2;
+    pub const BOTTOM: u32 = 3;
+}
+
 impl Default for Instance {
     fn default() -> Self {
         Self {
@@ -61,7 +70,7 @@ impl Default for Instance {
             pix_size: [input_sprite::WIDTH_PX as f32, input_sprite::HEIGHT_PX as f32],
             pix_offset: [0.0, 0.0],
             depth: -1.0,
-            enabled: 0,
+            depth_type: 0,
         }
     }
 }
@@ -74,19 +83,27 @@ impl Instance {
         self.pix_offset = offset;
     }
 
-    pub fn update_depth(&mut self, y_position: f32, max_y_position: f32, depth: DepthInfo) {
-        self.depth = match depth.typ {
+    pub fn update_depth(&mut self, y_position: f32, _max_y_position: f32, depth: DepthInfo) {
+
+        let mut y_position_with_offset = y_position + depth.offset;
+        if y_position_with_offset > MAX_Y {
+            y_position_with_offset = MAX_Y;
+        } else if y_position_with_offset < 0.0 {
+            y_position_with_offset = 0.0;
+        }
+        self.depth = y_position_with_offset;
+
+        match depth.typ {
             DepthType::YAxis => {
-                let mut y_position_with_offset = y_position + depth.offset;
-                if y_position_with_offset > max_y_position {
-                    y_position_with_offset = max_y_position;
-                } else if y_position_with_offset < 0.0 {
-                    y_position_with_offset = 0.0;
-                }
-                1.0 - y_position_with_offset / max_y_position
+                self.depth_type = depth_type::FIXED;
             }
-            DepthType::Bottom => 1.0,
-        };
+            DepthType::Bottom => {
+                self.depth_type = depth_type::BOTTOM;
+            }
+            DepthType::Gradient => {
+                self.depth_type = depth_type::GRADIENT;
+            }
+        }
     }
 }
 
@@ -265,6 +282,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             sprite_sheet_size: [self.sprite_sheet.width as f32, self.sprite_sheet.height as f32],
             output_size: [self.width_px as f32, self.height_px as f32],
             cell_size: [input_sprite::WIDTH_PX as f32, input_sprite::HEIGHT_PX as f32],
+            max_y: MAX_Y,
         });
     }
 

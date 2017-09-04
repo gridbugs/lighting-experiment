@@ -5,10 +5,10 @@ use append::Append;
 
 pub fn angler<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
     changes.append(insert::position(id, position));
-    changes.append(insert::player(id));
     changes.append(insert::sprite(id, Sprite::Angler));
-    changes.append(insert::depth(id, DepthType::YAxis.into()));
+    changes.append(insert::depth(id, DepthInfo::new(DepthType::YAxis, -0.4)));
     changes.append(insert::collider(id));
+    changes.append(insert::player(id));
 }
 
 pub fn inner_wall<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
@@ -44,7 +44,7 @@ pub fn outer_floor<A: Append<EntityChange>>(changes: &mut A, id: EntityId, posit
 pub fn inner_door<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
     changes.append(insert::position(id, position));
     changes.append(insert::sprite(id, Sprite::InnerDoor));
-    changes.append(insert::depth(id, DepthType::YAxis.into()));
+    changes.append(insert::depth(id, DepthType::Gradient.into()));
 }
 
 pub fn outer_door<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {

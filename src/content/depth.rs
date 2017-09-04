@@ -2,6 +2,7 @@
 pub enum DepthType {
     Bottom,
     YAxis,
+    Gradient,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
