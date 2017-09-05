@@ -1,6 +1,6 @@
 imports = [
     'cgmath::Vector2',
-    'content::DoorState',
+    'content::DoorInfo',
     'content::Sprite',
     'content::DepthInfo',
 ]
@@ -10,7 +10,7 @@ position = { type = 'Vector2<f32>', name = 'Position' }
 solid = { name = 'Solid' }
 collider = { name = 'Collider' }
 opacity = { type = 'f64', name = 'Opacity' }
-door_state = { type = 'DoorState', name = 'DoorState' }
+door = { type = 'DoorInfo', name = 'Door' }
 wall = { name = 'Wall' }
 player = { name = 'Player' }
 sprite = { type = 'Sprite', name = 'Sprite' }

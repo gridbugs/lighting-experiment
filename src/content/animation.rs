@@ -3,6 +3,7 @@ use cgmath::Vector2;
 
 use append::Append;
 use entity_store::{EntityId, EntityChange, insert};
+use content::{Sprite, SpriteAnimation};
 
 pub enum Animation {
     Slide {
@@ -11,7 +12,14 @@ pub enum Animation {
         path: Vector2<f32>,
         progress: f32,
         duration: Duration,
-    }
+    },
+    Sprites {
+        id: EntityId,
+        animation: SpriteAnimation,
+        final_sprite: Sprite,
+        index: usize,
+        remaining: Duration,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,6 +53,36 @@ impl Animation {
                 } else {
                     AnimationStatus::Finished
                 }
+            }
+            &mut Sprites { id, animation, final_sprite, ref mut index, ref mut remaining } => {
+                if time_delta < *remaining {
+                    *remaining -= time_delta;
+                    return AnimationStatus::Running;
+                }
+
+                let mut time_delta_rest = time_delta - *remaining;
+                *index += 1;
+
+                loop {
+                    if *index == animation.len() {
+                        changes.append(insert::sprite(id, final_sprite));
+                        return AnimationStatus::Finished;
+                    }
+
+                    let frame = &animation[*index];
+                    let frame_duration = Duration::from_millis(frame.millis as u64);
+
+                    if time_delta_rest < frame_duration {
+                        *remaining = frame_duration - time_delta_rest;
+                        changes.append(insert::sprite(id, frame.sprite));
+                        break;
+                    }
+
+                    time_delta_rest -= frame_duration;
+                    *index += 1;
+                }
+
+                AnimationStatus::Running
             }
         }
     }

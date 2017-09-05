@@ -129,10 +129,13 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
                             staged_changes.push_back(change);
                         }
                     }
-                    Animation(eventual_change, animation) => {
+                    AnimatedChange(eventual_change, animation) => {
                         if policy::check(&eventual_change, &entity_store, &spatial_hash, &mut change_descs_swap) {
                             animations.push_back(animation);
                         }
+                    }
+                    Animation(animation) => {
+                        animations.push_back(animation);
                     }
                 }
             }

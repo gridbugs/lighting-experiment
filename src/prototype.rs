@@ -1,6 +1,6 @@
 use cgmath::Vector2;
 use entity_store::{EntityId, EntityChange, insert};
-use content::{Sprite, DepthType, DepthInfo};
+use content::{Sprite, DepthType, DepthInfo, DoorState, DoorInfo, DoorType};
 use append::Append;
 
 pub fn angler<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
@@ -45,6 +45,8 @@ pub fn inner_door<A: Append<EntityChange>>(changes: &mut A, id: EntityId, positi
     changes.append(insert::position(id, position));
     changes.append(insert::sprite(id, Sprite::InnerDoor));
     changes.append(insert::depth(id, DepthType::Gradient.into()));
+    changes.append(insert::door(id, DoorInfo::new(DoorType::Inner, DoorState::Closed)));
+    changes.append(insert::solid(id));
 }
 
 pub fn outer_door<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {

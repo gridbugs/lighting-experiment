@@ -2,11 +2,18 @@ use std::time::Duration;
 use cgmath::Vector2;
 
 use entity_store::{EntityId, EntityChange, insert};
-use content::Animation;
+use content::{Animation, SpriteAnimation, Sprite};
 
 pub enum ChangeDesc {
+    // The change is applied immediately.
     Immediate(EntityChange),
-    Animation(EntityChange, Animation),
+
+    // The change is never applied directly, but the animation should result in the change
+    // eventually. The change is used to check if the animation should be run.
+    AnimatedChange(EntityChange, Animation),
+
+    // The animation will be run regardless of its outcome.
+    Animation(Animation),
 }
 
 impl ChangeDesc {
@@ -22,6 +29,16 @@ impl ChangeDesc {
             progress: 0.0,
             duration,
         };
-        ChangeDesc::Animation(eventual_change, animation)
+        ChangeDesc::AnimatedChange(eventual_change, animation)
+    }
+    pub fn sprites(id: EntityId, animation: SpriteAnimation, final_sprite: Sprite) -> Self {
+        let animation = Animation::Sprites {
+            id,
+            final_sprite,
+            animation,
+            index: 0,
+            remaining: Duration::from_millis(animation[0].millis as u64),
+        };
+        ChangeDesc::Animation(animation)
     }
 }

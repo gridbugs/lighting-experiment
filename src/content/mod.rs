@@ -1,8 +1,11 @@
-mod door_state;
-pub use self::door_state::DoorState;
+mod door;
+pub use self::door::{DoorState, DoorInfo};
 
 pub mod sprite;
 pub use self::sprite::Sprite;
+
+pub mod door_type;
+pub use self::door_type::DoorType;
 
 pub mod depth;
 pub use self::depth::{DepthType, DepthInfo};
@@ -15,5 +18,8 @@ pub use self::change_desc::ChangeDesc;
 
 pub mod animation;
 pub use self::animation::{Animation, AnimationStatus};
+
+pub mod sprite_animation;
+pub use self::sprite_animation::SpriteAnimation;
 
 pub mod bob;
