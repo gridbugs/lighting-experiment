@@ -77,4 +77,11 @@ impl<R: gfx::Resources> Renderer<R> {
         let (srv_width, srv_height) = self.tile_renderer.dimensions();
         self.scale.handle_resize(rtv.clone(), srv, srv_width, srv_height, encoder, factory);
     }
+
+    pub fn update_world_size<C>(&self, width: u32, height: u32,
+                                encoder: &mut gfx::Encoder<R, C>)
+        where C: gfx::CommandBuffer<R>,
+    {
+        self.tile_renderer.update_world_size(width, height, encoder);
+    }
 }

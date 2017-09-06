@@ -15,6 +15,7 @@ pub trait FrontendOutput<'a> {
     fn with_world_state<F: FnMut(&mut Self::WorldState)>(&'a mut self, f: F);
     fn draw(&mut self);
     fn handle_resize(&mut self, width: u16, height: u16);
+    fn update_world_size(&mut self, width: u32, height: u32);
 }
 
 pub trait FrontendInput {

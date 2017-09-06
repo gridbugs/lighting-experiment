@@ -92,4 +92,7 @@ impl<'a> FrontendOutput<'a> for GlutinFrontendOutput {
         self.rtv = rtv;
         self.dsv = dsv;
     }
+    fn update_world_size(&mut self, width: u32, height: u32) {
+        self.renderer.update_world_size(width, height, &mut self.encoder);
+    }
 }

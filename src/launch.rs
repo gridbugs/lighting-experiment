@@ -38,6 +38,8 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
 
     let mut spatial_hash = SpatialHashTable::new(metadata.width, metadata.height);
 
+    frontend_output.update_world_size(metadata.width, metadata.height);
+
     frontend_output.with_world_state(|state| {
         for c in changes.drain(..) {
             state.update(&c, &entity_store, &spatial_hash);

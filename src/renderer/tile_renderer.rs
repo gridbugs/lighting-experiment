@@ -19,7 +19,7 @@ use res::input_sprite;
 const NUM_ROWS: u16 = 15;
 const HEIGHT_PX: u16 = NUM_ROWS * input_sprite::HEIGHT_PX as u16;
 const MAX_NUM_INSTANCES: usize = 4096;
-const MAX_Y: f32 = 1000.0;
+const MAX_CELL_TABLE_SIZE: usize = 4096;
 
 gfx_vertex_struct!( Vertex {
     pos: [f32; 2] = "a_Pos",
@@ -34,19 +34,36 @@ gfx_vertex_struct!( Instance {
     depth_type: u32 = "a_DepthType",
 });
 
-gfx_constant_struct!( Dimensions {
+gfx_constant_struct!( FixedDimensions {
     sprite_sheet_size: [f32; 2] = "u_SpriteSheetSize",
-    output_size: [f32; 2] = "u_OutputSize",
     cell_size: [f32; 2] = "u_CellSize",
-    max_y: f32 = "u_MaxY",
+});
+
+gfx_constant_struct!( OutputDimensions {
+    output_size: [f32; 2] = "u_OutputSize",
+});
+
+gfx_constant_struct!( WorldDimensions {
+    world_size: [f32; 2] = "u_WorldSize",
+    world_size_u32: [u32; 2] = "u_WorldSizeUint",
 });
 
 gfx_constant_struct!( Offset {
     scroll_offset_pix: [f32; 2] = "u_ScrollOffsetPix",
 });
 
+gfx_constant_struct!( Cell {
+    flags: u32 = "flags",
+    _pad0: u32 = "_pad0",
+    _pad1: u32 = "_pad1",
+    _pad2: u32 = "_pad2",
+});
+
 gfx_pipeline!( pipe {
-    dimensions: gfx::ConstantBuffer<Dimensions> = "Dimensions",
+    cell_table: gfx::ConstantBuffer<Cell> = "CellTable",
+    fixed_dimensions: gfx::ConstantBuffer<FixedDimensions> = "FixedDimensions",
+    output_dimensions: gfx::ConstantBuffer<OutputDimensions> = "OutputDimensions",
+    world_dimensions: gfx::ConstantBuffer<WorldDimensions> = "WorldDimensions",
     offset: gfx::ConstantBuffer<Offset> = "Offset",
     vertex: gfx::VertexBuffer<Vertex> = (),
     instance: gfx::InstanceBuffer<Instance> = (),
@@ -84,11 +101,11 @@ impl Instance {
         self.pix_offset = offset;
     }
 
-    pub fn update_depth(&mut self, y_position: f32, _max_y_position: f32, depth: DepthInfo) {
+    pub fn update_depth(&mut self, y_position: f32, max_y_position: f32, depth: DepthInfo) {
 
         let mut y_position_with_offset = y_position + depth.offset;
-        if y_position_with_offset > MAX_Y {
-            y_position_with_offset = MAX_Y;
+        if y_position_with_offset > max_y_position {
+            y_position_with_offset = max_y_position;
         } else if y_position_with_offset < 0.0 {
             y_position_with_offset = 0.0;
         }
@@ -106,6 +123,10 @@ impl Instance {
             }
         }
     }
+}
+
+pub mod cell_visibility_flags {
+    pub const VISIBLE: u32 = 1 << 0;
 }
 
 pub struct TileRenderer<R: gfx::Resources> {
@@ -209,11 +230,14 @@ fn populate_shader(shader: &[u8]) -> String {
     };
 
     use self::depth_type::*;
+    use self::cell_visibility_flags::*;
     let table = hashmap!{
         "DEPTH_DISABLED" => DISABLED,
         "DEPTH_FIXED" => FIXED,
         "DEPTH_GRADIENT" => GRADIENT,
         "DEPTH_BOTTOM" => BOTTOM,
+        "MAX_CELL_TABLE_SIZE" => MAX_CELL_TABLE_SIZE as u32,
+        "CELL_VISIBLE" => VISIBLE,
     };
 
     let shader_str = ::std::str::from_utf8(shader)
@@ -271,7 +295,10 @@ impl<R: gfx::Resources> TileRenderer<R> {
             Self::create_targets(window_width_px, window_height_px, factory);
 
         let data = pipe::Data {
-            dimensions: factory.create_constant_buffer(1),
+            cell_table: factory.create_constant_buffer(MAX_CELL_TABLE_SIZE),
+            fixed_dimensions: factory.create_constant_buffer(1),
+            output_dimensions: factory.create_constant_buffer(1),
+            world_dimensions: factory.create_constant_buffer(1),
             offset: factory.create_constant_buffer(1),
             vertex: vertex_buffer,
             instance: common::create_instance_buffer(MAX_NUM_INSTANCES, factory)
@@ -301,11 +328,18 @@ impl<R: gfx::Resources> TileRenderer<R> {
     pub fn init<C>(&self, encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {
-        encoder.update_constant_buffer(&self.bundle.data.dimensions, &Dimensions {
+        encoder.update_constant_buffer(&self.bundle.data.fixed_dimensions, &FixedDimensions {
             sprite_sheet_size: [self.sprite_sheet.width as f32, self.sprite_sheet.height as f32],
-            output_size: [self.width_px as f32, self.height_px as f32],
             cell_size: [input_sprite::WIDTH_PX as f32, input_sprite::HEIGHT_PX as f32],
-            max_y: MAX_Y,
+        });
+        self.update_output_dimensions(encoder);
+    }
+
+    pub fn update_output_dimensions<C>(&self, encoder: &mut gfx::Encoder<R, C>)
+        where C: gfx::CommandBuffer<R>,
+    {
+        encoder.update_constant_buffer(&self.bundle.data.output_dimensions, &OutputDimensions {
+            output_size: [self.width_px as f32, self.height_px as f32],
         });
     }
 
@@ -356,7 +390,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
         self.bundle.data.out_colour = colour_rtv;
         self.bundle.data.out_depth = depth_rtv;
 
-        self.init(encoder);
+        self.update_output_dimensions(encoder);
 
         let scroll_offset = compute_scroll_offset(self.width_px, self.height_px, self.mid_position);
         encoder.update_constant_buffer(&self.bundle.data.offset, &Offset {
@@ -364,6 +398,20 @@ impl<R: gfx::Resources> TileRenderer<R> {
         });
 
         srv
+    }
+
+    pub fn update_world_size<C>(&self, width: u32, height: u32,
+                                encoder: &mut gfx::Encoder<R, C>)
+        where C: gfx::CommandBuffer<R>,
+    {
+        if ((width * height) as usize) > MAX_CELL_TABLE_SIZE {
+            panic!("World too big for shader");
+        }
+
+        encoder.update_constant_buffer(&self.bundle.data.world_dimensions, &WorldDimensions {
+            world_size: [width as f32, height as f32],
+            world_size_u32: [width, height],
+        });
     }
 }
 
