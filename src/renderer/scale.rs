@@ -36,8 +36,8 @@ impl<R: gfx::Resources> Scale<R> {
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
         let pso = factory.create_pipeline_simple(
-            include_bytes!("shaders/shdr_150_scale.vert"),
-            include_bytes!("shaders/shdr_150_scale.frag"),
+            include_bytes!("shaders/scale.150.vert"),
+            include_bytes!("shaders/scale.150.frag"),
             pipe::new()).expect("Failed to create pipeline");
 
         let vertex_data: Vec<Vertex> = izip!(&common::QUAD_VERTICES, &common::QUAD_TEX_COORDS_UPSIDE_DOWN)

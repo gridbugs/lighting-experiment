@@ -1,6 +1,7 @@
 use gfx;
 
 use cgmath::{Vector2, ElementWise};
+use handlebars::Handlebars;
 
 use renderer::sprite_sheet::{SpriteSheet, SpriteTable, SpriteResolution};
 use renderer::formats::{ColourFormat, DepthFormat};
@@ -200,6 +201,28 @@ impl SpriteRenderInfo {
     }
 }
 
+fn populate_shader(shader: &[u8]) -> String {
+    let handlebars = {
+        let mut h = Handlebars::new();
+        h.register_escape_fn(|input| input.to_string());
+        h
+    };
+
+    use self::depth_type::*;
+    let table = hashmap!{
+        "DEPTH_DISABLED" => DISABLED,
+        "DEPTH_FIXED" => FIXED,
+        "DEPTH_GRADIENT" => GRADIENT,
+        "DEPTH_BOTTOM" => BOTTOM,
+    };
+
+    let shader_str = ::std::str::from_utf8(shader)
+        .expect("Failed to convert shader to utf8");
+
+    handlebars.template_render(shader_str, &table)
+        .expect("Failed to render shader template")
+}
+
 impl<R: gfx::Resources> TileRenderer<R> {
     fn scaled_width(window_width_px: u16, window_height_px: u16) -> u16 {
         ((window_width_px as u32 * HEIGHT_PX as u32) / window_height_px as u32) as u16
@@ -224,8 +247,8 @@ impl<R: gfx::Resources> TileRenderer<R> {
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
         let pso = factory.create_pipeline_simple(
-            include_bytes!("shaders/shdr_150_tile_renderer.vert"),
-            include_bytes!("shaders/shdr_150_general.frag"),
+            populate_shader(include_bytes!("shaders/tile_renderer.150.hbs.vert")).as_bytes(),
+            include_bytes!("shaders/general.150.frag"),
             pipe::new()).expect("Failed to create pipeline");
 
         let vertex_data: Vec<Vertex> = common::QUAD_VERTICES_REFL.iter()

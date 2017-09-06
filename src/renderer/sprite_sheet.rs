@@ -175,8 +175,8 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         }
 
         let pso = factory.create_pipeline_simple(
-            include_bytes!("shaders/shdr_150_sprite_sheet.vert"),
-            include_bytes!("shaders/shdr_150_general.frag"),
+            include_bytes!("shaders/sprite_sheet.150.vert"),
+            include_bytes!("shaders/general.150.frag"),
             pipe::new()).expect("Failed to create pso");
 
         let vertex_data: Vec<Vertex> = common::QUAD_VERTICES_REFL.iter()

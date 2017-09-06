@@ -22,10 +22,10 @@ in uint a_DepthType;
 
 out vec2 v_TexCoord;
 
-const uint DEPTH_DISABLED = 0u;
-const uint DEPTH_FIXED = 1u;
-const uint DEPTH_GRADIENT = 2u;
-const uint DEPTH_BOTTOM = 3u;
+const uint DEPTH_DISABLED = {{DEPTH_DISABLED}}u;
+const uint DEPTH_FIXED = {{DEPTH_FIXED}}u;
+const uint DEPTH_GRADIENT = {{DEPTH_GRADIENT}}u;
+const uint DEPTH_BOTTOM = {{DEPTH_BOTTOM}}u;
 
 void main() {
 
