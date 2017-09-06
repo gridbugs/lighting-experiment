@@ -8,7 +8,7 @@ out vec4 Target0;
 
 void main() {
     vec4 colour = texture(t_Texture, v_TexCoord);
-    if (colour.a < 0.5) {
+    if (colour.a < 0.001) {
         discard;
     }
     Target0 = colour;
