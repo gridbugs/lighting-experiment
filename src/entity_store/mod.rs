@@ -1,6 +1,8 @@
 #[path = "macros.gen.rs"]
 #[macro_use] mod macros;
 
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+
 #[path = "constants.gen.rs"]
 mod constants;
 
@@ -13,9 +15,11 @@ pub use self::component_type_set::*;
 mod entity_vec;
 pub use self::entity_vec::*;
 
-pub type EntityMap<T> = EntityVecMap<T>;
-pub type EntityMapIter<'a, T> = EntityVecMapIter<'a, T>;
-pub type EntitySet = EntityVecSet;
+pub type EntityHashMap<T> = HashMap<EntityId, T>;
+pub type EntityHashSet = HashSet<EntityId>;
+
+pub type EntityBTreeMap<T> = BTreeMap<EntityId, T>;
+pub type EntityBTreeSet = BTreeSet<EntityId>;
 
 entity_store_imports!{}
 

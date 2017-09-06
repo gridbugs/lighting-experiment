@@ -77,7 +77,7 @@ impl SpatialHashTable {
     }
 
     pub fn get_float(&self, position: Vector2<f32>) -> Option<&SpatialHashCell> {
-        self.grid.get_signed(position.cast())
+        self.grid.get_signed((position + Vector2::new(0.5, 0.5)).cast())
     }
 
     pub fn update(&mut self, store: &EntityStore, entity_change: &EntityChange, time: u64) {

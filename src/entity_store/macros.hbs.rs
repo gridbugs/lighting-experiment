@@ -14,9 +14,9 @@ macro_rules! entity_store_decl {
         pub struct $EntityStore {
 {{#each components}}
     {{#if type}}
-            pub {{@key}}: EntityMap<{{type}}>,
+            pub {{@key}}: {{store}}<{{type}}>,
     {{else}}
-            pub {{@key}}: EntitySet,
+            pub {{@key}}: {{store}},
     {{/if}}
 {{/each}}
         }
@@ -28,9 +28,9 @@ macro_rules! entity_store_cons {
         $EntityStore {
 {{#each components}}
     {{#if type}}
-            {{@key}}: EntityMap::default(),
+            {{@key}}: {{store}}::default(),
     {{else}}
-            {{@key}}: EntitySet::default(),
+            {{@key}}: {{store}}::default(),
     {{/if}}
 {{/each}}
         }

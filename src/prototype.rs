@@ -9,6 +9,7 @@ pub fn angler<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: 
     changes.append(insert::depth(id, DepthInfo::new(DepthType::YAxis, -0.4)));
     changes.append(insert::collider(id));
     changes.append(insert::player(id));
+    changes.append(insert::door_opener(id));
 }
 
 pub fn inner_wall<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
@@ -52,7 +53,9 @@ pub fn inner_door<A: Append<EntityChange>>(changes: &mut A, id: EntityId, positi
 pub fn outer_door<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
     changes.append(insert::position(id, position));
     changes.append(insert::sprite(id, Sprite::OuterDoor));
-    changes.append(insert::depth(id, DepthType::YAxis.into()));
+    changes.append(insert::depth(id, DepthType::Gradient.into()));
+    changes.append(insert::door(id, DoorInfo::new(DoorType::Outer, DoorState::Closed)));
+    changes.append(insert::solid(id));
 }
 
 pub fn window<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {

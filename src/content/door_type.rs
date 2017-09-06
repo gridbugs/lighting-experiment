@@ -33,11 +33,14 @@ impl DoorType {
     pub fn open_animation(self) -> SpriteAnimation {
         match self {
             Inner => sprite_animation::INNER_DOOR_OPEN,
-            Outer => unimplemented!(),
+            Outer => sprite_animation::OUTER_DOOR_OPEN,
         }
     }
 
     pub fn close_animation(self) -> SpriteAnimation {
-        unimplemented!()
+        match self {
+            Inner => sprite_animation::INNER_DOOR_CLOSE,
+            Outer => sprite_animation::OUTER_DOOR_CLOSE,
+        }
     }
 }

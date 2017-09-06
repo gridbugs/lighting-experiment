@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+#[macro_use] extern crate maplit;
 #[macro_use] extern crate serde_derive;
 extern crate serde;
 extern crate toml;
@@ -106,6 +107,8 @@ struct ComponentDesc {
     #[serde(rename = "type", default = "ret_none")]
     type_name: Option<String>,
     name: String,
+    #[serde(default = "ret_none")]
+    store: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -117,6 +120,7 @@ struct ComponentDescOut {
     index: usize,
     word_index: usize,
     word_bitmask: u64,
+    store: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -156,7 +160,38 @@ fn render_entity_system_template_internal<P: AsRef<Path>>(desc: &EntityStoreDesc
 
     let mut components = BTreeMap::new();
 
+    let store_map_table = hashmap! {
+        "btree" => "EntityBTreeMap",
+        "hash" => "EntityHashMap",
+        "vec" => "EntityVecMap",
+    };
+    let default_map = "EntityVecMap";
+    let store_set_table = hashmap! {
+        "btree" => "EntityBTreeSet",
+        "hash" => "EntityHashSet",
+        "vec" => "EntityVecSet",
+    };
+    let default_set = "EntityVecSet";
+
     for (index, (field, desc)) in desc.components.iter().enumerate() {
+        let store = if desc.type_name.is_some() {
+            if let Some(s) = desc.store.as_ref() {
+                store_map_table.get(s.as_str())
+                    .expect(format!("No such store: {}", s).as_str())
+                    .to_string()
+            } else {
+                default_map.to_string()
+            }
+        } else {
+            if let Some(s) = desc.store.as_ref() {
+                store_set_table.get(s.as_str())
+                    .expect(format!("No such store: {}", s).as_str())
+                    .to_string()
+            } else {
+                default_set.to_string()
+            }
+        };
+
         let desc_out = ComponentDescOut {
             type_name: desc.type_name.clone(),
             name: desc.name.clone(),
@@ -164,6 +199,7 @@ fn render_entity_system_template_internal<P: AsRef<Path>>(desc: &EntityStoreDesc
             index,
             word_index: index / WORD_SIZE,
             word_bitmask: 1 << (index % WORD_SIZE),
+            store,
         };
         components.insert(field.clone(), desc_out);
     }
