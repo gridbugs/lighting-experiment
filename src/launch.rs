@@ -179,6 +179,8 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
 
         frontend_output.with_world_state(|state| {
 
+            state.set_frame_info(count);
+
             for change in staged_changes.drain(..) {
 
                 state.update(&change, &entity_store, &spatial_hash);

@@ -52,11 +52,14 @@ gfx_constant_struct!( Offset {
     scroll_offset_pix: [f32; 2] = "u_ScrollOffsetPix",
 });
 
+gfx_constant_struct!( FrameInfo {
+    time: [u32; 2] = "u_Time_u64",
+});
+
 gfx_constant_struct!( Cell {
-    flags: u32 = "flags",
+    last_seen: [u32; 2] = "last_seen_u64",
     _pad0: u32 = "_pad0",
     _pad1: u32 = "_pad1",
-    _pad2: u32 = "_pad2",
 });
 
 gfx_pipeline!( pipe {
@@ -65,6 +68,7 @@ gfx_pipeline!( pipe {
     output_dimensions: gfx::ConstantBuffer<OutputDimensions> = "OutputDimensions",
     world_dimensions: gfx::ConstantBuffer<WorldDimensions> = "WorldDimensions",
     offset: gfx::ConstantBuffer<Offset> = "Offset",
+    frame_info: gfx::ConstantBuffer<FrameInfo> = "FrameInfo",
     vertex: gfx::VertexBuffer<Vertex> = (),
     instance: gfx::InstanceBuffer<Instance> = (),
     tex: gfx::TextureSampler<[f32; 4]> = "t_Texture",
@@ -125,8 +129,14 @@ impl Instance {
     }
 }
 
-pub mod cell_visibility_flags {
-    pub const VISIBLE: u32 = 1 << 0;
+fn u64_to_arr(u: u64) -> [u32; 2] {
+    [ u as u32, (u >> 32) as u32 ]
+}
+
+impl FrameInfo {
+    fn set_time(&mut self, time: u64) {
+        self.time = u64_to_arr(time);
+    }
 }
 
 pub struct TileRenderer<R: gfx::Resources> {
@@ -230,14 +240,12 @@ fn populate_shader(shader: &[u8]) -> String {
     };
 
     use self::depth_type::*;
-    use self::cell_visibility_flags::*;
     let table = hashmap!{
         "DEPTH_DISABLED" => DISABLED,
         "DEPTH_FIXED" => FIXED,
         "DEPTH_GRADIENT" => GRADIENT,
         "DEPTH_BOTTOM" => BOTTOM,
         "MAX_CELL_TABLE_SIZE" => MAX_CELL_TABLE_SIZE as u32,
-        "CELL_VISIBLE" => VISIBLE,
     };
 
     let shader_str = ::std::str::from_utf8(shader)
@@ -300,6 +308,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             output_dimensions: factory.create_constant_buffer(1),
             world_dimensions: factory.create_constant_buffer(1),
             offset: factory.create_constant_buffer(1),
+            frame_info: factory.create_constant_buffer(1),
             vertex: vertex_buffer,
             instance: common::create_instance_buffer(MAX_NUM_INSTANCES, factory)
                 .expect("Failed to create instance buffer"),
@@ -374,6 +383,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             width_px: self.width_px,
             height_px: self.height_px,
             mid_position: &mut self.mid_position,
+            time: 0,
         }
     }
 
@@ -425,6 +435,7 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
     mid_position: &'a mut Vector2<f32>,
     width_px: u16,
     height_px: u16,
+    time: u64,
 }
 
 impl<'a, R: gfx::Resources> OutputWorldState<'a> for RendererWorldState<'a, R> {
@@ -434,6 +445,10 @@ impl<'a, R: gfx::Resources> OutputWorldState<'a> for RendererWorldState<'a, R> {
 
     fn set_player_position(&mut self, player_position: Vector2<f32>) {
         self.player_position = Some(player_position);
+    }
+
+    fn set_frame_info(&mut self, time: u64) {
+        self.time = time;
     }
 }
 
@@ -452,6 +467,10 @@ impl<'a, R: gfx::Resources> RendererWorldState<'a, R> {
                 scroll_offset_pix: scroll_offset.into(),
             });
         }
+        encoder.update_constant_buffer(&self.bundle.data.frame_info, &FrameInfo {
+            time: u64_to_arr(self.time),
+        });
+
     }
 }
 

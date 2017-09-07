@@ -8,6 +8,7 @@ use input::Input;
 pub trait OutputWorldState<'a> {
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable);
     fn set_player_position(&mut self, player_position: Vector2<f32>);
+    fn set_frame_info(&mut self, time: u64);
 }
 
 pub trait FrontendOutput<'a> {

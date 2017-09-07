@@ -18,8 +18,12 @@ uniform Offset {
     vec2 u_ScrollOffsetPix;
 };
 
+uniform FrameInfo {
+    uvec2 u_Time_u64;
+};
+
 struct Cell {
-    uint flags;
+    uvec2 last_seen_u64;
 };
 
 const uint MAX_CELL_TABLE_SIZE = {{MAX_CELL_TABLE_SIZE}}u;
@@ -43,7 +47,19 @@ const uint DEPTH_FIXED = {{DEPTH_FIXED}}u;
 const uint DEPTH_GRADIENT = {{DEPTH_GRADIENT}}u;
 const uint DEPTH_BOTTOM = {{DEPTH_BOTTOM}}u;
 
-const uint CELL_VISIBLE = {{CELL_VISIBLE}}u;
+/* Treating a and b as 64 bit integers with the least-significant 32 bits
+ * in a[0] and b[0].
+ * < 0 if a < b
+ * > 0 if a > b
+ *   0 if a == b
+ */
+int uvec2_cmp(uvec2 a, uvec2 b) {
+    if (a[1] == b[1]) {
+        return int(a[0]) - int(b[0]);
+    } else {
+        return int(a[1]) - int(b[1]);
+    }
+}
 
 void main() {
 
