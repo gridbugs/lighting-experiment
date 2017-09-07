@@ -88,7 +88,7 @@ void main() {
     if (cell_is_visible(cell)) {
         v_ColourMult = 1.0;
     } else {
-        v_ColourMult = 0.25;
+        v_ColourMult = 0.05;
     }
 
     float depth = -1;
@@ -103,7 +103,7 @@ void main() {
             depth = 1.0 - (a_Depth - 1.0 + a_Pos[1]) / u_WorldSize.y;
             break;
         case DEPTH_BOTTOM:
-            depth = 1.0;
+            depth = 1.0 - a_Depth;
             break;
     }
 

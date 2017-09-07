@@ -13,10 +13,12 @@ macro_rules! entity_store_decl {
         #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct $EntityStore {
 {{#each components}}
-    {{#if type}}
+    {{#if store}}
+        {{#if type}}
             pub {{@key}}: {{store}}<{{type}}>,
-    {{else}}
+        {{else}}
             pub {{@key}}: {{store}},
+        {{/if}}
     {{/if}}
 {{/each}}
         }
@@ -27,10 +29,12 @@ macro_rules! entity_store_cons {
     ($EntityStore:ident) => {
         $EntityStore {
 {{#each components}}
-    {{#if type}}
-            {{@key}}: {{store}}::default(),
-    {{else}}
-            {{@key}}: {{store}}::default(),
+    {{#if store}}
+        {{#if type}}
+                {{@key}}: {{store}}::default(),
+        {{else}}
+                {{@key}}: {{store}}::default(),
+        {{/if}}
     {{/if}}
 {{/each}}
         }
@@ -44,10 +48,18 @@ macro_rules! commit {
                 EntityChange::Insert(id, value) => {
                     match value {
 {{#each components}}
-    {{#if type}}
-                        ComponentValue::{{name}}(value) => { $self.{{@key}}.insert(id, value); },
+    {{#if store}}
+        {{#if type}}
+                        ComponentValue::{{name}}(value) => { $self.{{@key}}.insert(id, value); }
+        {{else}}
+                        ComponentValue::{{name}} => { $self.{{@key}}.insert(id); }
+        {{/if}}
     {{else}}
-                        ComponentValue::{{name}} => { $self.{{@key}}.insert(id); },
+        {{#if type}}
+                        ComponentValue::{{name}}(_) => {}
+        {{else}}
+                        ComponentValue::{{name}} => {}
+        {{/if}}
     {{/if}}
 {{/each}}
                     }
@@ -55,10 +67,10 @@ macro_rules! commit {
                 EntityChange::Remove(id, typ) => {
                     match typ {
 {{#each components}}
-    {{#if type}}
+    {{#if store}}
                         ComponentType::{{name}} => { $self.{{@key}}.remove(&id); },
     {{else}}
-                        ComponentType::{{name}} => { $self.{{@key}}.remove(&id); },
+                        ComponentType::{{name}} => {},
     {{/if}}
 {{/each}}
                     }

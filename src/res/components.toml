@@ -11,7 +11,7 @@ solid = { name = 'Solid' }
 collider = { name = 'Collider' }
 opacity = { type = 'f64', name = 'Opacity' }
 door = { type = 'DoorInfo', name = 'Door', store = 'hash' }
-
+door_closing_finished = { name = 'DoorClosingFinished', store = 'none' }
 door_opener = { name = 'DoorOpener' }
 wall = { name = 'Wall' }
 player = { name = 'Player' }

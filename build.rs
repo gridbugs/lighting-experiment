@@ -120,7 +120,7 @@ struct ComponentDescOut {
     index: usize,
     word_index: usize,
     word_bitmask: u64,
-    store: String,
+    store: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -161,34 +161,36 @@ fn render_entity_system_template_internal<P: AsRef<Path>>(desc: &EntityStoreDesc
     let mut components = BTreeMap::new();
 
     let store_map_table = hashmap! {
-        "btree" => "EntityBTreeMap",
-        "hash" => "EntityHashMap",
-        "vec" => "EntityVecMap",
+        "btree" => Some("EntityBTreeMap"),
+        "hash" => Some("EntityHashMap"),
+        "vec" => Some("EntityVecMap"),
+        "none" => None,
     };
-    let default_map = "EntityVecMap";
+    let default_map = Some("EntityVecMap");
     let store_set_table = hashmap! {
-        "btree" => "EntityBTreeSet",
-        "hash" => "EntityHashSet",
-        "vec" => "EntityVecSet",
+        "btree" => Some("EntityBTreeSet"),
+        "hash" => Some("EntityHashSet"),
+        "vec" => Some("EntityVecSet"),
+        "none" => None,
     };
-    let default_set = "EntityVecSet";
+    let default_set = Some("EntityVecSet");
 
     for (index, (field, desc)) in desc.components.iter().enumerate() {
         let store = if desc.type_name.is_some() {
             if let Some(s) = desc.store.as_ref() {
                 store_map_table.get(s.as_str())
                     .expect(format!("No such store: {}", s).as_str())
-                    .to_string()
+                    .map(|s| s.to_string())
             } else {
-                default_map.to_string()
+                default_map.map(|s| s.to_string())
             }
         } else {
             if let Some(s) = desc.store.as_ref() {
                 store_set_table.get(s.as_str())
                     .expect(format!("No such store: {}", s).as_str())
-                    .to_string()
+                    .map(|s| s.to_string())
             } else {
-                default_set.to_string()
+                default_set.map(|s| s.to_string())
             }
         };
 

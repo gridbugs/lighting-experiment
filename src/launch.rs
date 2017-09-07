@@ -12,9 +12,9 @@ use control_table::GameControlTable;
 use control::Control;
 use input::{Input, Bindable, Unbindable, System};
 use direction::CardinalDirection;
-use content::{ChangeDesc, AnimationStatus};
+use content::{ChangeDesc, Animation, AnimationStatus, AnimatedChange};
 use policy;
-use vision::square;
+use vision::shadowcast;
 
 pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Frontend<I, O>) {
     let Frontend { input: mut frontend_input, output: mut frontend_output } = frontend;
@@ -38,6 +38,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
     let player_id = metadata.player_id.expect("No player");
 
     let mut spatial_hash = SpatialHashTable::new(metadata.width, metadata.height);
+    let mut shadowcast_env = shadowcast::ShadowcastEnv::new();
 
     frontend_output.update_world_size(metadata.width, metadata.height);
 
@@ -62,8 +63,9 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
     let mut change_descs = VecDeque::new();
     let mut change_descs_swap = VecDeque::new();
 
-    let mut animations = VecDeque::new();
+    let mut animations: VecDeque<Animation> = VecDeque::new();
     let mut animations_swap = VecDeque::new();
+    let mut animated_changes = VecDeque::new();
 
     let mut running = true;
     let mut count = 1;
@@ -123,6 +125,28 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
             a.populate(&entity_store, &mut change_descs);
         }
 
+        for animation in animations.drain(..) {
+            let status = animation.populate(frame_duration, &mut animated_changes);
+            match status {
+                AnimationStatus::Running(animation) => {
+                    animations_swap.push_back(animation);
+                }
+                AnimationStatus::Finished => {}
+            }
+        }
+        mem::swap(&mut animations, &mut animations_swap);
+
+        for animated_change in animated_changes.drain(..) {
+            match animated_change {
+                AnimatedChange::Checked(change) => {
+                    if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs) {
+                        staged_changes.push_back(change);
+                    }
+                }
+                AnimatedChange::Unchecked(change) => staged_changes.push_back(change),
+            }
+        }
+
         loop {
             for desc in change_descs.drain(..) {
                 use self::ChangeDesc::*;
@@ -149,14 +173,6 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
             }
         }
 
-        for mut animation in animations.drain(..) {
-            let status = animation.populate(frame_duration, &mut staged_changes);
-            if status == AnimationStatus::Running {
-                animations_swap.push_back(animation);
-            }
-        }
-        mem::swap(&mut animations, &mut animations_swap);
-
         frontend_output.with_world_state(|state| {
 
             state.set_frame_info(count);
@@ -177,7 +193,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
             }
 
             let player_position = entity_store.position.get(&player_id).expect("No player position");
-            square::observe(&mut state.world_grid(), *player_position, &spatial_hash, count);
+            shadowcast::observe(&mut state.world_grid(), &mut shadowcast_env, *player_position, &spatial_hash, 8, count);
         });
 
         frontend_output.draw();

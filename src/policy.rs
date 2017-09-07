@@ -54,12 +54,21 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
             match door_info.state {
                 DoorState::Open => {
                     reactions.append(ChangeDesc::immediate(remove::solid(id)));
-                    reactions.append(ChangeDesc::sprites(id, door_info.typ.open_animation(), door_info.typ.open_sprite()));
+                    reactions.append(ChangeDesc::immediate(insert::opacity(id, 0.0)));
+                    reactions.append(ChangeDesc::sprites(id, door_info.typ.open_animation(),
+                                                         insert::sprite(id, door_info.typ.open_sprite())));
                 }
                 DoorState::Closed => {
                     reactions.append(ChangeDesc::immediate(insert::solid(id)));
-                    reactions.append(ChangeDesc::sprites(id, door_info.typ.close_animation(), door_info.typ.closed_sprite()));
+                    reactions.append(ChangeDesc::sprites(id, door_info.typ.close_animation(),
+                                     insert::door_closing_finished(id)));
                 }
+            }
+        }
+        &Insert(id, ComponentValue::DoorClosingFinished) => {
+            reactions.append(ChangeDesc::immediate(insert::opacity(id, 1.0)));
+            if let Some(door_info) = entity_store.door.get(&id) {
+                reactions.append(ChangeDesc::immediate(insert::sprite(id, door_info.typ.closed_sprite())));
             }
         }
         _ => {}

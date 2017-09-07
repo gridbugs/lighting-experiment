@@ -23,6 +23,7 @@ mod neighbour_count;
 mod append;
 mod grid;
 mod grid_slice;
+mod vector_index;
 
 #[macro_use] mod entity_store;
 mod spatial_hash;

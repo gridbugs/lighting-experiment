@@ -2,7 +2,7 @@ use std::time::Duration;
 use cgmath::Vector2;
 
 use entity_store::{EntityId, EntityChange, insert};
-use content::{Animation, SpriteAnimation, Sprite};
+use content::{Animation, SpriteAnimation};
 
 pub enum ChangeDesc {
     // The change is applied immediately.
@@ -31,10 +31,10 @@ impl ChangeDesc {
         };
         ChangeDesc::AnimatedChange(eventual_change, animation)
     }
-    pub fn sprites(id: EntityId, animation: SpriteAnimation, final_sprite: Sprite) -> Self {
+    pub fn sprites(id: EntityId, animation: SpriteAnimation, then: EntityChange) -> Self {
         let animation = Animation::Sprites {
             id,
-            final_sprite,
+            then,
             animation,
             index: 0,
             remaining: Duration::from_millis(animation[0].millis as u64),

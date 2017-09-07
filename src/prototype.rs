@@ -48,6 +48,7 @@ pub fn inner_door<A: Append<EntityChange>>(changes: &mut A, id: EntityId, positi
     changes.append(insert::depth(id, DepthType::Gradient.into()));
     changes.append(insert::door(id, DoorInfo::new(DoorType::Inner, DoorState::Closed)));
     changes.append(insert::solid(id));
+    changes.append(insert::opacity(id, 1.0));
 }
 
 pub fn outer_door<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
@@ -56,10 +57,12 @@ pub fn outer_door<A: Append<EntityChange>>(changes: &mut A, id: EntityId, positi
     changes.append(insert::depth(id, DepthType::Gradient.into()));
     changes.append(insert::door(id, DoorInfo::new(DoorType::Outer, DoorState::Closed)));
     changes.append(insert::solid(id));
+    changes.append(insert::opacity(id, 1.0));
 }
 
 pub fn window<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
     changes.append(insert::position(id, position));
     changes.append(insert::sprite(id, Sprite::Window));
     changes.append(insert::depth(id, DepthInfo::new(DepthType::YAxis, 0.5)));
+    changes.append(insert::opacity(id, -1.0));
 }

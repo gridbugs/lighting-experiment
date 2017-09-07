@@ -3,7 +3,7 @@ use cgmath::Vector2;
 
 use append::Append;
 use entity_store::{EntityId, EntityChange, insert};
-use content::{Sprite, SpriteAnimation};
+use content::SpriteAnimation;
 
 pub enum Animation {
     Slide {
@@ -16,16 +16,20 @@ pub enum Animation {
     Sprites {
         id: EntityId,
         animation: SpriteAnimation,
-        final_sprite: Sprite,
+        then: EntityChange,
         index: usize,
         remaining: Duration,
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnimationStatus {
-    Running,
+    Running(Animation),
     Finished,
+}
+
+pub enum AnimatedChange {
+    Checked(EntityChange),
+    Unchecked(EntityChange),
 }
 
 fn duration_ratio(a: Duration, b: Duration) -> f32 {
@@ -35,54 +39,55 @@ fn duration_ratio(a: Duration, b: Duration) -> f32 {
 }
 
 impl Animation {
-    pub fn populate<A: Append<EntityChange>>(&mut self, time_delta: Duration, changes: &mut A) -> AnimationStatus {
+    pub fn populate<A: Append<AnimatedChange>>(self, time_delta: Duration, changes: &mut A) -> AnimationStatus {
         use self::Animation::*;
+        use self::AnimatedChange::*;
         match self {
-            &mut Slide { id, base, path, ref mut progress, duration } => {
+            Slide { id, base, path, mut progress, duration } => {
                 let progress_delta = duration_ratio(time_delta, duration);
-                *progress += progress_delta;
-                if *progress > 1.0 {
-                    *progress = 1.0;
+                progress += progress_delta;
+                if progress > 1.0 {
+                    progress = 1.0;
                 }
 
-                let new_position = base + path * *progress;
-                changes.append(insert::position(id, new_position));
+                let new_position = base + path * progress;
+                changes.append(Unchecked(insert::position(id, new_position)));
 
-                if *progress < 1.0 {
-                    AnimationStatus::Running
+                if progress < 1.0 {
+                    AnimationStatus::Running(Animation::Slide { id, base, path, progress, duration })
                 } else {
                     AnimationStatus::Finished
                 }
             }
-            &mut Sprites { id, animation, final_sprite, ref mut index, ref mut remaining } => {
-                if time_delta < *remaining {
-                    *remaining -= time_delta;
-                    return AnimationStatus::Running;
+            Sprites { id, animation, then, mut index, mut remaining } => {
+                if time_delta < remaining {
+                    remaining -= time_delta;
+                    return AnimationStatus::Running(Animation::Sprites { id, animation, then, index, remaining });
                 }
 
-                let mut time_delta_rest = time_delta - *remaining;
-                *index += 1;
+                let mut time_delta_rest = time_delta - remaining;
+                index += 1;
 
                 loop {
-                    if *index == animation.len() {
-                        changes.append(insert::sprite(id, final_sprite));
+                    if index == animation.len() {
+                        changes.append(Checked(then));
                         return AnimationStatus::Finished;
                     }
 
-                    let frame = &animation[*index];
+                    let frame = &animation[index];
                     let frame_duration = Duration::from_millis(frame.millis as u64);
 
                     if time_delta_rest < frame_duration {
-                        *remaining = frame_duration - time_delta_rest;
-                        changes.append(insert::sprite(id, frame.sprite));
+                        remaining = frame_duration - time_delta_rest;
+                        changes.append(Unchecked(insert::sprite(id, frame.sprite)));
                         break;
                     }
 
                     time_delta_rest -= frame_duration;
-                    *index += 1;
+                    index += 1;
                 }
 
-                AnimationStatus::Running
+                AnimationStatus::Running(Animation::Sprites { id, animation, then, index, remaining })
             }
         }
     }

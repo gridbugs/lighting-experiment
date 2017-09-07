@@ -17,7 +17,7 @@ pub mod change_desc;
 pub use self::change_desc::ChangeDesc;
 
 pub mod animation;
-pub use self::animation::{Animation, AnimationStatus};
+pub use self::animation::{Animation, AnimationStatus, AnimatedChange};
 
 pub mod sprite_animation;
 pub use self::sprite_animation::SpriteAnimation;

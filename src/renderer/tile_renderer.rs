@@ -117,14 +117,6 @@ impl Instance {
 
     pub fn update_depth(&mut self, y_position: f32, max_y_position: f32, depth: DepthInfo) {
 
-        let mut y_position_with_offset = y_position + depth.offset;
-        if y_position_with_offset > max_y_position {
-            y_position_with_offset = max_y_position;
-        } else if y_position_with_offset < 0.0 {
-            y_position_with_offset = 0.0;
-        }
-        self.depth = y_position_with_offset;
-
         match depth.typ {
             DepthType::YAxis => {
                 self.depth_type = depth_type::FIXED;
@@ -134,6 +126,21 @@ impl Instance {
             }
             DepthType::Gradient => {
                 self.depth_type = depth_type::GRADIENT;
+            }
+        }
+
+        match depth.typ {
+            DepthType::YAxis | DepthType::Gradient => {
+                let mut y_position_with_offset = y_position + depth.offset;
+                if y_position_with_offset > max_y_position {
+                    y_position_with_offset = max_y_position;
+                } else if y_position_with_offset < 0.0 {
+                    y_position_with_offset = 0.0;
+                }
+                self.depth = y_position_with_offset;
+            }
+            DepthType::Bottom => {
+                self.depth = depth.offset;
             }
         }
     }
@@ -319,7 +326,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
         let cell_table = factory.create_buffer(
             MAX_CELL_TABLE_SIZE,
             gfx::buffer::Role::Constant,
-            gfx::memory::Usage::Dynamic,
+            gfx::memory::Usage::Data,
             gfx::memory::TRANSFER_DST)
             .expect("Failed to create cell table");
 

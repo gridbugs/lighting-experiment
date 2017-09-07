@@ -4,17 +4,15 @@ use vision::VisionCell;
 use grid::GridMut;
 use spatial_hash::SpatialHashTable;
 
-const RANGE: i32 = 4;
-
-pub fn observe<C, G>(grid: &mut G, position: Vector2<f32>, spatial_hash: &SpatialHashTable, time: u64)
+pub fn observe<C, G>(grid: &mut G, position: Vector2<f32>, spatial_hash: &SpatialHashTable, distance: u32, time: u64)
     where C: VisionCell,
           G: GridMut<C>,
 {
-    let position: Vector2<i32> = (position + Vector2::new(0.5, 0.5)).cast();
+    let position: Vector2<u32> = (position + Vector2::new(0.5, 0.5)).cast();
 
-    for y in cmp::max(position.y - RANGE, 0)..cmp::min(position.y + RANGE, spatial_hash.height() as i32) {
-        for x in cmp::max(position.x - RANGE, 0)..cmp::min(position.x + RANGE, spatial_hash.width() as i32) {
-            grid.get_mut(Vector2::new(x as u32, y as u32)).see(time);
+    for y in cmp::max(position.y - distance, 0)..cmp::min(position.y + distance, spatial_hash.height()) {
+        for x in cmp::max(position.x - distance, 0)..cmp::min(position.x + distance, spatial_hash.width()) {
+            grid.get_mut(Vector2::new(x, y)).see(time);
         }
     }
 }
