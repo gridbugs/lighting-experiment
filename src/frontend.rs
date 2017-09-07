@@ -2,13 +2,17 @@ use cgmath::Vector2;
 
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
+use vision::VisionCell;
+use grid_slice::GridSliceMut;
 
 use input::Input;
 
 pub trait OutputWorldState<'a> {
+    type WorldCell: VisionCell;
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable);
     fn set_player_position(&mut self, player_position: Vector2<f32>);
     fn set_frame_info(&mut self, time: u64);
+    fn world_grid(&mut self) -> GridSliceMut<Self::WorldCell>;
 }
 
 pub trait FrontendOutput<'a> {

@@ -4,7 +4,7 @@ use vision::VisionCell;
 use grid::GridMut;
 use spatial_hash::SpatialHashTable;
 
-const RANGE: i32 = 8;
+const RANGE: i32 = 4;
 
 pub fn observe<C, G>(grid: &mut G, position: Vector2<f32>, spatial_hash: &SpatialHashTable, time: u64)
     where C: VisionCell,

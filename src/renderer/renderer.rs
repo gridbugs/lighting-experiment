@@ -78,7 +78,7 @@ impl<R: gfx::Resources> Renderer<R> {
         self.scale.handle_resize(rtv.clone(), srv, srv_width, srv_height, encoder, factory);
     }
 
-    pub fn update_world_size<C>(&self, width: u32, height: u32,
+    pub fn update_world_size<C>(&mut self, width: u32, height: u32,
                                 encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {

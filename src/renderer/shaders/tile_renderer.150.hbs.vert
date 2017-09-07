@@ -41,6 +41,7 @@ in float a_Depth;
 in uint a_DepthType;
 
 out vec2 v_TexCoord;
+out float v_ColourMult;
 
 const uint DEPTH_DISABLED = {{DEPTH_DISABLED}}u;
 const uint DEPTH_FIXED = {{DEPTH_FIXED}}u;
@@ -61,7 +62,34 @@ int uvec2_cmp(uvec2 a, uvec2 b) {
     }
 }
 
+Cell get_cell() {
+    vec2 pos = a_Position + vec2(0.5);
+    int idx = int(pos.x) + int(pos.y) * int(u_WorldSizeUint.x);
+    return u_Cells[idx];
+}
+
+bool cell_is_seen(Cell cell) {
+    return cell.last_seen_u64 != uvec2(0, 0);
+}
+
+bool cell_is_visible(Cell cell) {
+    return cell.last_seen_u64 == u_Time_u64;
+}
+
 void main() {
+
+    Cell cell = get_cell();
+
+    if (!cell_is_seen(cell)) {
+        gl_Position = vec4(0.0, 0.0, 0.0, -1.0);
+        return;
+    }
+
+    if (cell_is_visible(cell)) {
+        v_ColourMult = 1.0;
+    } else {
+        v_ColourMult = 0.25;
+    }
 
     float depth = -1;
     switch (a_DepthType) {

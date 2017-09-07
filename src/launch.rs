@@ -14,26 +14,7 @@ use input::{Input, Bindable, Unbindable, System};
 use direction::CardinalDirection;
 use content::{ChangeDesc, AnimationStatus};
 use policy;
-use vision::{VisionCell, square};
-use static_grid::StaticGrid;
-
-struct VCell {
-    last_seen: u64,
-}
-
-impl VisionCell for VCell {
-    fn see(&mut self, time: u64) {
-        self.last_seen = time;
-    }
-}
-
-impl Default for VCell {
-    fn default() -> Self {
-        Self {
-            last_seen: 0,
-        }
-    }
-}
+use vision::square;
 
 pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Frontend<I, O>) {
     let Frontend { input: mut frontend_input, output: mut frontend_output } = frontend;
@@ -57,7 +38,6 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
     let player_id = metadata.player_id.expect("No player");
 
     let mut spatial_hash = SpatialHashTable::new(metadata.width, metadata.height);
-    let mut vision_grid: StaticGrid<VCell> = StaticGrid::new_default(metadata.width, metadata.height);
 
     frontend_output.update_world_size(metadata.width, metadata.height);
 
@@ -86,7 +66,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
     let mut animations_swap = VecDeque::new();
 
     let mut running = true;
-    let mut count = 0;
+    let mut count = 1;
 
     let bob_duration = Duration::from_millis(500);
     let mut bob_acc = Duration::from_millis(0);
@@ -197,7 +177,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
             }
 
             let player_position = entity_store.position.get(&player_id).expect("No player position");
-            square::observe(&mut vision_grid, *player_position, &spatial_hash, count);
+            square::observe(&mut state.world_grid(), *player_position, &spatial_hash, count);
         });
 
         frontend_output.draw();

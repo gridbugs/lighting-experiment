@@ -12,8 +12,8 @@ pub fn input_sprites() -> Vec<InputSprite> {
     use self::Sprite::*;
 
     vec![
-        character(Angler, [0, 0], Some([0, 8]), None),
-        character(AnglerBob, [1, 0], Some([0, 8]), None),
+        character(Angler, [0, 0], Some([-1, 8]), None),
+        character(AnglerBob, [1, 0], Some([-1, 8]), None),
         floor(InnerFloor, [0, 0], None, None),
         floor(OuterFloor, [0, 1], None, None),
         wall(InnerWall, [0, 0], None, None),
