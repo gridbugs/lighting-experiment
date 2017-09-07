@@ -21,6 +21,8 @@ mod limits;
 mod direction;
 mod neighbour_count;
 mod append;
+mod grid;
+mod grid_slice;
 
 #[macro_use] mod entity_store;
 mod spatial_hash;
@@ -41,6 +43,7 @@ mod renderer;
 mod input;
 mod control;
 mod control_table;
+mod vision;
 
 fn main() {
     launch::launch(glutin_frontend::create());
