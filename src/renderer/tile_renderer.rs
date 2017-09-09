@@ -36,6 +36,7 @@ gfx_vertex_struct!( Instance {
     depth_type: u32 = "a_DepthType",
     flags: u32 = "a_Flags",
     sprite_effect: u32 = "a_SpriteEffect",
+    sprite_effect_args: [f32; 4] = "a_SpriteEffectArgs",
 });
 
 gfx_constant_struct!( FixedDimensions {
@@ -106,6 +107,7 @@ impl Default for Instance {
             depth_type: 0,
             flags: 0,
             sprite_effect: 0,
+            sprite_effect_args: [0.0, 0.0, 0.0, 0.0],
         }
     }
 }

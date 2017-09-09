@@ -106,8 +106,10 @@ impl InstanceManager {
             }
             &Insert(id, SpriteEffect(sprite_effect)) => {
                 if let Some(index) = self.index_table.get(&id).cloned() {
-                    instances[index as usize].flags |= instance_flags::SPRITE_EFFECT;
-                    instances[index as usize].sprite_effect = sprite_effect as u32;
+                    let instance = &mut instances[index as usize];
+                    instance.flags |= instance_flags::SPRITE_EFFECT;
+                    instance.sprite_effect = sprite_effect.effect as u32;
+                    instance.sprite_effect_args = sprite_effect.args;
                 }
             }
             &Remove(id, ComponentType::Position) => {

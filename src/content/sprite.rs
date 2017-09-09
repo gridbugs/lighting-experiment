@@ -7,6 +7,7 @@ pub enum Sprite {
     InnerFloor,
     OuterWall,
     InnerWall,
+    InnerWater,
 
     InnerDoor,
     InnerDoorOpening1,

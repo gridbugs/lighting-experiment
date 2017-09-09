@@ -41,6 +41,7 @@ in float a_Depth;
 in uint a_DepthType;
 in uint a_Flags;
 in uint a_SpriteEffect;
+in vec4 a_SpriteEffectArgs;
 
 out vec2 v_TexCoord;
 out float v_ColourMult;
@@ -70,7 +71,7 @@ bool cell_is_visible(Cell cell) {
 
 const float MAXUINT_FLOAT = 4294967296.0;
 
-float outer_water_colour_mult() {
+float outer_water_colour_mult(float steps, float base_mult, float max_mult) {
     float x_orig = a_Position.x;
     float y_orig = a_Position.y;
     float t_orig = float(u_Time_u64[1]) * MAXUINT_FLOAT + float(u_Time_u64[0]);
@@ -88,12 +89,9 @@ float outer_water_colour_mult() {
 
     float val = ((total / PARTS) + 1.0) / 2.0;
 
-    const float STEPS = 3.0;
-    float stepped = floor(val * STEPS) / STEPS;
+    float stepped = floor(val * steps) / steps;
 
-    const float BASE = 0.05;
-    const float MAX = 0.6;
-    return BASE + stepped * (MAX - BASE);
+    return base_mult + stepped * (max_mult - base_mult);
 }
 
 void main() {
@@ -107,7 +105,7 @@ void main() {
     if ((a_Flags & FLAGS_SPRITE_EFFECT) != 0u) {
         switch (a_SpriteEffect) {
             case SPRITE_EFFECT_OUTER_WATER:
-                v_ColourMult *= outer_water_colour_mult();
+                v_ColourMult *= outer_water_colour_mult(a_SpriteEffectArgs[0], a_SpriteEffectArgs[1], a_SpriteEffectArgs[2]);
                 break;
         }
     }

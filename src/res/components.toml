@@ -3,7 +3,7 @@ imports = [
     'content::DoorInfo',
     'content::Sprite',
     'content::DepthInfo',
-    'content::SpriteEffect',
+    'content::SpriteEffectInfo',
 ]
 
 [components]
@@ -18,4 +18,4 @@ wall = { name = 'Wall' }
 player = { name = 'Player' }
 sprite = { type = 'Sprite', name = 'Sprite' }
 depth = { type = 'DepthInfo', name = 'Depth' }
-sprite_effect = { type = 'SpriteEffect', name = 'SpriteEffect' }
+sprite_effect = { type = 'SpriteEffectInfo', name = 'SpriteEffect' }

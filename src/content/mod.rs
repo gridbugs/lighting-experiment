@@ -23,6 +23,6 @@ pub mod sprite_animation;
 pub use self::sprite_animation::SpriteAnimation;
 
 pub mod sprite_effect;
-pub use self::sprite_effect::SpriteEffect;
+pub use self::sprite_effect::{SpriteEffect, SpriteEffectInfo};
 
 pub mod bob;
