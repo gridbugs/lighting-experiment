@@ -4,7 +4,7 @@ use entity_store::{EntityStore, EntityChange,
 use spatial_hash::SpatialHashTable;
 use id_allocator::IdAllocator;
 
-use renderer::tile_renderer::{Instance, SpriteRenderInfo, WallSpriteRenderInfo};
+use renderer::tile_renderer::{Instance, SpriteRenderInfo, WallSpriteRenderInfo, instance_flags};
 use renderer::sprite_sheet::SpriteTable;
 
 use direction::Directions;
@@ -77,7 +77,7 @@ impl InstanceManager {
                 };
                 {
                     let instance = &mut instances[index as usize];
-                    instance.enable();
+                    instance.flags |= instance_flags::ENABLED;
                     instance.position = position.into();
 
                     if let Some(depth_type) = entity_store.depth.get(&id) {
@@ -104,14 +104,25 @@ impl InstanceManager {
                     }
                 }
             }
+            &Insert(id, SpriteEffect(sprite_effect)) => {
+                if let Some(index) = self.index_table.get(&id).cloned() {
+                    instances[index as usize].flags |= instance_flags::SPRITE_EFFECT;
+                    instances[index as usize].sprite_effect = sprite_effect as u32;
+                }
+            }
             &Remove(id, ComponentType::Position) => {
                 if let Some(index) = self.index_table.get(&id).cloned() {
-                    instances[index as usize].disable();
+                    instances[index as usize].flags &= !instance_flags::ENABLED;
                     self.index_allocator.free(index);
                     self.index_table.remove(&id);
                 }
             }
             &Remove(id, ComponentType::Sprite) => {
+                if let Some(index) = self.index_table.get(&id).cloned() {
+                    instances[index as usize].flags &= !instance_flags::SPRITE_EFFECT;
+                }
+            }
+            &Remove(id, ComponentType::SpriteEffect) => {
                 if let Some(index) = self.index_table.get(&id).cloned() {
                     instances[index as usize].update_sprite_info(SpriteRenderInfo::blank());
                 }

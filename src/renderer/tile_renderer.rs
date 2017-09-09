@@ -9,7 +9,7 @@ use renderer::instance_manager::InstanceManager;
 use renderer::common;
 
 use direction::Direction;
-use content::{Sprite, DepthType, DepthInfo};
+use content::{Sprite, DepthType, DepthInfo, SpriteEffect};
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 use vision::VisionCell;
@@ -35,6 +35,7 @@ gfx_vertex_struct!( Instance {
     depth: f32 = "a_Depth",
     depth_type: u32 = "a_DepthType",
     flags: u32 = "a_Flags",
+    sprite_effect: u32 = "a_SpriteEffect",
 });
 
 gfx_constant_struct!( FixedDimensions {
@@ -87,8 +88,9 @@ gfx_pipeline!( pipe {
     out_depth: gfx::DepthTarget<DepthFormat> = gfx::preset::depth::LESS_EQUAL_WRITE,
 });
 
-mod instance_flags {
+pub mod instance_flags {
     pub const ENABLED: u32 = 1 << 0;
+    pub const SPRITE_EFFECT: u32 = 1 << 1;
 }
 
 impl Default for Instance {
@@ -103,6 +105,7 @@ impl Default for Instance {
             depth: -1.0,
             depth_type: 0,
             flags: 0,
+            sprite_effect: 0,
         }
     }
 }
@@ -133,14 +136,6 @@ impl Instance {
                 self.depth = depth.offset;
             }
         }
-    }
-
-    pub fn enable(&mut self) {
-        self.flags |= instance_flags::ENABLED;
-    }
-
-    pub fn disable(&mut self) {
-        self.flags &= !instance_flags::ENABLED;
     }
 }
 
@@ -260,10 +255,12 @@ fn populate_shader(shader: &[u8]) -> String {
 
     let table = hashmap!{
         "FLAGS_ENABLED" => instance_flags::ENABLED,
+        "FLAGS_SPRITE_EFFECT" => instance_flags::SPRITE_EFFECT,
         "DEPTH_FIXED" => DepthType::Fixed as u32,
         "DEPTH_GRADIENT" => DepthType::Gradient as u32,
         "DEPTH_BOTTOM" => DepthType::Bottom as u32,
         "MAX_CELL_TABLE_SIZE" => MAX_CELL_TABLE_SIZE as u32,
+        "SPRITE_EFFECT_OUTER_WATER" => SpriteEffect::OuterWater as u32,
     };
 
     let shader_str = ::std::str::from_utf8(shader)

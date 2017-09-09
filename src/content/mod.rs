@@ -22,4 +22,7 @@ pub use self::animation::{Animation, AnimationStatus, AnimatedChange};
 pub mod sprite_animation;
 pub use self::sprite_animation::SpriteAnimation;
 
+pub mod sprite_effect;
+pub use self::sprite_effect::SpriteEffect;
+
 pub mod bob;
