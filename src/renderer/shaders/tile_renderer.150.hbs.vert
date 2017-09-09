@@ -50,20 +50,6 @@ const uint DEPTH_FIXED = {{DEPTH_FIXED}}u;
 const uint DEPTH_GRADIENT = {{DEPTH_GRADIENT}}u;
 const uint DEPTH_BOTTOM = {{DEPTH_BOTTOM}}u;
 
-/* Treating a and b as 64 bit integers with the least-significant 32 bits
- * in a[0] and b[0].
- * < 0 if a < b
- * > 0 if a > b
- *   0 if a == b
- */
-int uvec2_cmp(uvec2 a, uvec2 b) {
-    if (a[1] == b[1]) {
-        return int(a[0]) - int(b[0]);
-    } else {
-        return int(a[1]) - int(b[1]);
-    }
-}
-
 Cell get_cell() {
     vec2 pos = a_Position + vec2(0.5);
     int idx = int(pos.x) + int(pos.y) * int(u_WorldSizeUint.x);
