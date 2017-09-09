@@ -1,4 +1,3 @@
-enum_from_primitive! {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Sprite {
     Blank = 0,
@@ -29,7 +28,6 @@ pub enum Sprite {
 
     Window,
     _Num,
-}
 }
 
 pub const NUM_SPRITES: usize = Sprite::_Num as usize;
