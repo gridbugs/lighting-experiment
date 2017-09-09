@@ -4,7 +4,7 @@ use entity_store::{EntityStore, EntityChange,
 use spatial_hash::SpatialHashTable;
 use id_allocator::IdAllocator;
 
-use renderer::tile_renderer::{Instance, SpriteRenderInfo, WallSpriteRenderInfo, depth_type};
+use renderer::tile_renderer::{Instance, SpriteRenderInfo, WallSpriteRenderInfo};
 use renderer::sprite_sheet::SpriteTable;
 
 use direction::Directions;
@@ -77,6 +77,7 @@ impl InstanceManager {
                 };
                 {
                     let instance = &mut instances[index as usize];
+                    instance.enable();
                     instance.position = position.into();
 
                     if let Some(depth_type) = entity_store.depth.get(&id) {
@@ -105,7 +106,7 @@ impl InstanceManager {
             }
             &Remove(id, ComponentType::Position) => {
                 if let Some(index) = self.index_table.get(&id).cloned() {
-                    instances[index as usize].depth_type = depth_type::DISABLED;
+                    instances[index as usize].disable();
                     self.index_allocator.free(index);
                     self.index_table.remove(&id);
                 }

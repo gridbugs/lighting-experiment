@@ -39,11 +39,13 @@ in vec2 a_PixSize;
 in vec2 a_PixOffset;
 in float a_Depth;
 in uint a_DepthType;
+in uint a_Flags;
 
 out vec2 v_TexCoord;
 out float v_ColourMult;
 
-const uint DEPTH_DISABLED = {{DEPTH_DISABLED}}u;
+const uint FLAGS_ENABLED = {{FLAGS_ENABLED}}u;
+
 const uint DEPTH_FIXED = {{DEPTH_FIXED}}u;
 const uint DEPTH_GRADIENT = {{DEPTH_GRADIENT}}u;
 const uint DEPTH_BOTTOM = {{DEPTH_BOTTOM}}u;
@@ -78,6 +80,11 @@ bool cell_is_visible(Cell cell) {
 
 void main() {
 
+    if ((a_Flags & FLAGS_ENABLED) == 0u) {
+        gl_Position = vec4(0.0, 0.0, 0.0, -1.0);
+        return;
+    }
+
     Cell cell = get_cell();
 
     if (!cell_is_seen(cell)) {
@@ -93,9 +100,6 @@ void main() {
 
     float depth = -1;
     switch (a_DepthType) {
-        case DEPTH_DISABLED:
-            gl_Position = vec4(0.0, 0.0, 0.0, -1.0);
-            return;
         case DEPTH_FIXED:
             depth = 1.0 - a_Depth / u_WorldSize.y;
             break;

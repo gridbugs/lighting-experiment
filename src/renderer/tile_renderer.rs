@@ -34,6 +34,7 @@ gfx_vertex_struct!( Instance {
     pix_offset: [f32; 2] = "a_PixOffset",
     depth: f32 = "a_Depth",
     depth_type: u32 = "a_DepthType",
+    flags: u32 = "a_Flags",
 });
 
 gfx_constant_struct!( FixedDimensions {
@@ -86,11 +87,8 @@ gfx_pipeline!( pipe {
     out_depth: gfx::DepthTarget<DepthFormat> = gfx::preset::depth::LESS_EQUAL_WRITE,
 });
 
-pub mod depth_type {
-    pub const DISABLED: u32 = 0;
-    pub const FIXED: u32 = 1;
-    pub const GRADIENT: u32 = 2;
-    pub const BOTTOM: u32 = 3;
+mod instance_flags {
+    pub const ENABLED: u32 = 1 << 0;
 }
 
 impl Default for Instance {
@@ -99,10 +97,12 @@ impl Default for Instance {
             // the sprite sheet ensures there's a blank sprite here
             sprite_sheet_pix_coord: [0.0, 0.0],
             position: [0.0, 0.0],
-            pix_size: [input_sprite::WIDTH_PX as f32, input_sprite::HEIGHT_PX as f32],
+            pix_size: [input_sprite::WIDTH_PX as f32,
+                       input_sprite::HEIGHT_PX as f32],
             pix_offset: [0.0, 0.0],
             depth: -1.0,
             depth_type: 0,
+            flags: 0,
         }
     }
 }
@@ -117,20 +117,10 @@ impl Instance {
 
     pub fn update_depth(&mut self, y_position: f32, max_y_position: f32, depth: DepthInfo) {
 
-        match depth.typ {
-            DepthType::YAxis => {
-                self.depth_type = depth_type::FIXED;
-            }
-            DepthType::Bottom => {
-                self.depth_type = depth_type::BOTTOM;
-            }
-            DepthType::Gradient => {
-                self.depth_type = depth_type::GRADIENT;
-            }
-        }
+        self.depth_type = depth.typ as u32;
 
         match depth.typ {
-            DepthType::YAxis | DepthType::Gradient => {
+            DepthType::Fixed | DepthType::Gradient => {
                 let mut y_position_with_offset = y_position + depth.offset;
                 if y_position_with_offset > max_y_position {
                     y_position_with_offset = max_y_position;
@@ -143,6 +133,14 @@ impl Instance {
                 self.depth = depth.offset;
             }
         }
+    }
+
+    pub fn enable(&mut self) {
+        self.flags |= instance_flags::ENABLED;
+    }
+
+    pub fn disable(&mut self) {
+        self.flags &= !instance_flags::ENABLED;
     }
 }
 
@@ -260,12 +258,11 @@ fn populate_shader(shader: &[u8]) -> String {
         h
     };
 
-    use self::depth_type::*;
     let table = hashmap!{
-        "DEPTH_DISABLED" => DISABLED,
-        "DEPTH_FIXED" => FIXED,
-        "DEPTH_GRADIENT" => GRADIENT,
-        "DEPTH_BOTTOM" => BOTTOM,
+        "FLAGS_ENABLED" => instance_flags::ENABLED,
+        "DEPTH_FIXED" => DepthType::Fixed as u32,
+        "DEPTH_GRADIENT" => DepthType::Gradient as u32,
+        "DEPTH_BOTTOM" => DepthType::Bottom as u32,
         "MAX_CELL_TABLE_SIZE" => MAX_CELL_TABLE_SIZE as u32,
     };
 
