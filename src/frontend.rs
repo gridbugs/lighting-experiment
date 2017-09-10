@@ -9,11 +9,11 @@ use grid_slice::GridSliceMut;
 use input::Input;
 
 pub trait OutputWorldState<'a> {
-    type WorldCell: VisionCell;
+    type VisionCellType: VisionCell;
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable);
     fn set_player_position(&mut self, player_position: Vector2<f32>);
     fn set_frame_info(&mut self, frame_count: u64, total_time: Duration);
-    fn world_grid(&mut self) -> GridSliceMut<Self::WorldCell>;
+    fn vision_grid(&mut self) -> GridSliceMut<Self::VisionCellType>;
 }
 
 pub trait FrontendOutput<'a> {

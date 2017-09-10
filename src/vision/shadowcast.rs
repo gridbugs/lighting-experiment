@@ -381,6 +381,7 @@ fn scan<C, G>(grid: &mut G, stack: &mut Vec<Frame>, args: &OctantArgs, scan: &Sc
         let distance_squared = between.x * between.x + between.y * between.y;
         if distance_squared < args.distance_squared {
             vision_cell.see(args.time);
+            vision_cell.clear_sides();
         }
 
         // compute current visibility

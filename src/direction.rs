@@ -5,6 +5,8 @@ use enum_primitive::FromPrimitive;
 pub const NUM_DIRECTIONS: usize = 8;
 pub const NUM_CARDINAL_DIRECTIONS: usize = 4;
 pub const NUM_ORDINAL_DIRECTIONS: usize = 4;
+pub const ALL_DIRECTIONS_BITMAP: u8 = 0xff;
+pub const NO_DIRECTIONS_BITMAP: u8 = 0;
 
 enum_from_primitive! {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -80,8 +82,12 @@ impl Direction {
         }
     }
 
+    pub fn bitmap_raw(self) -> u8 {
+        1 << self as usize
+    }
+
     pub fn bitmap(self) -> DirectionBitmap {
-        DirectionBitmap::new(1 << self as usize)
+        DirectionBitmap::new(self.bitmap_raw())
     }
 }
 

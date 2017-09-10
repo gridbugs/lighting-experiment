@@ -9,7 +9,7 @@ use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::instance_manager::InstanceManager;
 use renderer::common;
 
-use direction::Direction;
+use direction::{Direction, ALL_DIRECTIONS_BITMAP, NO_DIRECTIONS_BITMAP};
 use content::{Sprite, DepthType, DepthInfo, SpriteEffect};
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
@@ -65,21 +65,13 @@ gfx_constant_struct!( FrameInfo {
 });
 
 gfx_constant_struct!( Cell {
-    last_seen: [u32; 2] = "last_seen_u64",
+    last: [u32; 2] = "last_u64",
+    side_bitmap: u32 = "side_bitmap",
     _pad0: u32 = "_pad0",
-    _pad1: u32 = "_pad1",
 });
-impl Default for Cell {
-    fn default() -> Self {
-        Self {
-            last_seen: [0; 2],
-            _pad0: 0,
-            _pad1: 0,
-        }
-    }
-}
+
 gfx_pipeline!( pipe {
-    cell_table: gfx::ConstantBuffer<Cell> = "CellTable",
+    vision_table: gfx::ConstantBuffer<Cell> = "VisionTable",
     fixed_dimensions: gfx::ConstantBuffer<FixedDimensions> = "FixedDimensions",
     output_dimensions: gfx::ConstantBuffer<OutputDimensions> = "OutputDimensions",
     world_dimensions: gfx::ConstantBuffer<WorldDimensions> = "WorldDimensions",
@@ -91,6 +83,16 @@ gfx_pipeline!( pipe {
     out_colour: gfx::BlendTarget<ColourFormat> = ("Target0", gfx::state::ColorMask::all(), gfx::preset::blend::ALPHA),
     out_depth: gfx::DepthTarget<DepthFormat> = gfx::preset::depth::LESS_EQUAL_WRITE,
 });
+
+impl Default for Cell {
+    fn default() -> Self {
+        Self {
+            last: [0; 2],
+            side_bitmap: NO_DIRECTIONS_BITMAP as u32,
+            _pad0: 0,
+        }
+    }
+}
 
 pub mod instance_flags {
     pub const ENABLED: u32 = 1 << 0;
@@ -157,7 +159,7 @@ impl FrameInfo {
 pub struct TileRenderer<R: gfx::Resources> {
     bundle: gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     instance_upload: gfx::handle::Buffer<R, Instance>,
-    cell_upload: gfx::handle::Buffer<R, Cell>,
+    vision_upload: gfx::handle::Buffer<R, Cell>,
     sprite_sheet: SpriteSheet<R>,
     width_px: u16,
     height_px: u16,
@@ -322,7 +324,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
         let (width_px, srv, colour_rtv, depth_rtv) =
             Self::create_targets(window_width_px, window_height_px, factory);
 
-        let cell_table = factory.create_buffer(
+        let vision_table = factory.create_buffer(
             MAX_CELL_TABLE_SIZE,
             gfx::buffer::Role::Constant,
             gfx::memory::Usage::Data,
@@ -330,7 +332,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             .expect("Failed to create cell table");
 
         let data = pipe::Data {
-            cell_table,
+            vision_table,
             fixed_dimensions: factory.create_constant_buffer(1),
             output_dimensions: factory.create_constant_buffer(1),
             world_dimensions: factory.create_constant_buffer(1),
@@ -348,7 +350,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             bundle: gfx::pso::bundle::Bundle::new(slice, pso, data),
             instance_upload: factory.create_upload_buffer(MAX_NUM_INSTANCES)
                 .expect("Failed to create upload buffer"),
-            cell_upload: factory.create_upload_buffer(MAX_CELL_TABLE_SIZE)
+            vision_upload: factory.create_upload_buffer(MAX_CELL_TABLE_SIZE)
                 .expect("Failed to create upload buffer"),
             sprite_sheet,
             width_px,
@@ -396,7 +398,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
     {
         encoder.copy_buffer(&self.instance_upload, &self.bundle.data.instance, 0, 0, self.num_instances)
             .expect("Failed to copy instances");
-        encoder.copy_buffer(&self.cell_upload, &self.bundle.data.cell_table, 0, 0, self.num_cells)
+        encoder.copy_buffer(&self.vision_upload, &self.bundle.data.vision_table, 0, 0, self.num_cells)
             .expect("Failed to copy cells");
         encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);
     }
@@ -407,12 +409,12 @@ impl<R: gfx::Resources> TileRenderer<R> {
         let instance_writer = factory.write_mapping(&self.instance_upload)
             .expect("Failed to map upload buffer");
 
-        let cell_writer = factory.write_mapping(&self.cell_upload)
+        let vision_writer = factory.write_mapping(&self.vision_upload)
             .expect("Failed to map upload buffer");
 
         RendererWorldState {
             instance_writer,
-            cell_writer,
+            vision_writer,
             world_width: self.world_width,
             bundle: &mut self.bundle,
             sprite_table: &self.sprite_sheet.sprite_table,
@@ -473,7 +475,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
 
 pub struct RendererWorldState<'a, R: gfx::Resources> {
     instance_writer: gfx::mapping::Writer<'a, R, Instance>,
-    cell_writer: gfx::mapping::Writer<'a, R, Cell>,
+    vision_writer: gfx::mapping::Writer<'a, R, Cell>,
     world_width: u32,
     bundle: &'a mut gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     sprite_table: &'a SpriteTable,
@@ -489,19 +491,22 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
 
 impl VisionCell for Cell {
     fn see(&mut self, time: u64) {
-        self.last_seen = u64_to_arr(time);
+        self.last = u64_to_arr(time);
     }
-    fn see_side(&mut self, _direction: Direction) {
-
+    fn clear_sides(&mut self) {
+        self.side_bitmap = NO_DIRECTIONS_BITMAP as u32;
+    }
+    fn see_side(&mut self, direction: Direction) {
+        self.side_bitmap |= direction.bitmap_raw() as u32;
     }
     fn see_all_sides(&mut self) {
-
+        self.side_bitmap = ALL_DIRECTIONS_BITMAP as u32;
     }
 }
 
 impl<'a, R: gfx::Resources> OutputWorldState<'a> for RendererWorldState<'a, R> {
 
-    type WorldCell = Cell;
+    type VisionCellType = Cell;
 
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
         self.instance_manager.update(&mut self.instance_writer, change, entity_store, spatial_hash, self.sprite_table);
@@ -516,8 +521,8 @@ impl<'a, R: gfx::Resources> OutputWorldState<'a> for RendererWorldState<'a, R> {
         self.total_time_ms = duration_millis(total_time);
     }
 
-    fn world_grid(&mut self) -> GridSliceMut<Self::WorldCell> {
-        GridSliceMut::new(&mut self.cell_writer, self.world_width)
+    fn vision_grid(&mut self) -> GridSliceMut<Self::VisionCellType> {
+        GridSliceMut::new(&mut self.vision_writer, self.world_width)
     }
 }
 

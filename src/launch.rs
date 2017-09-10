@@ -195,7 +195,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
             }
 
             let player_position = entity_store.position.get(&player_id).expect("No player position");
-            shadowcast::observe(&mut state.world_grid(), &mut shadowcast_env, *player_position, &spatial_hash, 8, count);
+            shadowcast::observe(&mut state.vision_grid(), &mut shadowcast_env, *player_position, &spatial_hash, 8, count);
         });
 
         frontend_output.draw();

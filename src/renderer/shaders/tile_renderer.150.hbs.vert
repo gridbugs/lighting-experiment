@@ -24,12 +24,13 @@ uniform FrameInfo {
 };
 
 struct Cell {
-    uvec2 last_seen_u64;
+    uvec2 last_u64;
+    uint side_bitmap;
 };
 
 const uint MAX_CELL_TABLE_SIZE = {{MAX_CELL_TABLE_SIZE}}u;
-uniform CellTable {
-    Cell u_Cells[MAX_CELL_TABLE_SIZE];
+uniform VisionTable {
+    Cell u_VisionCells[MAX_CELL_TABLE_SIZE];
 };
 
 in vec2 a_Pos;
@@ -56,18 +57,18 @@ const uint DEPTH_BOTTOM = {{DEPTH_BOTTOM}}u;
 
 const uint SPRITE_EFFECT_OUTER_WATER = {{SPRITE_EFFECT_OUTER_WATER}}u;
 
-Cell get_cell() {
+Cell get_vision_cell() {
     vec2 pos = a_Position + vec2(0.5);
     int idx = int(pos.x) + int(pos.y) * int(u_WorldSizeUint.x);
-    return u_Cells[idx];
+    return u_VisionCells[idx];
 }
 
 bool cell_is_seen(Cell cell) {
-    return cell.last_seen_u64 != uvec2(0, 0);
+    return cell.last_u64 != uvec2(0, 0);
 }
 
 bool cell_is_visible(Cell cell) {
-    return cell.last_seen_u64 == u_FrameCount_u64;
+    return cell.last_u64 == u_FrameCount_u64;
 }
 
 float u64_uvec2_to_float(uvec2 u) {
@@ -114,14 +115,14 @@ void main() {
         }
     }
 
-    Cell cell = get_cell();
+    Cell vision_cell = get_vision_cell();
 
-    if (!cell_is_seen(cell)) {
+    if (!cell_is_seen(vision_cell)) {
         gl_Position = vec4(0.0, 0.0, 0.0, -1.0);
         return;
     }
 
-    if (!cell_is_visible(cell)) {
+    if (!cell_is_visible(vision_cell)) {
         v_ColourMult *= 0.05;
     }
 
