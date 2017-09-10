@@ -374,7 +374,7 @@ fn scan<C, G>(grid: &mut G, stack: &mut Vec<Frame>, args: &OctantArgs, scan: &Sc
             }
         };
 
-        let mut vision_cell = grid.get_mut(coord.cast());
+        let vision_cell = grid.get_mut(coord.cast());
 
         // report the cell as visible
         let between = coord - args.eye;
