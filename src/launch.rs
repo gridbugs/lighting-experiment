@@ -73,12 +73,14 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
     let bob_duration = Duration::from_millis(500);
     let mut bob_acc = Duration::from_millis(0);
 
-    let mut frame_instant = Instant::now();
+    let start_instant = Instant::now();
+    let mut frame_instant = start_instant;
 
     while running {
 
         let now = Instant::now();
         let frame_duration = now - frame_instant;
+        let total_duration = now - start_instant;
         frame_instant = now;
 
         frontend_input.with_input(|input| {
@@ -175,7 +177,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Fronten
 
         frontend_output.with_world_state(|state| {
 
-            state.set_frame_info(count);
+            state.set_frame_info(count, total_duration);
 
             for change in staged_changes.drain(..) {
 

@@ -1,3 +1,4 @@
+use std::time::Duration;
 use cgmath::Vector2;
 
 use entity_store::{EntityStore, EntityChange};
@@ -11,7 +12,7 @@ pub trait OutputWorldState<'a> {
     type WorldCell: VisionCell;
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable);
     fn set_player_position(&mut self, player_position: Vector2<f32>);
-    fn set_frame_info(&mut self, time: u64);
+    fn set_frame_info(&mut self, frame_count: u64, total_time: Duration);
     fn world_grid(&mut self) -> GridSliceMut<Self::WorldCell>;
 }
 

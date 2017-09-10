@@ -19,7 +19,8 @@ uniform Offset {
 };
 
 uniform FrameInfo {
-    uvec2 u_Time_u64;
+    uvec2 u_FrameCount_u64;
+    uvec2 u_TotalTimeMs_u64;
 };
 
 struct Cell {
@@ -66,19 +67,22 @@ bool cell_is_seen(Cell cell) {
 }
 
 bool cell_is_visible(Cell cell) {
-    return cell.last_seen_u64 == u_Time_u64;
+    return cell.last_seen_u64 == u_FrameCount_u64;
 }
 
-const float MAXUINT_FLOAT = 4294967296.0;
+float u64_uvec2_to_float(uvec2 u) {
+    const float MAXUINT_FLOAT = 4294967296.0;
+    return float(u[1]) * MAXUINT_FLOAT + float(u[0]);
+}
 
 float outer_water_colour_mult(float steps, float base_mult, float max_mult) {
     float x_orig = a_Position.x;
     float y_orig = a_Position.y;
-    float t_orig = float(u_Time_u64[1]) * MAXUINT_FLOAT + float(u_Time_u64[0]);
+    float t_orig = u64_uvec2_to_float(u_TotalTimeMs_u64);
 
     float x = x_orig * 10.0;
     float y = y_orig * 10.0;
-    float t = t_orig / 10.0;
+    float t = t_orig / 160.0;
 
     const float PARTS = 4;
     float total =

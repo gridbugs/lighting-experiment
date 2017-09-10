@@ -24,6 +24,7 @@ mod append;
 mod grid;
 mod grid_slice;
 mod vector_index;
+mod util;
 
 #[macro_use] mod entity_store;
 mod spatial_hash;

@@ -1,3 +1,4 @@
+use std::time::Duration;
 use gfx;
 
 use cgmath::{Vector2, ElementWise};
@@ -17,6 +18,7 @@ use grid_slice::GridSliceMut;
 
 use frontend::OutputWorldState;
 use res::input_sprite;
+use util::time::duration_millis;
 
 const NUM_ROWS: u16 = 15;
 const HEIGHT_PX: u16 = NUM_ROWS * input_sprite::HEIGHT_PX as u16;
@@ -58,7 +60,8 @@ gfx_constant_struct!( Offset {
 });
 
 gfx_constant_struct!( FrameInfo {
-    time: [u32; 2] = "u_Time_u64",
+    frame_count: [u32; 2] = "u_FrameCount_u64",
+    total_time_ms: [u32; 2] = "u_TotalTimeMs_u64",
 });
 
 gfx_constant_struct!( Cell {
@@ -147,7 +150,7 @@ fn u64_to_arr(u: u64) -> [u32; 2] {
 
 impl FrameInfo {
     fn set_time(&mut self, time: u64) {
-        self.time = u64_to_arr(time);
+        self.frame_count = u64_to_arr(time);
     }
 }
 
@@ -419,7 +422,8 @@ impl<R: gfx::Resources> TileRenderer<R> {
             width_px: self.width_px,
             height_px: self.height_px,
             mid_position: &mut self.mid_position,
-            time: 0,
+            frame_count: 0,
+            total_time_ms: 0,
         }
     }
 
@@ -479,7 +483,8 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
     mid_position: &'a mut Vector2<f32>,
     width_px: u16,
     height_px: u16,
-    time: u64,
+    frame_count: u64,
+    total_time_ms: u64,
 }
 
 impl VisionCell for Cell {
@@ -506,8 +511,9 @@ impl<'a, R: gfx::Resources> OutputWorldState<'a> for RendererWorldState<'a, R> {
         self.player_position = Some(player_position);
     }
 
-    fn set_frame_info(&mut self, time: u64) {
-        self.time = time;
+    fn set_frame_info(&mut self, frame_count: u64, total_time: Duration) {
+        self.frame_count = frame_count;
+        self.total_time_ms = duration_millis(total_time);
     }
 
     fn world_grid(&mut self) -> GridSliceMut<Self::WorldCell> {
@@ -531,7 +537,8 @@ impl<'a, R: gfx::Resources> RendererWorldState<'a, R> {
             });
         }
         encoder.update_constant_buffer(&self.bundle.data.frame_info, &FrameInfo {
-            time: u64_to_arr(self.time),
+            frame_count: u64_to_arr(self.frame_count),
+            total_time_ms: u64_to_arr(self.total_time_ms),
         });
 
     }
