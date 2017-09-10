@@ -1,6 +1,7 @@
 use cgmath::Vector2;
 use entity_store::{EntityId, EntityChange, insert};
-use content::{Sprite, DepthType, DepthInfo, DoorState, DoorInfo, DoorType, SpriteEffectInfo, SpriteEffect};
+use content::{Sprite, DepthType, DepthInfo, DoorState, DoorInfo,
+              DoorType, SpriteEffectInfo, SpriteEffect, LightInfo};
 use append::Append;
 
 pub fn angler<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
@@ -73,4 +74,11 @@ pub fn window<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: 
     changes.append(insert::sprite(id, Sprite::Window));
     changes.append(insert::depth(id, DepthInfo::new(DepthType::Fixed, 0.5)));
     changes.append(insert::opacity(id, -1.0));
+}
+
+pub fn light<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
+    changes.append(insert::position(id, position));
+    changes.append(insert::sprite(id, Sprite::Light));
+    changes.append(insert::depth(id, DepthInfo::new(DepthType::Fixed, 0.0)));
+    changes.append(insert::light(id, LightInfo::new(1.0, 10, 1.0, 1.0, 0.0, 0.0)));
 }

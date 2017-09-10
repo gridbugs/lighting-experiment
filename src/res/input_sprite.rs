@@ -39,6 +39,8 @@ pub fn input_sprites() -> Vec<InputSprite> {
         door(OuterDoorOpen, [7, 1]),
 
         general_wall_fit(Window, [0, 0], None, None),
+
+        feature(Light, [0, 0], None, None),
     ]
 }
 
@@ -109,6 +111,11 @@ const GENERAL_WALL_FIT_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 16 };
 const GENERAL_WALL_FIT_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
 const GENERAL_WALL_FIT_TOTAL_HEIGHT: u32 = GENERAL_WALL_FIT_DIMENSIONS.y * 1;
 const GENERAL_WALL_FIT_BLOCK_DIMENSIONS: Vector2<u32> = Vector2 { x: 32, y: 16 };
+
+const FEATURE_START: Vector2<u32> = Vector2 { x: 0, y: GENERAL_WALL_FIT_START.y + GENERAL_WALL_FIT_TOTAL_HEIGHT };
+const FEATURE_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 16 };
+const FEATURE_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
+const FEATURE_TOTAL_HEIGHT: u32 = FEATURE_DIMENSIONS.y * 1;
 
 fn character(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Option<[u32; 2]>) -> InputSprite {
     let position = CHARACTER_START + Vector2::from(position).mul_element_wise(CHARACTER_DIMENSIONS);
@@ -196,4 +203,18 @@ fn general_wall_fit(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>
     };
 
     InputSprite::WallFit { sprite, front, top }
+}
+
+fn feature(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Option<[u32; 2]>) -> InputSprite {
+    let position = FEATURE_START + Vector2::from(position).mul_element_wise(FEATURE_DIMENSIONS);
+    let offset = offset.map(Vector2::from).unwrap_or(FEATURE_OFFSET);
+    let size = size.map(Vector2::from).unwrap_or(FEATURE_DIMENSIONS);
+    InputSprite::Simple {
+        sprite,
+        location: InputSpriteLocation {
+            position,
+            size,
+            offset,
+        },
+    }
 }

@@ -28,6 +28,9 @@ pub enum Sprite {
     OuterDoorOpen,
 
     Window,
+
+    Light,
+
     _Num,
 }
 

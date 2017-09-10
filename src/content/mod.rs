@@ -25,4 +25,7 @@ pub use self::sprite_animation::SpriteAnimation;
 pub mod sprite_effect;
 pub use self::sprite_effect::{SpriteEffect, SpriteEffectInfo};
 
+pub mod light;
+pub use self::light::LightInfo;
+
 pub mod bob;
