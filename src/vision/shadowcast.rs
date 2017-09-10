@@ -374,16 +374,26 @@ fn scan<C, G>(grid: &mut G, stack: &mut Vec<Frame>, args: &OctantArgs, scan: &Sc
             }
         };
 
+        let mut vision_cell = grid.get_mut(coord.cast());
+
         // report the cell as visible
         let between = coord - args.eye;
         let distance_squared = between.x * between.x + between.y * between.y;
         if distance_squared < args.distance_squared {
-            grid.get_mut(coord.cast()).see(args.time);
+            vision_cell.see(args.time);
         }
 
         // compute current visibility
         let current_visibility = (scan.frame.visibility - cell.opacity_total).max(0.0);
         let current_opaque = current_visibility == 0.0;
+
+        if current_opaque {
+            if !last_iteration {
+                vision_cell.see_side(args.octant.facing_side);
+            }
+        } else {
+            vision_cell.see_all_sides();
+        }
 
         // process changes in visibility
         if !first_iteration {
@@ -414,15 +424,29 @@ fn scan<C, G>(grid: &mut G, stack: &mut Vec<Frame>, args: &OctantArgs, scan: &Sc
                 }
 
                 min_slope = slope;
+
+                if current_opaque {
+                    vision_cell.see_side(args.octant.across_side);
+                }
             }
         }
 
-        if last_iteration && !current_opaque {
-            // push the final region of the scan to the stack
-            stack.push(Frame::new(scan.frame.depth + 1,
-                                 min_slope,
-                                 scan.frame.max_slope,
-                                 current_visibility));
+        if last_iteration {
+            if current_opaque {
+                let corner_coord = cell_corner(coord, args.octant.facing_corner);
+                let slope = args.octant.compute_slope(scan.limits.eye_centre, corner_coord);
+                if scan.frame.max_slope > slope {
+                    vision_cell.see_side(args.octant.facing_side);
+                } else if scan.frame.max_slope == slope {
+                    vision_cell.see_side(args.octant.facing_corner.direction());
+                }
+            } else {
+                // push the final region of the scan to the stack
+                stack.push(Frame::new(scan.frame.depth + 1,
+                                     min_slope,
+                                     scan.frame.max_slope,
+                                     current_visibility));
+            }
         }
 
         previous_opaque = current_opaque;

@@ -486,6 +486,12 @@ impl VisionCell for Cell {
     fn see(&mut self, time: u64) {
         self.last_seen = u64_to_arr(time);
     }
+    fn see_side(&mut self, _direction: Direction) {
+
+    }
+    fn see_all_sides(&mut self) {
+
+    }
 }
 
 impl<'a, R: gfx::Resources> OutputWorldState<'a> for RendererWorldState<'a, R> {
