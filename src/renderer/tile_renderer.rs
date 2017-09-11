@@ -640,7 +640,7 @@ impl<'a> LightCell<'a> {
     fn see(&mut self, mut frame: u64) {
         for i in 0..LIGHT_BUFFER_ENTRY_SIZE_FRAME_COUNT {
             self.0[i] = frame as u8;
-            frame <<= 8;
+            frame >>= 8;
         }
     }
     fn clear_sides(&mut self) {
