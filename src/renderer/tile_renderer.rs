@@ -24,6 +24,13 @@ const NUM_ROWS: u16 = 15;
 const HEIGHT_PX: u16 = NUM_ROWS * input_sprite::HEIGHT_PX as u16;
 const MAX_NUM_INSTANCES: usize = 4096;
 const MAX_CELL_TABLE_SIZE: usize = 4096;
+const MAX_NUM_LIGHTS: usize = 32;
+const LIGHT_BUFFER_NUM_ENTRIES: usize = MAX_NUM_LIGHTS * MAX_CELL_TABLE_SIZE;
+const LIGHT_BUFFER_ENTRY_SIZE_LAST: usize = 5; // 40 bit uint
+const LIGHT_BUFFER_ENTRY_SIZE_SIDE_BITMAP: usize = 1; // 8 bit bitmap
+const LIGHT_BUFFER_ENTRY_SIZE: usize = LIGHT_BUFFER_ENTRY_SIZE_LAST +
+                                       LIGHT_BUFFER_ENTRY_SIZE_SIDE_BITMAP;
+const LIGHT_BUFFER_SIZE: usize = LIGHT_BUFFER_NUM_ENTRIES * LIGHT_BUFFER_ENTRY_SIZE;
 
 gfx_vertex_struct!( Vertex {
     pos: [f32; 2] = "a_Pos",
@@ -72,6 +79,7 @@ gfx_constant_struct!( Cell {
 
 gfx_pipeline!( pipe {
     vision_table: gfx::ConstantBuffer<Cell> = "VisionTable",
+    light_table: gfx::ShaderResource<u8> = "t_LightTable",
     fixed_dimensions: gfx::ConstantBuffer<FixedDimensions> = "FixedDimensions",
     output_dimensions: gfx::ConstantBuffer<OutputDimensions> = "OutputDimensions",
     world_dimensions: gfx::ConstantBuffer<WorldDimensions> = "WorldDimensions",
@@ -331,8 +339,19 @@ impl<R: gfx::Resources> TileRenderer<R> {
             gfx::memory::TRANSFER_DST)
             .expect("Failed to create cell table");
 
+        let light_buffer = factory.create_buffer(
+            LIGHT_BUFFER_SIZE,
+            gfx::buffer::Role::Constant,
+            gfx::memory::Usage::Data,
+            gfx::memory::TRANSFER_DST)
+            .expect("Failed to create cell table");
+
+        let light_buffer_srv = factory.view_buffer_as_shader_resource(&light_buffer)
+            .expect("Failed to view light buffer as shader resource");
+
         let data = pipe::Data {
             vision_table,
+            light_table: light_buffer_srv,
             fixed_dimensions: factory.create_constant_buffer(1),
             output_dimensions: factory.create_constant_buffer(1),
             world_dimensions: factory.create_constant_buffer(1),
