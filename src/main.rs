@@ -48,5 +48,6 @@ mod control_table;
 mod vision;
 
 fn main() {
-    launch::launch(glutin_frontend::create());
+    let (input, output) = glutin_frontend::create();
+    launch::launch(input, output);
 }

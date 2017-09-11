@@ -523,9 +523,10 @@ impl VisionCell for Cell {
     }
 }
 
-impl<'a, R: gfx::Resources> OutputWorldState<'a> for RendererWorldState<'a, R> {
+impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<'a, R> {
 
     type VisionCellType = Cell;
+    type VisionCellGrid = GridSliceMut<'b, Self::VisionCellType>;
 
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
         self.instance_manager.update(&mut self.instance_writer, change, entity_store, spatial_hash, self.sprite_table);
@@ -540,7 +541,7 @@ impl<'a, R: gfx::Resources> OutputWorldState<'a> for RendererWorldState<'a, R> {
         self.total_time_ms = duration_millis(total_time);
     }
 
-    fn vision_grid(&mut self) -> GridSliceMut<Self::VisionCellType> {
+    fn vision_grid(&'b mut self) -> Self::VisionCellGrid {
         GridSliceMut::new(&mut self.vision_writer, self.world_width)
     }
 }

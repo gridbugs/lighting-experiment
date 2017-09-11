@@ -5,7 +5,7 @@ use glutin::GlContext;
 use gfx_window_glutin;
 use gfx_device_gl;
 
-use frontend::{Frontend, FrontendOutput, FrontendInput};
+use frontend::{FrontendOutput, FrontendInput};
 
 use renderer::{Renderer, ColourFormat, DepthFormat, RendererWorldState};
 
@@ -30,9 +30,7 @@ pub struct GlutinFrontendInput {
     events_loop: glutin::EventsLoop,
 }
 
-pub type GlutinFrontend = Frontend<GlutinFrontendInput, GlutinFrontendOutput>;
-
-pub fn create() -> GlutinFrontend {
+pub fn create() -> (GlutinFrontendInput, GlutinFrontendOutput) {
     let builder = glutin::WindowBuilder::new();
 
     let events_loop = glutin::EventsLoop::new();
@@ -45,20 +43,21 @@ pub fn create() -> GlutinFrontend {
 
     let renderer = Renderer::new(&rtv, &mut factory, &mut encoder, &mut device);
 
-    Frontend {
-        input: GlutinFrontendInput {
-            events_loop,
-        },
-        output: GlutinFrontendOutput {
-            window,
-            device,
-            renderer,
-            encoder,
-            factory,
-            rtv,
-            dsv,
-        },
-    }
+    let input = GlutinFrontendInput {
+        events_loop,
+    };
+
+    let output = GlutinFrontendOutput {
+        window,
+        device,
+        renderer,
+        encoder,
+        factory,
+        rtv,
+        dsv,
+    };
+
+    (input, output)
 }
 
 impl FrontendInput for GlutinFrontendInput {

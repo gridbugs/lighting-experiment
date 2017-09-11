@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::time::{Instant, Duration};
 use std::mem;
 
-use frontend::{Frontend, FrontendOutput, FrontendInput, OutputWorldState};
+use frontend::{FrontendOutput, FrontendInput, OutputWorldState};
 use terrain::demo;
 use entity_store::{EntityStore, ComponentValue, EntityChange};
 use spatial_hash::SpatialHashTable;
@@ -16,8 +16,7 @@ use content::{ChangeDesc, Animation, AnimationStatus, AnimatedChange};
 use policy;
 use vision::shadowcast;
 
-pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(frontend: Frontend<I, O>) {
-    let Frontend { input: mut frontend_input, output: mut frontend_output } = frontend;
+pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_input: I, mut frontend_output: O) {
     let control_table = {
         use self::Bindable::*;
         use self::Control::*;
