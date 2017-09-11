@@ -4,8 +4,7 @@ use cgmath::Vector2;
 use direction::{Direction, CardinalDirection, OrdinalDirection};
 use spatial_hash::SpatialHashTable;
 use vector_index::VectorIndex;
-use vision::VisionCell;
-use grid::GridMut;
+use vision::VisionGrid;
 
 // Different types of rounding functions
 enum RoundType {
@@ -344,9 +343,8 @@ impl ShadowcastEnv {
     }
 }
 
-fn scan<C, G>(grid: &mut G, stack: &mut Vec<Frame>, args: &OctantArgs, scan: &Scan)
-    where C: VisionCell,
-          G: GridMut<C>,
+fn scan<G>(grid: &mut G, stack: &mut Vec<Frame>, args: &OctantArgs, scan: &Scan)
+    where G: VisionGrid,
 {
     let mut coord = args.octant.depth_idx.create_coord(scan.depth_idx);
 
@@ -374,14 +372,14 @@ fn scan<C, G>(grid: &mut G, stack: &mut Vec<Frame>, args: &OctantArgs, scan: &Sc
             }
         };
 
-        let vision_cell = grid.get_mut(coord.cast());
+        let token = grid.get_token(coord.cast());
 
         // report the cell as visible
         let between = coord - args.eye;
         let distance_squared = between.x * between.x + between.y * between.y;
         if distance_squared < args.distance_squared {
-            vision_cell.see(args.time);
-            vision_cell.clear_sides();
+            grid.see(token, args.time);
+            grid.clear_sides(token);
         }
 
         // compute current visibility
@@ -390,10 +388,10 @@ fn scan<C, G>(grid: &mut G, stack: &mut Vec<Frame>, args: &OctantArgs, scan: &Sc
 
         if current_opaque {
             if !last_iteration {
-                vision_cell.see_side(args.octant.facing_side);
+                grid.see_side(token, args.octant.facing_side);
             }
         } else {
-            vision_cell.see_all_sides();
+            grid.see_all_sides(token);
         }
 
         // process changes in visibility
@@ -427,7 +425,7 @@ fn scan<C, G>(grid: &mut G, stack: &mut Vec<Frame>, args: &OctantArgs, scan: &Sc
                 min_slope = slope;
 
                 if current_opaque {
-                    vision_cell.see_side(args.octant.across_side);
+                    grid.see_side(token, args.octant.across_side);
                 }
             }
         }
@@ -437,9 +435,9 @@ fn scan<C, G>(grid: &mut G, stack: &mut Vec<Frame>, args: &OctantArgs, scan: &Sc
                 let corner_coord = cell_corner(coord, args.octant.facing_corner);
                 let slope = args.octant.compute_slope(scan.limits.eye_centre, corner_coord);
                 if scan.frame.max_slope > slope {
-                    vision_cell.see_side(args.octant.facing_side);
+                    grid.see_side(token, args.octant.facing_side);
                 } else if scan.frame.max_slope == slope {
-                    vision_cell.see_side(args.octant.facing_corner.direction());
+                    grid.see_side(token, args.octant.facing_corner.direction());
                 }
             } else {
                 // push the final region of the scan to the stack
@@ -458,10 +456,9 @@ fn scan<C, G>(grid: &mut G, stack: &mut Vec<Frame>, args: &OctantArgs, scan: &Sc
     }
 }
 
-fn detect_visible_area_octant<C, G>(grid: &mut G, stack: &mut Vec<Frame>,
-                                    args: &OctantArgs)
-    where C: VisionCell,
-          G: GridMut<C>,
+fn detect_visible_area_octant<G>(grid: &mut G, stack: &mut Vec<Frame>,
+                                 args: &OctantArgs)
+    where G: VisionGrid,
 {
     let limits = Limits::new(args.eye, args.world, args.octant);
 
@@ -477,15 +474,15 @@ fn detect_visible_area_octant<C, G>(grid: &mut G, stack: &mut Vec<Frame>,
     }
 }
 
-pub fn observe<C, G>(grid: &mut G, env: &mut ShadowcastEnv,
-                     position: Vector2<f32>, spatial_hash: &SpatialHashTable,
-                     distance: u32, time: u64)
-    where C: VisionCell,
-          G: GridMut<C>,
+pub fn observe<G>(grid: &mut G, env: &mut ShadowcastEnv,
+                  position: Vector2<f32>, spatial_hash: &SpatialHashTable,
+                  distance: u32, time: u64)
+    where G: VisionGrid,
 {
     let position: Vector2<u32> = (position + Vector2::new(0.5, 0.5)).cast();
 
-    grid.get_mut(position).see(time);
+    let token = grid.get_token(position);
+    grid.see(token, time);
 
     for octant in env.octants.iter() {
         let args = OctantArgs::new(octant, spatial_hash, position.cast(), distance, 0.0, 1.0, time);

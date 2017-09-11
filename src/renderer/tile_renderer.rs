@@ -13,8 +13,7 @@ use direction::{Direction, ALL_DIRECTIONS_BITMAP, NO_DIRECTIONS_BITMAP};
 use content::{Sprite, DepthType, DepthInfo, SpriteEffect};
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
-use vision::VisionCell;
-use grid_slice::GridSliceMut;
+use vision::VisionGrid;
 
 use frontend::OutputWorldState;
 use res::input_sprite;
@@ -508,7 +507,7 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
     total_time_ms: u64,
 }
 
-impl VisionCell for Cell {
+impl Cell {
     fn see(&mut self, time: u64) {
         self.last = u64_to_arr(time);
     }
@@ -525,8 +524,7 @@ impl VisionCell for Cell {
 
 impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<'a, R> {
 
-    type VisionCellType = Cell;
-    type VisionCellGrid = GridSliceMut<'b, Self::VisionCellType>;
+    type VisionCellGrid = VisionCellGrid<'b>;
 
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
         self.instance_manager.update(&mut self.instance_writer, change, entity_store, spatial_hash, self.sprite_table);
@@ -542,7 +540,10 @@ impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<
     }
 
     fn vision_grid(&'b mut self) -> Self::VisionCellGrid {
-        GridSliceMut::new(&mut self.vision_writer, self.world_width)
+        VisionCellGrid {
+            slice: &mut self.vision_writer,
+            width: self.world_width,
+        }
     }
 }
 
@@ -573,4 +574,28 @@ fn compute_scroll_offset(width: u16, height: u16, mid_position: Vector2<f32>) ->
     let mid = (mid_position + Vector2::new(0.5, 0.5))
         .mul_element_wise(Vector2::new(input_sprite::WIDTH_PX, input_sprite::HEIGHT_PX).cast());
     Vector2::new(mid.x - (width / 2) as f32, mid.y - (height / 2) as f32)
+}
+
+pub struct VisionCellGrid<'a> {
+    slice: &'a mut [Cell],
+    width: u32,
+}
+
+impl<'a> VisionGrid for VisionCellGrid<'a> {
+    type Token = usize;
+    fn get_token(&self, v: Vector2<u32>) -> Self::Token {
+        (v.y * self.width + v.x) as Self::Token
+    }
+    fn see(&mut self, token: Self::Token, time: u64) {
+        self.slice[token].see(time);
+    }
+    fn clear_sides(&mut self, token: Self::Token) {
+        self.slice[token].clear_sides();
+    }
+    fn see_side(&mut self, token: Self::Token, direction: Direction) {
+        self.slice[token].see_side(direction);
+    }
+    fn see_all_sides(&mut self, token: Self::Token) {
+        self.slice[token].see_all_sides();
+    }
 }

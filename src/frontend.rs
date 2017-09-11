@@ -3,14 +3,12 @@ use cgmath::Vector2;
 
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
-use vision::VisionCell;
-use grid::GridMut;
+use vision::VisionGrid;
 
 use input::Input;
 
 pub trait OutputWorldState<'a, 'b> {
-    type VisionCellType: VisionCell;
-    type VisionCellGrid: GridMut<Self::VisionCellType>;
+    type VisionCellGrid: VisionGrid;
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable);
     fn set_player_position(&mut self, player_position: Vector2<f32>);
     fn set_frame_info(&mut self, frame_count: u64, total_time: Duration);
