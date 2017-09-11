@@ -33,6 +33,8 @@ uniform VisionTable {
     Cell u_VisionCells[MAX_CELL_TABLE_SIZE];
 };
 
+uniform samplerBuffer t_LightTable;
+
 in vec2 a_Pos;
 
 in vec2 a_SpriteSheetPixCoord;
@@ -57,9 +59,25 @@ const uint DEPTH_BOTTOM = {{DEPTH_BOTTOM}}u;
 
 const uint SPRITE_EFFECT_OUTER_WATER = {{SPRITE_EFFECT_OUTER_WATER}}u;
 
-Cell get_vision_cell() {
+int cell_index() {
     vec2 pos = a_Position + vec2(0.5);
-    int idx = int(pos.x) + int(pos.y) * int(u_WorldSizeUint.x);
+    return int(pos.x) + int(pos.y) * int(u_WorldSizeUint.x);
+}
+
+float last_lit() {
+    int idx_base = cell_index() * 6;
+    float time =
+        texelFetch(t_LightTable, idx_base).r * 255 +
+        texelFetch(t_LightTable, idx_base + 1).r * 255 * float(1 << (8 * 1)) +
+        texelFetch(t_LightTable, idx_base + 2).r * 255 * float(1 << (8 * 2)) +
+        texelFetch(t_LightTable, idx_base + 3).r * 255 * float(1 << (8 * 3)) +
+        texelFetch(t_LightTable, idx_base + 4).r * 255 * float(1 << (8 * 4));
+
+    return time;
+}
+
+Cell get_vision_cell() {
+    int idx = cell_index();
     return u_VisionCells[idx];
 }
 
