@@ -25,11 +25,13 @@ const MAX_NUM_INSTANCES: usize = 4096;
 const MAX_CELL_TABLE_SIZE: usize = 4096;
 const MAX_NUM_LIGHTS: usize = 32;
 const LIGHT_BUFFER_NUM_ENTRIES: usize = MAX_NUM_LIGHTS * MAX_CELL_TABLE_SIZE;
-const LIGHT_BUFFER_ENTRY_SIZE_LAST: usize = 5; // 40 bit uint
+const LIGHT_BUFFER_ENTRY_SIZE_FRAME_COUNT: usize = 5; // 40 bit uint
 const LIGHT_BUFFER_ENTRY_SIZE_SIDE_BITMAP: usize = 1; // 8 bit bitmap
-const LIGHT_BUFFER_ENTRY_SIZE: usize = LIGHT_BUFFER_ENTRY_SIZE_LAST +
+const LIGHT_BUFFER_ENTRY_SIZE: usize = LIGHT_BUFFER_ENTRY_SIZE_FRAME_COUNT +
                                        LIGHT_BUFFER_ENTRY_SIZE_SIDE_BITMAP;
 const LIGHT_BUFFER_SIZE: usize = LIGHT_BUFFER_NUM_ENTRIES * LIGHT_BUFFER_ENTRY_SIZE;
+const LIGHT_BUFFER_SIZE_PER_LIGHT: usize = MAX_CELL_TABLE_SIZE * LIGHT_BUFFER_ENTRY_SIZE;
+const LIGHT_BUFFER_OFFSET_SIDE_BITMAP: usize = LIGHT_BUFFER_ENTRY_SIZE_FRAME_COUNT;
 
 gfx_vertex_struct!( Vertex {
     pos: [f32; 2] = "a_Pos",
@@ -167,6 +169,8 @@ pub struct TileRenderer<R: gfx::Resources> {
     bundle: gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     instance_upload: gfx::handle::Buffer<R, Instance>,
     vision_upload: gfx::handle::Buffer<R, Cell>,
+    light_upload: gfx::handle::Buffer<R, u8>,
+    light_buffer: gfx::handle::Buffer<R, u8>,
     sprite_sheet: SpriteSheet<R>,
     width_px: u16,
     height_px: u16,
@@ -370,6 +374,9 @@ impl<R: gfx::Resources> TileRenderer<R> {
                 .expect("Failed to create upload buffer"),
             vision_upload: factory.create_upload_buffer(MAX_CELL_TABLE_SIZE)
                 .expect("Failed to create upload buffer"),
+            light_upload: factory.create_upload_buffer(LIGHT_BUFFER_SIZE)
+                .expect("Failed to create upload buffer"),
+            light_buffer,
             sprite_sheet,
             width_px,
             height_px: HEIGHT_PX,
@@ -418,6 +425,8 @@ impl<R: gfx::Resources> TileRenderer<R> {
             .expect("Failed to copy instances");
         encoder.copy_buffer(&self.vision_upload, &self.bundle.data.vision_table, 0, 0, self.num_cells)
             .expect("Failed to copy cells");
+        encoder.copy_buffer(&self.light_upload, &self.light_buffer, 0, 0, LIGHT_BUFFER_NUM_ENTRIES)
+            .expect("Failed to copy light info");
         encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);
     }
 
@@ -430,9 +439,13 @@ impl<R: gfx::Resources> TileRenderer<R> {
         let vision_writer = factory.write_mapping(&self.vision_upload)
             .expect("Failed to map upload buffer");
 
+        let light_writer = factory.write_mapping(&self.light_upload)
+            .expect("Failed to map upload buffer");
+
         RendererWorldState {
             instance_writer,
             vision_writer,
+            light_writer,
             world_width: self.world_width,
             bundle: &mut self.bundle,
             sprite_table: &self.sprite_sheet.sprite_table,
@@ -494,6 +507,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
 pub struct RendererWorldState<'a, R: gfx::Resources> {
     instance_writer: gfx::mapping::Writer<'a, R, Instance>,
     vision_writer: gfx::mapping::Writer<'a, R, Cell>,
+    light_writer: gfx::mapping::Writer<'a, R, u8>,
     world_width: u32,
     bundle: &'a mut gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     sprite_table: &'a SpriteTable,
@@ -525,6 +539,7 @@ impl Cell {
 impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<'a, R> {
 
     type VisionCellGrid = VisionCellGrid<'b>;
+    type LightCellGrid = LightGrid<'b>;
 
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
         self.instance_manager.update(&mut self.instance_writer, change, entity_store, spatial_hash, self.sprite_table);
@@ -542,6 +557,15 @@ impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<
     fn vision_grid(&'b mut self) -> Self::VisionCellGrid {
         VisionCellGrid {
             slice: &mut self.vision_writer,
+            width: self.world_width,
+        }
+    }
+
+    fn light_grid(&'b mut self, light_id: u32) -> Self::LightCellGrid {
+        let start = light_id as usize * LIGHT_BUFFER_SIZE_PER_LIGHT;
+        let end = start + LIGHT_BUFFER_SIZE_PER_LIGHT;
+        LightGrid {
+            slice: &mut self.light_writer[start..end],
             width: self.world_width,
         }
     }
@@ -597,5 +621,55 @@ impl<'a> VisionGrid for VisionCellGrid<'a> {
     }
     fn see_all_sides(&mut self, token: Self::Token) {
         self.slice[token].see_all_sides();
+    }
+}
+
+struct LightCell<'a>(&'a mut [u8]);
+
+impl<'a> LightCell<'a> {
+    fn see(&mut self, mut frame: u64) {
+        for i in 0..LIGHT_BUFFER_ENTRY_SIZE_FRAME_COUNT {
+            self.0[i] = frame as u8;
+            frame <<= 8;
+        }
+    }
+    fn clear_sides(&mut self) {
+        self.0[LIGHT_BUFFER_OFFSET_SIDE_BITMAP] = NO_DIRECTIONS_BITMAP;
+    }
+    fn see_side(&mut self, direction: Direction) {
+        self.0[LIGHT_BUFFER_OFFSET_SIDE_BITMAP] |= direction.bitmap_raw();
+    }
+    fn see_all_sides(&mut self) {
+        self.0[LIGHT_BUFFER_OFFSET_SIDE_BITMAP] = ALL_DIRECTIONS_BITMAP;
+    }
+}
+
+pub struct LightGrid<'a> {
+    slice: &'a mut [u8],
+    width: u32,
+}
+
+impl<'a> LightGrid<'a> {
+    fn get(&mut self, token: usize) -> LightCell {
+        LightCell(&mut self.slice[token..token + LIGHT_BUFFER_ENTRY_SIZE])
+    }
+}
+
+impl<'a> VisionGrid for LightGrid<'a> {
+    type Token = usize;
+    fn get_token(&self, v: Vector2<u32>) -> Self::Token {
+        ((v.y * self.width + v.x) as usize) * LIGHT_BUFFER_ENTRY_SIZE
+    }
+    fn see(&mut self, token: Self::Token, time: u64) {
+        self.get(token).see(time);
+    }
+    fn clear_sides(&mut self, token: Self::Token) {
+        self.get(token).clear_sides();
+    }
+    fn see_side(&mut self, token: Self::Token, direction: Direction) {
+        self.get(token).see_side(direction);
+    }
+    fn see_all_sides(&mut self, token: Self::Token) {
+        self.get(token).see_all_sides();
     }
 }

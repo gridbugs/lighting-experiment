@@ -9,10 +9,12 @@ use input::Input;
 
 pub trait OutputWorldState<'a, 'b> {
     type VisionCellGrid: VisionGrid;
+    type LightCellGrid: VisionGrid;
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable);
     fn set_player_position(&mut self, player_position: Vector2<f32>);
     fn set_frame_info(&mut self, frame_count: u64, total_time: Duration);
     fn vision_grid(&'b mut self) -> Self::VisionCellGrid;
+    fn light_grid(&'b mut self, light_id: u32) -> Self::LightCellGrid;
 }
 
 pub trait FrontendOutput<'a> {
