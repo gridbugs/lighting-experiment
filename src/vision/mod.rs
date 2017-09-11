@@ -1,4 +1,4 @@
-mod cell;
-pub use self::cell::*;
+mod grid;
+pub use self::grid::*;
 
 pub mod shadowcast;
