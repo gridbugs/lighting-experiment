@@ -1,7 +1,7 @@
 use std::time::Duration;
 use cgmath::Vector2;
 
-use entity_store::{EntityStore, EntityChange};
+use entity_store::{EntityId, EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 use vision::VisionGrid;
 
@@ -14,7 +14,7 @@ pub trait OutputWorldState<'a, 'b> {
     fn set_player_position(&mut self, player_position: Vector2<f32>);
     fn set_frame_info(&mut self, frame_count: u64, total_time: Duration);
     fn vision_grid(&'b mut self) -> Self::VisionCellGrid;
-    fn light_grid(&'b mut self, light_id: u32) -> Self::LightCellGrid;
+    fn light_grid(&'b mut self, entity_id: EntityId) -> Option<Self::LightCellGrid>;
 }
 
 pub trait FrontendOutput<'a> {

@@ -7,11 +7,12 @@ use handlebars::Handlebars;
 use renderer::sprite_sheet::{SpriteSheet, SpriteTable, SpriteResolution};
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::instance_manager::InstanceManager;
+use renderer::light_manager::LightManager;
 use renderer::common;
 
 use direction::{Direction, ALL_DIRECTIONS_BITMAP, NO_DIRECTIONS_BITMAP};
 use content::{Sprite, DepthType, DepthInfo, SpriteEffect};
-use entity_store::{EntityStore, EntityChange};
+use entity_store::{EntityId, EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 use vision::VisionGrid;
 
@@ -177,6 +178,7 @@ pub struct TileRenderer<R: gfx::Resources> {
     num_instances: usize,
     num_cells: usize,
     instance_manager: InstanceManager,
+    light_manager: LightManager,
     mid_position: Vector2<f32>,
     world_width: u32,
     world_height: u32,
@@ -383,6 +385,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             num_instances: 0,
             num_cells: 0,
             instance_manager: InstanceManager::new(),
+            light_manager: LightManager::new(),
             mid_position: Vector2::new(0.0, 0.0),
             world_width: 0,
             world_height: 0,
@@ -450,6 +453,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             bundle: &mut self.bundle,
             sprite_table: &self.sprite_sheet.sprite_table,
             instance_manager: &mut self.instance_manager,
+            light_manager: &mut self.light_manager,
             num_instances: &mut self.num_instances,
             player_position: None,
             width_px: self.width_px,
@@ -512,6 +516,7 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
     bundle: &'a mut gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     sprite_table: &'a SpriteTable,
     instance_manager: &'a mut InstanceManager,
+    light_manager: &'a mut LightManager,
     num_instances: &'a mut usize,
     player_position: Option<Vector2<f32>>,
     mid_position: &'a mut Vector2<f32>,
@@ -543,6 +548,7 @@ impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<
 
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
         self.instance_manager.update(&mut self.instance_writer, change, entity_store, spatial_hash, self.sprite_table);
+        self.light_manager.update(change, entity_store);
     }
 
     fn set_player_position(&mut self, player_position: Vector2<f32>) {
@@ -561,12 +567,16 @@ impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<
         }
     }
 
-    fn light_grid(&'b mut self, light_id: u32) -> Self::LightCellGrid {
-        let start = light_id as usize * LIGHT_BUFFER_SIZE_PER_LIGHT;
-        let end = start + LIGHT_BUFFER_SIZE_PER_LIGHT;
-        LightGrid {
-            slice: &mut self.light_writer[start..end],
-            width: self.world_width,
+    fn light_grid(&'b mut self, entity_id: EntityId) -> Option<Self::LightCellGrid> {
+        if let Some(light_id) = self.light_manager.light_id(entity_id) {
+            let start = light_id as usize * LIGHT_BUFFER_SIZE_PER_LIGHT;
+            let end = start + LIGHT_BUFFER_SIZE_PER_LIGHT;
+            Some(LightGrid {
+                slice: &mut self.light_writer[start..end],
+                width: self.world_width,
+            })
+        } else {
+            None
         }
     }
 }

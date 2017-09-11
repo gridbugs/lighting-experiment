@@ -193,8 +193,17 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                 entity_store.commit(change);
             }
 
-            let player_position = entity_store.position.get(&player_id).expect("No player position");
-            shadowcast::observe(&mut state.vision_grid(), &mut shadowcast_env, *player_position, &spatial_hash, 8, count);
+            for (id, light_info) in entity_store.light.iter() {
+                if let Some(position) = entity_store.position.get(id) {
+                    if let Some(mut light_grid) = state.light_grid(*id) {
+                        shadowcast::observe(&mut light_grid, &mut shadowcast_env, *position, &spatial_hash, light_info.range, count);
+                    }
+                }
+            }
+
+            if let Some(player_position) = entity_store.position.get(&player_id) {
+                shadowcast::observe(&mut state.vision_grid(), &mut shadowcast_env, *player_position, &spatial_hash, 8, count);
+            }
         });
 
         frontend_output.draw();
