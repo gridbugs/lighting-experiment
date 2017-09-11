@@ -1,7 +1,6 @@
 use std::slice;
 use cgmath::Vector2;
 use limits::LimitsRect;
-use grid::{Grid, GridMut};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StaticGrid<T> {
@@ -248,16 +247,4 @@ impl<T> LimitsRect for StaticGrid<T> {
     fn x_max(&self) -> i32 { self.width as i32 - 1 }
     fn y_min(&self) -> i32 { 0 }
     fn y_max(&self) -> i32 { self.height as i32 - 1 }
-}
-
-impl<T> Grid<T> for StaticGrid<T> {
-    fn get(&self, v: Vector2<u32>) -> &T {
-        self.get_checked(v)
-    }
-}
-
-impl<T> GridMut<T> for StaticGrid<T> {
-    fn get_mut(&mut self, v: Vector2<u32>) -> &mut T {
-        self.get_checked_mut(v)
-    }
 }

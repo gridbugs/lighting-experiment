@@ -21,8 +21,6 @@ mod limits;
 mod direction;
 mod neighbour_count;
 mod append;
-mod grid;
-mod grid_slice;
 mod vector_index;
 mod util;
 
