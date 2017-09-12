@@ -35,6 +35,7 @@ uniform VisionTable {
 
 uniform sampler2D t_Texture;
 
+in vec2 v_FragPosition;
 in vec2 v_TexCoord;
 in float v_ColourMult;
 flat in uint v_CellIndex;
@@ -60,6 +61,15 @@ uint get_lit_sides(uint i) {
     return 0u;
 }
 
+const vec3 VERTICAL = vec3(0, 0, 1);
+
+vec3 diffuse_light(Light light, vec3 surface_colour) {
+    vec3 direction = normalize(light.position - vec3(v_FragPosition, 0));
+    return surface_colour * light.colour * light.intensity * dot(direction, VERTICAL);
+}
+
+const float AMBIENT_LIGHT_MULT = 0.1;
+
 void main() {
 
     vec4 tex_colour = texture(t_Texture, v_TexCoord);
@@ -67,19 +77,20 @@ void main() {
         discard;
     }
 
+    vec3 base_colour = tex_colour.rgb * v_ColourMult;
+
     Cell vision_cell = u_VisionCells[v_CellIndex];
 
+    vec3 diffuse_total = vec3(0);
     for (uint i = 0u; i < u_NumLights; i++) {
         uint lit_sides = get_lit_sides(i);
         uint visible_lit_sides = lit_sides & vision_cell.side_bitmap;
         if (visible_lit_sides != 0u) {
-            Light light = u_Lights[i];
-            // TODO lighting goes here
+            diffuse_total += diffuse_light(u_Lights[i], base_colour);
         }
     }
 
-    tex_colour.r *= v_ColourMult;
-    tex_colour.g *= v_ColourMult;
-    tex_colour.b *= v_ColourMult;
-    Target0 = tex_colour;
+    vec3 ambient_total = base_colour * AMBIENT_LIGHT_MULT;
+
+    Target0 = vec4((ambient_total + diffuse_total), 1);
 }

@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::time::{Instant, Duration};
 use std::mem;
-
+use cgmath::Vector2;
 use frontend::{FrontendOutput, FrontendInput, OutputWorldState, LightUpdate};
 use terrain::demo;
 use entity_store::{EntityStore, ComponentValue, EntityChange};
@@ -197,7 +197,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                 if let Some(position) = entity_store.position.get(id) {
                     if let Some((mut light_grid, light_update)) = state.next_light() {
                         shadowcast::observe(&mut light_grid, &mut shadowcast_env, *position, &spatial_hash, light_info.range, count);
-                        light_update.set_position(*position);
+                        light_update.set_position(*position + Vector2::new(0.5, 0.5));
                         light_update.set_height(light_info.height);
                         light_update.set_intensity(light_info.intensity);
                         light_update.set_colour(light_info.colour);

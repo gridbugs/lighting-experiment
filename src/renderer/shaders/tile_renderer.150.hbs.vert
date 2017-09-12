@@ -49,6 +49,7 @@ in vec4 a_SpriteEffectArgs;
 out vec2 v_TexCoord;
 out float v_ColourMult;
 flat out uint v_CellIndex;
+out vec2 v_FragPosition;
 
 const uint FLAGS_ENABLED = {{FLAGS_ENABLED}}u;
 const uint FLAGS_SPRITE_EFFECT = {{FLAGS_SPRITE_EFFECT}}u;
@@ -145,6 +146,8 @@ void main() {
     vec2 out_pix = a_Position * u_CellSize - u_ScrollOffsetPix - a_PixOffset + a_Pos * a_PixSize;
     vec2 out_scaled = out_pix / u_OutputSize;
     vec2 dst = vec2(out_scaled.x * 2.0 - 1.0, 1.0 - out_scaled.y * 2.0);
+
+    v_FragPosition = a_Position + a_Pos;
 
     gl_Position = vec4(dst, depth, 1.0);
 }
