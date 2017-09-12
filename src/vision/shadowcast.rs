@@ -483,6 +483,7 @@ pub fn observe<G>(grid: &mut G, env: &mut ShadowcastEnv,
 
     let token = grid.get_token(position);
     grid.see(token, time);
+    grid.see_all_sides(token);
 
     for octant in env.octants.iter() {
         let args = OctantArgs::new(octant, spatial_hash, position.cast(), distance, 0.0, 1.0, time);

@@ -21,6 +21,7 @@ uniform Offset {
 uniform FrameInfo {
     uvec2 u_FrameCount_u64;
     uvec2 u_TotalTimeMs_u64;
+    uint u_NumLights;
 };
 
 struct Cell {
@@ -32,8 +33,6 @@ const uint MAX_CELL_TABLE_SIZE = {{MAX_CELL_TABLE_SIZE}}u;
 uniform VisionTable {
     Cell u_VisionCells[MAX_CELL_TABLE_SIZE];
 };
-
-uniform samplerBuffer t_LightTable;
 
 in vec2 a_Pos;
 
@@ -49,6 +48,7 @@ in vec4 a_SpriteEffectArgs;
 
 out vec2 v_TexCoord;
 out float v_ColourMult;
+flat out uint v_CellIndex;
 
 const uint FLAGS_ENABLED = {{FLAGS_ENABLED}}u;
 const uint FLAGS_SPRITE_EFFECT = {{FLAGS_SPRITE_EFFECT}}u;
@@ -59,34 +59,18 @@ const uint DEPTH_BOTTOM = {{DEPTH_BOTTOM}}u;
 
 const uint SPRITE_EFFECT_OUTER_WATER = {{SPRITE_EFFECT_OUTER_WATER}}u;
 
-int cell_index() {
+uint cell_index() {
     vec2 pos = a_Position + vec2(0.5);
-    return int(pos.x) + int(pos.y) * int(u_WorldSizeUint.x);
-}
-
-float last_lit() {
-    int idx_base = cell_index() * 6;
-    float time =
-        texelFetch(t_LightTable, idx_base).r * 255 +
-        texelFetch(t_LightTable, idx_base + 1).r * 255 * float(1 << (8 * 1)) +
-        texelFetch(t_LightTable, idx_base + 2).r * 255 * float(1 << (8 * 2)) +
-        texelFetch(t_LightTable, idx_base + 3).r * 255 * float(1 << (8 * 3)) +
-        texelFetch(t_LightTable, idx_base + 4).r * 255 * float(1 << (8 * 4));
-
-    return time;
+    return uint(pos.x) + uint(pos.y) * u_WorldSizeUint.x;
 }
 
 Cell get_vision_cell() {
-    int idx = cell_index();
+    uint idx = cell_index();
     return u_VisionCells[idx];
 }
 
 bool cell_is_seen(Cell cell) {
     return cell.last_u64 != uvec2(0, 0);
-}
-
-bool cell_is_visible(Cell cell) {
-    return cell.last_u64 == u_FrameCount_u64;
 }
 
 float u64_uvec2_to_float(uvec2 u) {
@@ -134,14 +118,11 @@ void main() {
     }
 
     Cell vision_cell = get_vision_cell();
+    v_CellIndex = cell_index();
 
     if (!cell_is_seen(vision_cell)) {
         gl_Position = vec4(0.0, 0.0, 0.0, -1.0);
         return;
-    }
-
-    if (!cell_is_visible(vision_cell)) {
-        v_ColourMult *= 0.05;
     }
 
     float depth = -1;

@@ -70,6 +70,7 @@ gfx_constant_struct!( Offset {
 gfx_constant_struct!( FrameInfo {
     frame_count: [u32; 2] = "u_FrameCount_u64",
     total_time_ms: [u32; 2] = "u_TotalTimeMs_u64",
+    num_lights: u32 = "u_NumLights",
 });
 
 gfx_constant_struct!( Cell {
@@ -289,6 +290,9 @@ fn populate_shader(shader: &[u8]) -> String {
         "MAX_CELL_TABLE_SIZE" => MAX_CELL_TABLE_SIZE as u32,
         "SPRITE_EFFECT_OUTER_WATER" => SpriteEffect::OuterWater as u32,
         "MAX_NUM_LIGHTS" => MAX_NUM_LIGHTS as u32,
+        "LIGHT_BUFFER_ENTRY_SIZE" => LIGHT_BUFFER_ENTRY_SIZE as u32,
+        "LIGHT_BUFFER_OFFSET_SIDE_BITMAP" => LIGHT_BUFFER_OFFSET_SIDE_BITMAP as u32,
+        "LIGHT_BUFFER_SIZE_PER_LIGHT" => LIGHT_BUFFER_SIZE_PER_LIGHT as u32,
     };
 
     let shader_str = ::std::str::from_utf8(shader)
@@ -543,7 +547,7 @@ impl Cell {
         self.last = u64_to_arr(time);
     }
     fn clear_sides(&mut self) {
-        self.side_bitmap = NO_DIRECTIONS_BITMAP as u32;
+        // sides are sticky
     }
     fn see_side(&mut self, direction: Direction) {
         self.side_bitmap |= direction.bitmap_raw() as u32;
@@ -615,6 +619,7 @@ impl<'a, R: gfx::Resources> RendererWorldState<'a, R> {
         encoder.update_constant_buffer(&self.bundle.data.frame_info, &FrameInfo {
             frame_count: u64_to_arr(self.frame_count),
             total_time_ms: u64_to_arr(self.total_time_ms),
+            num_lights: self.next_light_index as u32,
         });
 
     }
