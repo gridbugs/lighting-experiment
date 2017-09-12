@@ -29,3 +29,14 @@ pub fn create_instance_buffer<R, F, T>(size: usize, factory: &mut F)
                           gfx::memory::Usage::Data,
                           gfx::TRANSFER_DST)
 }
+
+pub fn create_transfer_dst_buffer<R, F, T>(size: usize, factory: &mut F)
+    -> Result<gfx::handle::Buffer<R, T>, gfx::buffer::CreationError>
+    where R: gfx::Resources,
+          F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
+{
+    factory.create_buffer(size,
+                          gfx::buffer::Role::Constant,
+                          gfx::memory::Usage::Data,
+                          gfx::memory::TRANSFER_DST)
+}

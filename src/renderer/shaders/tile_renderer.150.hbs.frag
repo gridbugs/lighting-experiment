@@ -1,5 +1,17 @@
 #version 150 core
 
+const uint MAX_NUM_LIGHTS = {{MAX_NUM_LIGHTS}}u;
+
+struct Light {
+    vec3 colour;
+    vec3 position;
+    float intensity;
+};
+
+uniform LightList {
+    Light u_Lights[MAX_NUM_LIGHTS];
+};
+
 uniform sampler2D t_Texture;
 
 in vec2 v_TexCoord;

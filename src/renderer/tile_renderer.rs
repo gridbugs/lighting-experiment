@@ -7,16 +7,15 @@ use handlebars::Handlebars;
 use renderer::sprite_sheet::{SpriteSheet, SpriteTable, SpriteResolution};
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::instance_manager::InstanceManager;
-use renderer::light_manager::LightManager;
 use renderer::common;
 
 use direction::{Direction, ALL_DIRECTIONS_BITMAP, NO_DIRECTIONS_BITMAP};
 use content::{Sprite, DepthType, DepthInfo, SpriteEffect};
-use entity_store::{EntityId, EntityStore, EntityChange};
+use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 use vision::VisionGrid;
 
-use frontend::OutputWorldState;
+use frontend::{OutputWorldState, LightUpdate};
 use res::input_sprite;
 use util::time::duration_millis;
 
@@ -79,9 +78,17 @@ gfx_constant_struct!( Cell {
     _pad0: u32 = "_pad0",
 });
 
+gfx_constant_struct!( Light {
+    colour: [f32; 3] = "colour",
+    _pad0: u32 = "_pad0",
+    position: [f32; 3] = "position",
+    intensity: f32 = "intensity",
+});
+
 gfx_pipeline!( pipe {
     vision_table: gfx::ConstantBuffer<Cell> = "VisionTable",
     light_table: gfx::ShaderResource<u8> = "t_LightTable",
+    light_list: gfx::ConstantBuffer<Light> = "LightList",
     fixed_dimensions: gfx::ConstantBuffer<FixedDimensions> = "FixedDimensions",
     output_dimensions: gfx::ConstantBuffer<OutputDimensions> = "OutputDimensions",
     world_dimensions: gfx::ConstantBuffer<WorldDimensions> = "WorldDimensions",
@@ -171,6 +178,7 @@ pub struct TileRenderer<R: gfx::Resources> {
     instance_upload: gfx::handle::Buffer<R, Instance>,
     vision_upload: gfx::handle::Buffer<R, Cell>,
     light_upload: gfx::handle::Buffer<R, u8>,
+    light_list_upload: gfx::handle::Buffer<R, Light>,
     light_buffer: gfx::handle::Buffer<R, u8>,
     sprite_sheet: SpriteSheet<R>,
     width_px: u16,
@@ -178,7 +186,6 @@ pub struct TileRenderer<R: gfx::Resources> {
     num_instances: usize,
     num_cells: usize,
     instance_manager: InstanceManager,
-    light_manager: LightManager,
     mid_position: Vector2<f32>,
     world_width: u32,
     world_height: u32,
@@ -281,6 +288,7 @@ fn populate_shader(shader: &[u8]) -> String {
         "DEPTH_BOTTOM" => DepthType::Bottom as u32,
         "MAX_CELL_TABLE_SIZE" => MAX_CELL_TABLE_SIZE as u32,
         "SPRITE_EFFECT_OUTER_WATER" => SpriteEffect::OuterWater as u32,
+        "MAX_NUM_LIGHTS" => MAX_NUM_LIGHTS as u32,
     };
 
     let shader_str = ::std::str::from_utf8(shader)
@@ -315,7 +323,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
     {
         let pso = factory.create_pipeline_simple(
             populate_shader(include_bytes!("shaders/tile_renderer.150.hbs.vert")).as_bytes(),
-            include_bytes!("shaders/tile_renderer.150.frag"),
+            populate_shader(include_bytes!("shaders/tile_renderer.150.hbs.frag")).as_bytes(),
             pipe::new()).expect("Failed to create pipeline");
 
         let vertex_data: Vec<Vertex> = common::QUAD_VERTICES_REFL.iter()
@@ -337,26 +345,22 @@ impl<R: gfx::Resources> TileRenderer<R> {
         let (width_px, srv, colour_rtv, depth_rtv) =
             Self::create_targets(window_width_px, window_height_px, factory);
 
-        let vision_table = factory.create_buffer(
-            MAX_CELL_TABLE_SIZE,
-            gfx::buffer::Role::Constant,
-            gfx::memory::Usage::Data,
-            gfx::memory::TRANSFER_DST)
+        let vision_table = common::create_transfer_dst_buffer(MAX_CELL_TABLE_SIZE, factory)
             .expect("Failed to create cell table");
 
-        let light_buffer = factory.create_buffer(
-            LIGHT_BUFFER_SIZE,
-            gfx::buffer::Role::Constant,
-            gfx::memory::Usage::Data,
-            gfx::memory::TRANSFER_DST)
+        let light_buffer = common::create_transfer_dst_buffer(LIGHT_BUFFER_SIZE, factory)
             .expect("Failed to create cell table");
 
         let light_buffer_srv = factory.view_buffer_as_shader_resource(&light_buffer)
             .expect("Failed to view light buffer as shader resource");
 
+        let light_list = common::create_transfer_dst_buffer(MAX_NUM_LIGHTS, factory)
+            .expect("Failed to create light list");
+
         let data = pipe::Data {
             vision_table,
             light_table: light_buffer_srv,
+            light_list,
             fixed_dimensions: factory.create_constant_buffer(1),
             output_dimensions: factory.create_constant_buffer(1),
             world_dimensions: factory.create_constant_buffer(1),
@@ -378,6 +382,8 @@ impl<R: gfx::Resources> TileRenderer<R> {
                 .expect("Failed to create upload buffer"),
             light_upload: factory.create_upload_buffer(LIGHT_BUFFER_SIZE)
                 .expect("Failed to create upload buffer"),
+            light_list_upload: factory.create_upload_buffer(MAX_NUM_LIGHTS)
+                .expect("Failed to create upload buffer"),
             light_buffer,
             sprite_sheet,
             width_px,
@@ -385,7 +391,6 @@ impl<R: gfx::Resources> TileRenderer<R> {
             num_instances: 0,
             num_cells: 0,
             instance_manager: InstanceManager::new(),
-            light_manager: LightManager::new(),
             mid_position: Vector2::new(0.0, 0.0),
             world_width: 0,
             world_height: 0,
@@ -430,6 +435,8 @@ impl<R: gfx::Resources> TileRenderer<R> {
             .expect("Failed to copy cells");
         encoder.copy_buffer(&self.light_upload, &self.light_buffer, 0, 0, LIGHT_BUFFER_NUM_ENTRIES)
             .expect("Failed to copy light info");
+        encoder.copy_buffer(&self.light_list_upload, &self.bundle.data.light_list, 0, 0, MAX_NUM_LIGHTS)
+            .expect("Failed to copy light info");
         encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);
     }
 
@@ -442,18 +449,21 @@ impl<R: gfx::Resources> TileRenderer<R> {
         let vision_writer = factory.write_mapping(&self.vision_upload)
             .expect("Failed to map upload buffer");
 
-        let light_writer = factory.write_mapping(&self.light_upload)
+        let light_grid_writer = factory.write_mapping(&self.light_upload)
+            .expect("Failed to map upload buffer");
+
+        let light_writer = factory.write_mapping(&self.light_list_upload)
             .expect("Failed to map upload buffer");
 
         RendererWorldState {
             instance_writer,
             vision_writer,
+            light_grid_writer,
             light_writer,
             world_width: self.world_width,
             bundle: &mut self.bundle,
             sprite_table: &self.sprite_sheet.sprite_table,
             instance_manager: &mut self.instance_manager,
-            light_manager: &mut self.light_manager,
             num_instances: &mut self.num_instances,
             player_position: None,
             width_px: self.width_px,
@@ -461,6 +471,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             mid_position: &mut self.mid_position,
             frame_count: 0,
             total_time_ms: 0,
+            next_light_index: 0,
         }
     }
 
@@ -511,12 +522,12 @@ impl<R: gfx::Resources> TileRenderer<R> {
 pub struct RendererWorldState<'a, R: gfx::Resources> {
     instance_writer: gfx::mapping::Writer<'a, R, Instance>,
     vision_writer: gfx::mapping::Writer<'a, R, Cell>,
-    light_writer: gfx::mapping::Writer<'a, R, u8>,
+    light_grid_writer: gfx::mapping::Writer<'a, R, u8>,
+    light_writer: gfx::mapping::Writer<'a, R, Light>,
     world_width: u32,
     bundle: &'a mut gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     sprite_table: &'a SpriteTable,
     instance_manager: &'a mut InstanceManager,
-    light_manager: &'a mut LightManager,
     num_instances: &'a mut usize,
     player_position: Option<Vector2<f32>>,
     mid_position: &'a mut Vector2<f32>,
@@ -524,6 +535,7 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
     height_px: u16,
     frame_count: u64,
     total_time_ms: u64,
+    next_light_index: usize,
 }
 
 impl Cell {
@@ -545,10 +557,10 @@ impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<
 
     type VisionCellGrid = VisionCellGrid<'b>;
     type LightCellGrid = LightGrid<'b>;
+    type LightUpdate = Light;
 
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
         self.instance_manager.update(&mut self.instance_writer, change, entity_store, spatial_hash, self.sprite_table);
-        self.light_manager.update(change, entity_store);
     }
 
     fn set_player_position(&mut self, player_position: Vector2<f32>) {
@@ -567,14 +579,18 @@ impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<
         }
     }
 
-    fn light_grid(&'b mut self, entity_id: EntityId) -> Option<Self::LightCellGrid> {
-        if let Some(light_id) = self.light_manager.light_id(entity_id) {
-            let start = light_id as usize * LIGHT_BUFFER_SIZE_PER_LIGHT;
+    fn next_light(&'b mut self) -> Option<(Self::LightCellGrid, &'b mut Self::LightUpdate)> {
+        if self.next_light_index < MAX_NUM_LIGHTS {
+            let index = self.next_light_index;
+            self.next_light_index += 1;
+
+            let start = index * LIGHT_BUFFER_SIZE_PER_LIGHT;
             let end = start + LIGHT_BUFFER_SIZE_PER_LIGHT;
-            Some(LightGrid {
-                slice: &mut self.light_writer[start..end],
+
+            Some((LightGrid {
+                slice: &mut self.light_grid_writer[start..end],
                 width: self.world_width,
-            })
+            }, &mut self.light_writer[index]))
         } else {
             None
         }
@@ -681,5 +697,21 @@ impl<'a> VisionGrid for LightGrid<'a> {
     }
     fn see_all_sides(&mut self, token: Self::Token) {
         self.get(token).see_all_sides();
+    }
+}
+
+impl LightUpdate for Light {
+    fn set_position(&mut self, position: Vector2<f32>) {
+        self.position[0] = position.x;
+        self.position[1] = position.y;
+    }
+    fn set_height(&mut self, height: f32) {
+        self.position[2] = height;
+    }
+    fn set_colour(&mut self, colour: [f32; 3]) {
+        self.colour = colour;
+    }
+    fn set_intensity(&mut self, intensity: f32) {
+        self.intensity = intensity;
     }
 }

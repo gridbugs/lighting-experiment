@@ -5,7 +5,6 @@ mod scale;
 mod common;
 mod renderer;
 mod instance_manager;
-mod light_manager;
 
 pub use self::formats::{ColourFormat, DepthFormat};
 pub use self::renderer::Renderer;
