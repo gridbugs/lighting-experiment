@@ -68,7 +68,7 @@ vec3 diffuse_light(Light light, vec3 surface_colour) {
     return surface_colour * light.colour * light.intensity * dot(direction, VERTICAL);
 }
 
-const float AMBIENT_LIGHT_MULT = 0.1;
+const float AMBIENT_LIGHT_MULT = 1;
 
 void main() {
 

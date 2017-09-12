@@ -70,6 +70,10 @@ Cell get_vision_cell() {
     return u_VisionCells[idx];
 }
 
+bool cell_is_visible(Cell cell) {
+    return cell.last_u64 == u_FrameCount_u64;
+}
+
 bool cell_is_seen(Cell cell) {
     return cell.last_u64 != uvec2(0, 0);
 }
@@ -121,7 +125,7 @@ void main() {
     Cell vision_cell = get_vision_cell();
     v_CellIndex = cell_index();
 
-    if (!cell_is_seen(vision_cell)) {
+    if (!cell_is_seen(vision_cell) || !cell_is_visible(vision_cell)) {
         gl_Position = vec4(0.0, 0.0, 0.0, -1.0);
         return;
     }

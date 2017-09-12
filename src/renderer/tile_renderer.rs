@@ -9,7 +9,7 @@ use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::instance_manager::InstanceManager;
 use renderer::common;
 
-use direction::{Direction, ALL_DIRECTIONS_BITMAP, NO_DIRECTIONS_BITMAP};
+use direction::{Direction, ALL_DIRECTIONS_BITMAP, NO_DIRECTIONS_BITMAP, DirectionBitmap};
 use content::{Sprite, DepthType, DepthInfo, SpriteEffect};
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
@@ -548,12 +548,16 @@ impl Cell {
     }
     fn clear_sides(&mut self) {
         // sides are sticky
+        self.side_bitmap = NO_DIRECTIONS_BITMAP as u32;
     }
     fn see_side(&mut self, direction: Direction) {
         self.side_bitmap |= direction.bitmap_raw() as u32;
     }
     fn see_all_sides(&mut self) {
         self.side_bitmap = ALL_DIRECTIONS_BITMAP as u32;
+    }
+    fn see_sides(&mut self, bitmap: DirectionBitmap) {
+        self.side_bitmap = bitmap.raw as u32;
     }
 }
 
@@ -653,6 +657,9 @@ impl<'a> VisionGrid for VisionCellGrid<'a> {
     fn see_all_sides(&mut self, token: Self::Token) {
         self.slice[token].see_all_sides();
     }
+    fn see_sides(&mut self, token: Self::Token, bitmap: DirectionBitmap) {
+        self.slice[token].see_sides(bitmap);
+    }
 }
 
 struct LightCell<'a>(&'a mut [u8]);
@@ -672,6 +679,9 @@ impl<'a> LightCell<'a> {
     }
     fn see_all_sides(&mut self) {
         self.0[LIGHT_BUFFER_OFFSET_SIDE_BITMAP] = ALL_DIRECTIONS_BITMAP;
+    }
+    fn see_sides(&mut self, bitmap: DirectionBitmap) {
+        self.0[LIGHT_BUFFER_OFFSET_SIDE_BITMAP] = bitmap.raw;
     }
 }
 
@@ -702,6 +712,9 @@ impl<'a> VisionGrid for LightGrid<'a> {
     }
     fn see_all_sides(&mut self, token: Self::Token) {
         self.get(token).see_all_sides();
+    }
+    fn see_sides(&mut self, token: Self::Token, bitmap: DirectionBitmap) {
+        self.get(token).see_sides(bitmap);
     }
 }
 

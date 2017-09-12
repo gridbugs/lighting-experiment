@@ -1,5 +1,5 @@
 use cgmath::Vector2;
-use direction::Direction;
+use direction::{Direction, DirectionBitmap};
 
 pub trait VisionGrid {
     type Token: Copy;
@@ -8,4 +8,5 @@ pub trait VisionGrid {
     fn clear_sides(&mut self, token: Self::Token);
     fn see_side(&mut self, token: Self::Token, direction: Direction);
     fn see_all_sides(&mut self, token: Self::Token);
+    fn see_sides(&mut self, token: Self::Token, bitmap: DirectionBitmap);
 }

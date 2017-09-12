@@ -310,16 +310,24 @@ pub struct DirectionBitmap {
 
 impl DirectionBitmap {
     pub fn new(raw: u8) -> Self {
-        DirectionBitmap {
+        Self {
             raw
         }
+    }
+
+    pub fn empty() -> Self {
+        Self::new(0)
+    }
+
+    pub fn all() -> Self {
+        Self::new(ALL_DIRECTIONS_BITMAP)
     }
 
     pub fn has(self, direction: Direction) -> bool {
         self.raw & (1 << direction as usize) != 0
     }
 
-    pub fn empty(self) -> bool {
+    pub fn is_empty(self) -> bool {
         self.raw == 0
     }
 }
