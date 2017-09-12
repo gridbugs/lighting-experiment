@@ -2,7 +2,9 @@ use std::mem;
 use cgmath::Vector2;
 use spatial_hash::SpatialHashTable;
 use vision::VisionGrid;
-use direction::{Direction, DirectionBitmap};
+use direction::DirectionBitmap;
+
+use vision::shadowcast_octants::*;
 
 struct ScanParams {
     min_gradient: Vector2<i32>,
@@ -11,21 +13,20 @@ struct ScanParams {
     visibility: f32,
 }
 
-trait Octant {
-    fn depth_index(&self, centre: Vector2<i32>, depth: i32) -> Option<i32>;
-}
-
-struct TopLeft;
-
-impl Octant for TopLeft {
-    fn depth_index(&self, centre: Vector2<i32>, depth: i32) -> Option<i32> {
-        let index = centre.y - depth;
-        if index >= 0 {
-            Some(index)
-        } else {
-            None
+impl Default for ScanParams {
+    fn default() -> Self {
+        Self {
+            min_gradient: Vector2::new(0, 1),
+            max_gradient: Vector2::new(1, 1),
+            depth: 1,
+            visibility: 1.0,
         }
     }
+}
+
+struct CornerInfo {
+    bitmap: DirectionBitmap,
+    coord: Vector2<i32>,
 }
 
 fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
@@ -35,7 +36,7 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
                        params: ScanParams,
                        vision_distance_squared: i32,
                        time: u64,
-                       spatial_hash: &SpatialHashTable) -> Option<DirectionBitmap>
+                       spatial_hash: &SpatialHashTable) -> Option<CornerInfo>
 {
     let ScanParams { mut min_gradient, max_gradient, depth, visibility } = params;
 
@@ -45,48 +46,42 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
         return None;
     };
 
-    let (x_min, x_max, mut prev_visibility, mut first_iteration) = {
+    let (rel_x_min, rel_x_max, mut prev_visibility, mut first_iteration) = {
         let double_front_depth = depth * 2 - 1;
         let double_back_depth = depth * 2 + 1;
 
-        let double_centre_x = centre.x * 2 + 1;
+        let double_start_num = min_gradient.y + double_front_depth * min_gradient.x;
+        let double_stop_num = max_gradient.y + double_back_depth * max_gradient.x;
 
-        let double_start_num = double_centre_x * min_gradient.y + double_front_depth * min_gradient.x;
-        let double_stop_num = double_centre_x * max_gradient.y + double_back_depth * max_gradient.x;
-
-        let start = double_start_num / (2 * min_gradient.y);
+        let rel_start = double_start_num / (2 * min_gradient.y);
 
         let stop_denom = 2 * max_gradient.y;
-        let stop = if double_stop_num % stop_denom == 0 {
+        let rel_stop = if double_stop_num % stop_denom == 0 {
             (double_stop_num - 1) / stop_denom
         } else {
             double_stop_num / stop_denom
         };
 
-        if start == centre.x {
-            let coord = Vector2::new(start, y_index);
-            let coord_u32 = coord.cast();
-            if let Some(sh_cell) = spatial_hash.get(coord_u32) {
-                let token = grid.get_token(coord_u32);
-                grid.see(token, time);
-                let current_visibility = (visibility - sh_cell.opacity_total as f32).max(0.0);
-                if current_visibility == 0.0 {
-                    grid.see_sides(token, Direction::South.bitmap() | Direction::SouthEast.bitmap() | Direction::SouthWest.bitmap());
-                } else {
-                    grid.see_all_sides(token);
-                }
-                (start + 1, stop, current_visibility, false)
+        if rel_start == 0 {
+            if let Some(current_visibility) = octant.maybe_handle_first(grid, centre, y_index, vision_distance_squared, visibility, time, spatial_hash) {
+                (rel_start + 1, rel_stop, current_visibility, false)
             } else {
-                return None;
+                (rel_start + 1, rel_stop, -1.0, true)
             }
         } else {
-            (start, stop, -1.0, true)
+            (rel_start, rel_stop, -1.0, true)
         }
     };
+
     let mut prev_opaque = prev_visibility == 0.0;
-    let mut x_index = x_min;
-    while x_index <= x_max {
-        let coord = Vector2::new(x_index, y_index);
+    let mut rel_x_index = rel_x_min;
+
+    while rel_x_index <= rel_x_max {
+        let coord = if let Some(coord) = octant.make_coord(centre, rel_x_index, y_index) {
+            coord
+        } else {
+            break;
+        };
         let coord_u32 = coord.cast();
         let sh_cell = if let Some(sh_cell) = spatial_hash.get(coord_u32) {
             sh_cell
@@ -94,13 +89,9 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
             break;
         };
 
-        let token = grid.get_token(coord_u32);
-
         let between = coord - centre;
         let distance_squared = between.x * between.x + between.y * between.y;
-        if distance_squared < vision_distance_squared {
-            grid.see(token, time);
-        }
+        let visible = distance_squared < vision_distance_squared;
 
         let mut direction_bitmap = DirectionBitmap::empty();
 
@@ -108,7 +99,7 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
         let cur_opaque = cur_visibility == 0.0;
 
         if cur_opaque {
-            direction_bitmap |= Direction::South.bitmap();
+            direction_bitmap |= octant.facing_bitmap();
         } else {
             direction_bitmap |= DirectionBitmap::all();
         };
@@ -121,7 +112,7 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
                 0
             };
 
-            let gradient_x = (x_index - centre.x) * 2 - 1;
+            let gradient_x = rel_x_index * 2 - 1;
             let gradient_y = (depth + y_offset) * 2 - 1;
             let gradient = Vector2::new(gradient_x, gradient_y);
 
@@ -138,11 +129,11 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
             min_gradient = gradient;
             if cur_opaque {
                 // the edge of the current cell is visible through the previous cell
-                direction_bitmap |= Direction::West.bitmap();
+                direction_bitmap |= octant.side_bitmap();
             }
         }
 
-        if x_index == x_max {
+        if rel_x_index == rel_x_max {
             if !cur_opaque {
                 // see beyond the current section
                 next.push(ScanParams {
@@ -152,61 +143,95 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
                     visibility: cur_visibility,
                 });
             }
-            if max_gradient.x == max_gradient.y {
-                return Some(direction_bitmap);
+            if visible && max_gradient.x == max_gradient.y {
+                return Some(CornerInfo {
+                    bitmap: direction_bitmap,
+                    coord,
+                });
             }
         }
 
-        grid.see_sides(token, direction_bitmap);
+        if visible {
+            let token = grid.get_token(coord_u32);
+            grid.see(token, time);
+            grid.see_sides(token, direction_bitmap);
+        }
 
         prev_visibility = cur_visibility;
         prev_opaque = cur_opaque;
         first_iteration = false;
-        x_index += 1;
+        rel_x_index += 1;
     }
 
     None
 }
 
-fn observe_octant<G: VisionGrid>(grid: &mut G,
+pub struct ShadowcastEnv {
+    queue_a: Vec<ScanParams>,
+    queue_a_swap: Vec<ScanParams>,
+    queue_b: Vec<ScanParams>,
+    queue_b_swap: Vec<ScanParams>,
+}
+
+impl ShadowcastEnv {
+    pub fn new() -> Self {
+        Self {
+            queue_a: Vec::new(),
+            queue_a_swap: Vec::new(),
+            queue_b: Vec::new(),
+            queue_b_swap: Vec::new(),
+        }
+    }
+}
+
+fn observe_octant<G: VisionGrid, A: Octant, B: Octant>(grid: &mut G,
+                                 env: &mut ShadowcastEnv,
+                                 a: A,
+                                 b: B,
                                  centre: Vector2<i32>,
                                  vision_distance_squared: i32,
                                  time: u64,
                                  spatial_hash: &SpatialHashTable)
 {
-    let mut next = Vec::new();
-    let mut next_swap = Vec::new();
-
-    let mut depth = 1;
-
-    next.push(ScanParams {
-        min_gradient: Vector2::new(0, 1),
-        max_gradient: Vector2::new(1, 1),
-        depth,
-        visibility: 1.0,
-    });
+    env.queue_a.push(ScanParams::default());
+    env.queue_b.push(ScanParams::default());
 
     loop {
         let mut corner_bitmap = DirectionBitmap::empty();
-        while let Some(params) = next.pop() {
-            if let Some(direction_bitmap) = scan(grid, &TopLeft, &mut next_swap, centre, params, vision_distance_squared, time, spatial_hash) {
-                corner_bitmap |= direction_bitmap;
+        let mut corner_coord = None;
+
+        while let Some(params) = env.queue_a.pop() {
+            if let Some(corner) = scan(grid, &a, &mut env.queue_a_swap, centre, params,
+                                                 vision_distance_squared, time, spatial_hash) {
+                corner_bitmap |= corner.bitmap;
+                corner_coord = Some(corner.coord);
             }
         }
-        let corner_coord = centre + Vector2::new(depth, depth);
-        let token = grid.get_token(corner_coord.cast());
-        grid.see_sides(token, corner_bitmap);
-        depth += 1;
 
-        if next_swap.is_empty() {
+        while let Some(params) = env.queue_b.pop() {
+            if let Some(corner) = scan(grid, &b, &mut env.queue_b_swap, centre, params,
+                                                 vision_distance_squared, time, spatial_hash) {
+                corner_bitmap |= corner.bitmap;
+            }
+        }
+
+        if let Some(corner_coord) = corner_coord {
+            let token = grid.get_token(corner_coord.cast());
+            grid.see(token, time);
+            grid.see_sides(token, corner_bitmap);
+        }
+
+        if env.queue_a_swap.is_empty() && env.queue_b_swap.is_empty() {
             break;
         }
-        mem::swap(&mut next, &mut next_swap);
+        mem::swap(&mut env.queue_a, &mut env.queue_a_swap);
+        mem::swap(&mut env.queue_b, &mut env.queue_b_swap);
     }
 }
 
 
 pub fn observe<G: VisionGrid>(grid: &mut G,
+                              env: &mut ShadowcastEnv,
                   position: Vector2<f32>, spatial_hash: &SpatialHashTable,
                   distance: u32, time: u64) {
     let coord = (position + Vector2::new(0.5, 0.5)).cast();
@@ -215,5 +240,13 @@ pub fn observe<G: VisionGrid>(grid: &mut G,
     grid.see(token, time);
     grid.see_all_sides(token);
 
-    observe_octant(grid, coord.cast(), (distance * distance) as i32, time, spatial_hash);
+    let coord_u32 = coord.cast();
+    let distance_squared = (distance * distance) as i32;
+    let width = spatial_hash.width();
+    let height = spatial_hash.height();
+
+    observe_octant(grid, env, TopLeft, LeftTop, coord_u32, distance_squared, time, spatial_hash);
+    observe_octant(grid, env, TopRight { width }, RightTop { width }, coord_u32, distance_squared, time, spatial_hash);
+    observe_octant(grid, env, BottomLeft { height }, LeftBottom { height }, coord_u32, distance_squared, time, spatial_hash);
+    observe_octant(grid, env, BottomRight { width, height }, RightBottom { width, height }, coord_u32, distance_squared, time, spatial_hash);
 }
