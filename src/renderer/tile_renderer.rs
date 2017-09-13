@@ -13,7 +13,7 @@ use direction::{Direction, NO_DIRECTIONS_BITMAP, DirectionBitmap};
 use content::{Sprite, DepthType, DepthInfo, SpriteEffect};
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
-use vision::{VisionGrid, VisionGridWithHistory};
+use vision::VisionGrid;
 
 use frontend::{OutputWorldState, LightUpdate};
 use res::input_sprite;
@@ -75,8 +75,8 @@ gfx_constant_struct!( FrameInfo {
 
 gfx_constant_struct!( Cell {
     last: [u32; 2] = "last_u64",
-    current_side_bitmap: u32 = "current_side_bitmap",
-    history_side_bitmap: u32 = "history_side_bitmap",
+    side_bitmap: u32 = "side_bitmap",
+    _pad0: u32 = "_pad0",
 });
 
 gfx_constant_struct!( Light {
@@ -106,8 +106,8 @@ impl Default for Cell {
     fn default() -> Self {
         Self {
             last: [0; 2],
-            current_side_bitmap: NO_DIRECTIONS_BITMAP as u32,
-            history_side_bitmap: NO_DIRECTIONS_BITMAP as u32,
+            side_bitmap: NO_DIRECTIONS_BITMAP as u32,
+            _pad0: 0,
         }
     }
 }
@@ -544,12 +544,7 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
 
 impl Cell {
     fn see(&mut self, bitmap: DirectionBitmap, time: u64) {
-        self.current_side_bitmap = bitmap.raw as u32;
-        self.last = u64_to_arr(time);
-    }
-    fn see_with_history(&mut self, current: DirectionBitmap, history: DirectionBitmap, time: u64) {
-        self.current_side_bitmap = current.raw as u32;
-        self.history_side_bitmap = history.raw as u32;
+        self.side_bitmap = bitmap.raw as u32;
         self.last = u64_to_arr(time);
     }
 }
@@ -639,14 +634,6 @@ impl<'a> VisionGrid for VisionCellGrid<'a> {
         self.slice[index].see(bitmap, time);
     }
 }
-
-impl<'a> VisionGridWithHistory for VisionCellGrid<'a> {
-    fn see_with_history(&mut self, v: Vector2<u32>, current: DirectionBitmap, history: DirectionBitmap, time: u64) {
-        let index = (v.y * self.width + v.x) as usize;
-        self.slice[index].see_with_history(current, history, time);
-    }
-}
-
 
 struct LightCell<'a>(&'a mut [u8]);
 

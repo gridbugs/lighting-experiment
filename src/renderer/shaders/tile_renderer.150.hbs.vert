@@ -26,8 +26,7 @@ uniform FrameInfo {
 
 struct Cell {
     uvec2 last_u64;
-    uint current_side_bitmap;
-    uint history_side_bitmap;
+    uint side_bitmap;
 };
 
 const uint MAX_CELL_TABLE_SIZE = {{MAX_CELL_TABLE_SIZE}}u;

@@ -25,8 +25,7 @@ uniform samplerBuffer t_LightTable;
 
 struct Cell {
     uvec2 last_u64;
-    uint current_side_bitmap;
-    uint history_side_bitmap;
+    uint side_bitmap;
 };
 
 const uint MAX_CELL_TABLE_SIZE = {{MAX_CELL_TABLE_SIZE}}u;
@@ -92,7 +91,7 @@ void main() {
     if (cell_is_visible(vision_cell)) {
         for (uint i = 0u; i < u_NumLights; i++) {
             uint lit_sides = get_lit_sides(i);
-            uint visible_lit_sides = lit_sides & vision_cell.current_side_bitmap;
+            uint visible_lit_sides = lit_sides & vision_cell.side_bitmap;
             if (visible_lit_sides != 0u) {
                 diffuse_total += diffuse_light(u_Lights[i], base_colour);
             }
