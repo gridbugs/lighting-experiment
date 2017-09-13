@@ -6,6 +6,13 @@ use direction::DirectionBitmap;
 
 use vision::shadowcast_octants::*;
 
+struct StaticParams<'a> {
+    centre: Vector2<i32>,
+    vision_distance_squared: i32,
+    time: u64,
+    spatial_hash: &'a SpatialHashTable,
+}
+
 struct ScanParams {
     min_gradient: Vector2<i32>,
     max_gradient: Vector2<i32>,
@@ -32,15 +39,12 @@ struct CornerInfo {
 fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
                        octant: &O,
                        next: &mut Vec<ScanParams>,
-                       centre: Vector2<i32>,
                        params: ScanParams,
-                       vision_distance_squared: i32,
-                       time: u64,
-                       spatial_hash: &SpatialHashTable) -> Option<CornerInfo>
+                       static_params: &StaticParams) -> Option<CornerInfo>
 {
     let ScanParams { mut min_gradient, max_gradient, depth, visibility } = params;
 
-    let y_index = if let Some(y_index) = octant.depth_index(centre, depth) {
+    let y_index = if let Some(y_index) = octant.depth_index(static_params.centre, depth) {
         y_index
     } else {
         return None;
@@ -68,21 +72,17 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
     let mut rel_x_index = rel_x_min;
 
     while rel_x_index <= rel_x_max {
-        let coord = if let Some(coord) = octant.make_coord(centre, rel_x_index, y_index) {
+        let coord = if let Some(coord) = octant.make_coord(static_params.centre, rel_x_index, y_index) {
             coord
         } else {
             break;
         };
         let coord_u32 = coord.cast();
-        let sh_cell = if let Some(sh_cell) = spatial_hash.get(coord_u32) {
+        let sh_cell = if let Some(sh_cell) = static_params.spatial_hash.get(coord_u32) {
             sh_cell
         } else {
             break;
         };
-
-        let between = coord - centre;
-        let distance_squared = between.x * between.x + between.y * between.y;
-        let visible = distance_squared < vision_distance_squared;
 
         let mut direction_bitmap = DirectionBitmap::empty();
 
@@ -124,6 +124,12 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
             }
         }
 
+        // check if cell is in visible range
+        let between = coord - static_params.centre;
+        let distance_squared = between.x * between.x + between.y * between.y;
+        let visible = distance_squared < static_params.vision_distance_squared;
+
+        // handle final cell
         if rel_x_index == rel_x_max {
             if !cur_opaque {
                 // see beyond the current section
@@ -143,7 +149,7 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
         }
 
         if visible && octant.should_see(rel_x_index) {
-            grid.see(coord_u32, direction_bitmap, time);
+            grid.see(coord_u32, direction_bitmap, static_params.time);
         }
 
         prev_visibility = cur_visibility;
@@ -175,12 +181,9 @@ impl ShadowcastEnv {
 
 fn observe_octant<G: VisionGrid, A: Octant, B: Octant>(grid: &mut G,
                                  env: &mut ShadowcastEnv,
-                                 a: A,
-                                 b: B,
-                                 centre: Vector2<i32>,
-                                 vision_distance_squared: i32,
-                                 time: u64,
-                                 spatial_hash: &SpatialHashTable)
+                                 octant_a: A,
+                                 octant_b: B,
+                                 static_params: &StaticParams)
 {
     env.queue_a.push(ScanParams::default());
     env.queue_b.push(ScanParams::default());
@@ -190,22 +193,20 @@ fn observe_octant<G: VisionGrid, A: Octant, B: Octant>(grid: &mut G,
         let mut corner_coord = None;
 
         while let Some(params) = env.queue_a.pop() {
-            if let Some(corner) = scan(grid, &a, &mut env.queue_a_swap, centre, params,
-                                                 vision_distance_squared, time, spatial_hash) {
+            if let Some(corner) = scan(grid, &octant_a, &mut env.queue_a_swap, params, static_params) {
                 corner_bitmap |= corner.bitmap;
                 corner_coord = Some(corner.coord);
             }
         }
 
         while let Some(params) = env.queue_b.pop() {
-            if let Some(corner) = scan(grid, &b, &mut env.queue_b_swap, centre, params,
-                                                 vision_distance_squared, time, spatial_hash) {
+            if let Some(corner) = scan(grid, &octant_b, &mut env.queue_b_swap, params, static_params) {
                 corner_bitmap |= corner.bitmap;
             }
         }
 
         if let Some(corner_coord) = corner_coord {
-            grid.see(corner_coord.cast(), corner_bitmap, time);
+            grid.see(corner_coord.cast(), corner_bitmap, static_params.time);
         }
 
         if env.queue_a_swap.is_empty() && env.queue_b_swap.is_empty() {
@@ -222,16 +223,22 @@ pub fn observe<G: VisionGrid>(grid: &mut G,
                   position: Vector2<f32>, spatial_hash: &SpatialHashTable,
                   distance: u32, time: u64) {
     let coord = (position + Vector2::new(0.5, 0.5)).cast();
-
-    grid.see(coord, DirectionBitmap::all(), time);
-
     let coord_u32 = coord.cast();
-    let distance_squared = (distance * distance) as i32;
+
+    grid.see(coord_u32, DirectionBitmap::all(), time);
+
     let width = spatial_hash.width();
     let height = spatial_hash.height();
 
-    observe_octant(grid, env, TopLeft, LeftTop, coord_u32, distance_squared, time, spatial_hash);
-    observe_octant(grid, env, TopRight { width }, RightTop { width }, coord_u32, distance_squared, time, spatial_hash);
-    observe_octant(grid, env, BottomLeft { height }, LeftBottom { height }, coord_u32, distance_squared, time, spatial_hash);
-    observe_octant(grid, env, BottomRight { width, height }, RightBottom { width, height }, coord_u32, distance_squared, time, spatial_hash);
+    let params = StaticParams {
+        centre: coord,
+        vision_distance_squared: (distance * distance) as i32,
+        time,
+        spatial_hash,
+    };
+
+    observe_octant(grid, env, TopLeft, LeftTop, &params);
+    observe_octant(grid, env, TopRight { width }, RightTop { width }, &params);
+    observe_octant(grid, env, BottomLeft { height }, LeftBottom { height }, &params);
+    observe_octant(grid, env, BottomRight { width, height }, RightBottom { width, height }, &params);
 }
