@@ -49,12 +49,13 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
     } else {
         return None;
     };
-    let (rel_x_min, rel_x_max, mut prev_visibility, mut first_iteration) = {
-        let double_front_depth = depth * 2 - 1;
-        let double_back_depth = depth * 2 + 1;
 
-        let double_start_num = min_gradient.y + double_front_depth * min_gradient.x;
-        let double_stop_num = max_gradient.y + double_back_depth * max_gradient.x;
+    let front_gradient_y = depth * 2 - 1;
+    let back_gradient_y = front_gradient_y + 2;
+
+    let (rel_x_min, rel_x_max, mut prev_visibility, mut first_iteration) = {
+        let double_start_num = min_gradient.y + front_gradient_y * min_gradient.x;
+        let double_stop_num = max_gradient.y + back_gradient_y * max_gradient.x;
 
         let rel_start = double_start_num / (2 * min_gradient.y);
 
@@ -84,27 +85,31 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
             break;
         };
 
+        let gradient_x = rel_x_index * 2 - 1;
         let mut direction_bitmap = DirectionBitmap::empty();
 
         let cur_visibility = (visibility - sh_cell.opacity_total as f32).max(0.0);
         let cur_opaque = cur_visibility == 0.0;
 
         if cur_opaque {
-            direction_bitmap |= octant.facing_bitmap();
+            // check if we can actually see the facing side
+            if max_gradient.x * front_gradient_y > gradient_x * max_gradient.y {
+                direction_bitmap |= octant.facing_bitmap();
+            } else {
+                direction_bitmap |= octant.facing_corner_bitmap();
+            }
         } else {
             direction_bitmap |= DirectionBitmap::all();
         };
 
         // handle changes in opacity
         if !first_iteration && cur_visibility != prev_visibility {
-            let y_offset = if cur_visibility < prev_visibility {
-                1
+            // use the back of the cell if necessary
+            let gradient_y = if cur_visibility < prev_visibility {
+                back_gradient_y
             } else {
-                0
+                front_gradient_y
             };
-
-            let gradient_x = rel_x_index * 2 - 1;
-            let gradient_y = (depth + y_offset) * 2 - 1;
             let gradient = Vector2::new(gradient_x, gradient_y);
 
             if !prev_opaque {
@@ -120,7 +125,7 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
             min_gradient = gradient;
             if cur_opaque {
                 // the edge of the current cell is visible through the previous cell
-                direction_bitmap |= octant.side_bitmap();
+                direction_bitmap |= octant.across_bitmap();
             }
         }
 

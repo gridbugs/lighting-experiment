@@ -5,7 +5,8 @@ pub trait Octant {
     fn depth_index(&self, centre: Vector2<i32>, depth: i32) -> Option<i32>;
     fn make_coord(&self, centre: Vector2<i32>, lateral_offset: i32, depth_index: i32) -> Option<Vector2<i32>>;
     fn facing_bitmap(&self) -> DirectionBitmap;
-    fn side_bitmap(&self) -> DirectionBitmap;
+    fn across_bitmap(&self) -> DirectionBitmap;
+    fn facing_corner_bitmap(&self) -> DirectionBitmap;
     fn should_see(&self, lateral_offset: i32) -> bool;
 }
 
@@ -48,9 +49,17 @@ macro_rules! facing {
     }
 }
 
-macro_rules! side {
+macro_rules! across {
     ($dirs:expr) => {
-        fn side_bitmap(&self) -> DirectionBitmap {
+        fn across_bitmap(&self) -> DirectionBitmap {
+            $dirs
+        }
+    }
+}
+
+macro_rules! facing_corner {
+    ($dirs:expr) => {
+        fn facing_corner_bitmap(&self) -> DirectionBitmap {
             $dirs
         }
     }
@@ -65,8 +74,9 @@ impl Octant for TopRight {
         let x = centre.x + lateral_offset;
         some_if!(Vector2::new(x, depth_index), x < self.width as i32)
     }
-    facing!{Direction::South.bitmap() | Direction::SouthEast.bitmap() | Direction::SouthWest.bitmap()}
-    side!{Direction::West.bitmap() | Direction::NorthWest.bitmap() | Direction::SouthWest.bitmap()}
+    facing!{Direction::South.bitmap()}
+    across!{Direction::West.bitmap()}
+    facing_corner!{Direction::SouthWest.bitmap()}
     see_ahead!{}
 }
 
@@ -79,8 +89,9 @@ impl Octant for RightTop {
         let y = centre.y - lateral_offset;
         some_if!(Vector2::new(depth_index, y), y >= 0)
     }
-    facing!{Direction::West.bitmap() | Direction::NorthWest.bitmap() | Direction::SouthWest.bitmap()}
-    side!{Direction::South.bitmap() | Direction::SouthEast.bitmap() | Direction::SouthWest.bitmap()}
+    facing!{Direction::West.bitmap()}
+    across!{Direction::South.bitmap()}
+    facing_corner!{Direction::SouthWest.bitmap()}
     no_see_ahead!{}
 }
 
@@ -93,8 +104,9 @@ impl Octant for TopLeft {
         let x = centre.x - lateral_offset;
         some_if!(Vector2::new(x, depth_index), x >= 0)
     }
-    facing!{Direction::South.bitmap() | Direction::SouthEast.bitmap() | Direction::SouthWest.bitmap()}
-    side!{Direction::East.bitmap() | Direction::NorthEast.bitmap() | Direction::SouthEast.bitmap()}
+    facing!{Direction::South.bitmap()}
+    across!{Direction::East.bitmap()}
+    facing_corner!{Direction::SouthEast.bitmap()}
     no_see_ahead!{}
 }
 
@@ -107,8 +119,9 @@ impl Octant for LeftTop {
         let y = centre.y - lateral_offset;
         some_if!(Vector2::new(depth_index, y), y >= 0)
     }
-    facing!{Direction::East.bitmap() | Direction::NorthEast.bitmap() | Direction::SouthEast.bitmap()}
-    side!{Direction::South.bitmap() | Direction::SouthEast.bitmap() | Direction::SouthWest.bitmap()}
+    facing!{Direction::East.bitmap()}
+    across!{Direction::South.bitmap()}
+    facing_corner!{Direction::SouthEast.bitmap()}
     see_ahead!{}
 }
 
@@ -121,8 +134,9 @@ impl Octant for BottomLeft {
         let x = centre.x - lateral_offset;
         some_if!(Vector2::new(x, depth_index), x >= 0)
     }
-    facing!{Direction::North.bitmap() | Direction::NorthEast.bitmap() | Direction::NorthWest.bitmap()}
-    side!{Direction::East.bitmap() | Direction::NorthEast.bitmap() | Direction::SouthEast.bitmap()}
+    facing!{Direction::North.bitmap()}
+    across!{Direction::East.bitmap()}
+    facing_corner!{Direction::NorthEast.bitmap()}
     see_ahead!{}
 }
 
@@ -135,8 +149,9 @@ impl Octant for LeftBottom {
         let y = centre.y + lateral_offset;
         some_if!(Vector2::new(depth_index, y), y < self.height as i32)
     }
-    facing!{Direction::East.bitmap() | Direction::NorthEast.bitmap() | Direction::SouthEast.bitmap()}
-    side!{Direction::South.bitmap() | Direction::SouthEast.bitmap() | Direction::SouthWest.bitmap()}
+    facing!{Direction::East.bitmap()}
+    across!{Direction::North.bitmap()}
+    facing_corner!{Direction::NorthEast.bitmap()}
     no_see_ahead!{}
 }
 
@@ -149,8 +164,9 @@ impl Octant for BottomRight {
         let x = centre.x + lateral_offset;
         some_if!(Vector2::new(x, depth_index), x < self.width as i32)
     }
-    facing!{Direction::North.bitmap() | Direction::NorthEast.bitmap() | Direction::NorthWest.bitmap()}
-    side!{Direction::West.bitmap() | Direction::NorthWest.bitmap() | Direction::SouthWest.bitmap()}
+    facing!{Direction::North.bitmap()}
+    across!{Direction::West.bitmap()}
+    facing_corner!{Direction::NorthWest.bitmap()}
     no_see_ahead!{}
 }
 
@@ -163,7 +179,8 @@ impl Octant for RightBottom {
         let y = centre.y + lateral_offset;
         some_if!(Vector2::new(depth_index, y), y < self.height as i32)
     }
-    facing!{Direction::West.bitmap() | Direction::NorthWest.bitmap() | Direction::SouthWest.bitmap()}
-    side!{Direction::North.bitmap() | Direction::NorthEast.bitmap() | Direction::NorthWest.bitmap()}
+    facing!{Direction::West.bitmap()}
+    across!{Direction::North.bitmap()}
+    facing_corner!{Direction::NorthWest.bitmap()}
     see_ahead!{}
 }
