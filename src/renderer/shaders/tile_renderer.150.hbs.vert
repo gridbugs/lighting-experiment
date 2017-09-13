@@ -125,7 +125,7 @@ void main() {
     Cell vision_cell = get_vision_cell();
     v_CellIndex = cell_index();
 
-    if (!cell_is_seen(vision_cell) || !cell_is_visible(vision_cell)) {
+    if (!cell_is_seen(vision_cell)) {
         gl_Position = vec4(0.0, 0.0, 0.0, -1.0);
         return;
     }

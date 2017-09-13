@@ -332,6 +332,12 @@ impl DirectionBitmap {
     }
 }
 
+impl Default for DirectionBitmap {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
 impl BitOr for DirectionBitmap {
     type Output = Self;
     fn bitor(self, rhs: Self) -> Self {

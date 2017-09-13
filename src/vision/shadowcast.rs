@@ -36,11 +36,13 @@ struct CornerInfo {
     coord: Vector2<i32>,
 }
 
-fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
-                       octant: &O,
-                       next: &mut Vec<ScanParams>,
-                       params: ScanParams,
-                       static_params: &StaticParams) -> Option<CornerInfo>
+fn scan<G, O>(grid: &mut G,
+              octant: &O,
+              next: &mut Vec<ScanParams>,
+              params: ScanParams,
+              static_params: &StaticParams) -> Option<CornerInfo>
+    where G: VisionGrid,
+          O: Octant,
 {
     let ScanParams { mut min_gradient, max_gradient, depth, visibility } = params;
 
@@ -53,23 +55,21 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
     let front_gradient_y = depth * 2 - 1;
     let back_gradient_y = front_gradient_y + 2;
 
-    let (rel_x_min, rel_x_max, mut prev_visibility, mut first_iteration) = {
-        let double_start_num = min_gradient.y + front_gradient_y * min_gradient.x;
-        let double_stop_num = max_gradient.y + back_gradient_y * max_gradient.x;
+    let double_start_num = min_gradient.y + front_gradient_y * min_gradient.x;
+    let double_stop_num = max_gradient.y + back_gradient_y * max_gradient.x;
 
-        let rel_start = double_start_num / (2 * min_gradient.y);
+    let rel_x_min = double_start_num / (2 * min_gradient.y);
 
-        let stop_denom = 2 * max_gradient.y;
-        let rel_stop = if double_stop_num % stop_denom == 0 {
-            (double_stop_num - 1) / stop_denom
-        } else {
-            double_stop_num / stop_denom
-        };
-
-        (rel_start, rel_stop, -1.0, true)
+    let stop_denom = 2 * max_gradient.y;
+    let rel_x_max = if double_stop_num % stop_denom == 0 {
+        (double_stop_num - 1) / stop_denom
+    } else {
+        double_stop_num / stop_denom
     };
 
-    let mut prev_opaque = prev_visibility == 0.0;
+    let mut first_iteration = true;
+    let mut prev_visibility = 0.0;
+    let mut prev_opaque = false;
     let mut rel_x_index = rel_x_min;
 
     while rel_x_index <= rel_x_max {
@@ -184,11 +184,14 @@ impl ShadowcastEnv {
     }
 }
 
-fn observe_octant<G: VisionGrid, A: Octant, B: Octant>(grid: &mut G,
-                                 env: &mut ShadowcastEnv,
-                                 octant_a: A,
-                                 octant_b: B,
-                                 static_params: &StaticParams)
+fn observe_octant<G, A, B>(grid: &mut G,
+                           env: &mut ShadowcastEnv,
+                           octant_a: A,
+                           octant_b: B,
+                           static_params: &StaticParams)
+    where G: VisionGrid,
+          A: Octant,
+          B: Octant,
 {
     env.queue_a.push(ScanParams::default());
     env.queue_b.push(ScanParams::default());
@@ -222,11 +225,14 @@ fn observe_octant<G: VisionGrid, A: Octant, B: Octant>(grid: &mut G,
     }
 }
 
-
-pub fn observe<G: VisionGrid>(grid: &mut G,
-                              env: &mut ShadowcastEnv,
-                  position: Vector2<f32>, spatial_hash: &SpatialHashTable,
-                  distance: u32, time: u64) {
+pub fn observe<G>(grid: &mut G,
+                  env: &mut ShadowcastEnv,
+                  position: Vector2<f32>,
+                  spatial_hash: &SpatialHashTable,
+                  distance: u32,
+                  time: u64)
+    where G: VisionGrid,
+{
     let coord = (position + Vector2::new(0.5, 0.5)).cast();
     let coord_u32 = coord.cast();
 
