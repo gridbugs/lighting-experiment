@@ -3,7 +3,7 @@ use std::time::{Instant, Duration};
 use std::mem;
 use cgmath::Vector2;
 use frontend::{FrontendOutput, FrontendInput, OutputWorldState, LightUpdate};
-use terrain::demo;
+use terrain;
 use entity_store::{EntityStore, ComponentValue, EntityChange};
 use spatial_hash::SpatialHashTable;
 use entity_id_allocator::EntityIdAllocator;
@@ -33,7 +33,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
     let mut changes = Vec::new();
     let mut entity_store = EntityStore::new();
 
-    let metadata = demo::generate(&mut changes, &mut allocator);
+    let metadata = terrain::demo::generate(&mut changes, &mut allocator);
     let player_id = metadata.player_id.expect("No player");
 
     let mut spatial_hash = SpatialHashTable::new(metadata.width, metadata.height);
