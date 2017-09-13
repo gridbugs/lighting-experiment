@@ -11,7 +11,7 @@ pub fn angler<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: 
     changes.append(insert::collider(id));
     changes.append(insert::player(id));
     changes.append(insert::door_opener(id));
-    changes.append(insert::light(id, LightInfo::new(0.5, 20, 1.0, 1.0, 1.0, 1.0)));
+    changes.append(insert::light(id, LightInfo::new(0.2, 20, 1.0, 1.0, 1.0, 1.0)));
 }
 
 pub fn inner_wall<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {

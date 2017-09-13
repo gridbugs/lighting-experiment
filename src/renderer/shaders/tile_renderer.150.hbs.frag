@@ -87,18 +87,15 @@ void main() {
     Cell vision_cell = u_VisionCells[v_CellIndex];
 
     uint side_bitmap;
-    if (cell_is_visible(vision_cell)) {
-        side_bitmap = vision_cell.current_side_bitmap;
-    } else {
-        side_bitmap = vision_cell.history_side_bitmap;
-    }
 
     vec3 diffuse_total = vec3(0);
-    for (uint i = 0u; i < u_NumLights; i++) {
-        uint lit_sides = get_lit_sides(i);
-        uint visible_lit_sides = lit_sides & side_bitmap;
-        if (visible_lit_sides != 0u) {
-            diffuse_total += diffuse_light(u_Lights[i], base_colour);
+    if (cell_is_visible(vision_cell)) {
+        for (uint i = 0u; i < u_NumLights; i++) {
+            uint lit_sides = get_lit_sides(i);
+            uint visible_lit_sides = lit_sides & vision_cell.current_side_bitmap;
+            if (visible_lit_sides != 0u) {
+                diffuse_total += diffuse_light(u_Lights[i], base_colour);
+            }
         }
     }
 
