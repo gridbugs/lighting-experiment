@@ -18,9 +18,9 @@ uniform LightList {
     Light u_Lights[MAX_NUM_LIGHTS];
 };
 
-const uint LIGHT_BUFFER_OFFSET_SIDE_BITMAP = {{LIGHT_BUFFER_OFFSET_SIDE_BITMAP}}u;
-const uint LIGHT_BUFFER_ENTRY_SIZE = {{LIGHT_BUFFER_ENTRY_SIZE}}u;
-const uint LIGHT_BUFFER_SIZE_PER_LIGHT = {{LIGHT_BUFFER_SIZE_PER_LIGHT}}u;
+const uint TBO_VISION_BITMAP_OFFSET = {{TBO_VISION_BITMAP_OFFSET}}u;
+const uint TBO_VISION_ENTRY_SIZE = {{TBO_VISION_ENTRY_SIZE}}u;
+const uint TBO_VISION_BUFFER_SIZE = {{TBO_VISION_BUFFER_SIZE}}u;
 uniform samplerBuffer t_LightTable;
 
 struct Cell {
@@ -58,9 +58,9 @@ uvec2 light_timestamp(int base) {
 }
 
 uint get_lit_sides(uint i) {
-    int base = int(i * LIGHT_BUFFER_SIZE_PER_LIGHT + v_CellIndex * LIGHT_BUFFER_ENTRY_SIZE);
+    int base = int(i * TBO_VISION_BUFFER_SIZE + v_CellIndex * TBO_VISION_ENTRY_SIZE);
     if (light_timestamp(base) == u_FrameCount_u64) {
-        return uint(texelFetch(t_LightTable, base + int(LIGHT_BUFFER_OFFSET_SIDE_BITMAP)).r * 255);
+        return uint(texelFetch(t_LightTable, base + int(TBO_VISION_BITMAP_OFFSET)).r * 255);
     }
     return 0u;
 }

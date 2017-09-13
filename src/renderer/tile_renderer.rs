@@ -24,14 +24,14 @@ const HEIGHT_PX: u16 = NUM_ROWS * input_sprite::HEIGHT_PX as u16;
 const MAX_NUM_INSTANCES: usize = 4096;
 const MAX_CELL_TABLE_SIZE: usize = 4096;
 const MAX_NUM_LIGHTS: usize = 32;
-const LIGHT_BUFFER_NUM_ENTRIES: usize = MAX_NUM_LIGHTS * MAX_CELL_TABLE_SIZE;
-const LIGHT_BUFFER_ENTRY_SIZE_FRAME_COUNT: usize = 5; // 40 bit uint
-const LIGHT_BUFFER_ENTRY_SIZE_SIDE_BITMAP: usize = 1; // 8 bit bitmap
-const LIGHT_BUFFER_ENTRY_SIZE: usize = LIGHT_BUFFER_ENTRY_SIZE_FRAME_COUNT +
-                                       LIGHT_BUFFER_ENTRY_SIZE_SIDE_BITMAP;
-const LIGHT_BUFFER_SIZE: usize = LIGHT_BUFFER_NUM_ENTRIES * LIGHT_BUFFER_ENTRY_SIZE;
-const LIGHT_BUFFER_SIZE_PER_LIGHT: usize = MAX_CELL_TABLE_SIZE * LIGHT_BUFFER_ENTRY_SIZE;
-const LIGHT_BUFFER_OFFSET_SIDE_BITMAP: usize = LIGHT_BUFFER_ENTRY_SIZE_FRAME_COUNT;
+
+const TBO_VISION_FRAME_COUNT_SIZE: usize = 5; // 40 bit uint
+const TBO_VISION_BITMAP_SIZE: usize = 1; // 8 bit bitmap
+const TBO_VISION_BITMAP_OFFSET: usize = TBO_VISION_FRAME_COUNT_SIZE;
+const TBO_VISION_ENTRY_SIZE: usize = TBO_VISION_FRAME_COUNT_SIZE + TBO_VISION_BITMAP_SIZE;
+const TBO_VISION_BUFFER_SIZE: usize = TBO_VISION_ENTRY_SIZE * MAX_CELL_TABLE_SIZE;
+
+const LIGHT_BUFFER_SIZE: usize = TBO_VISION_BUFFER_SIZE * MAX_NUM_LIGHTS;
 
 gfx_vertex_struct!( Vertex {
     pos: [f32; 2] = "a_Pos",
@@ -290,9 +290,9 @@ fn populate_shader(shader: &[u8]) -> String {
         "MAX_CELL_TABLE_SIZE" => MAX_CELL_TABLE_SIZE as u32,
         "SPRITE_EFFECT_WATER" => SpriteEffect::Water as u32,
         "MAX_NUM_LIGHTS" => MAX_NUM_LIGHTS as u32,
-        "LIGHT_BUFFER_ENTRY_SIZE" => LIGHT_BUFFER_ENTRY_SIZE as u32,
-        "LIGHT_BUFFER_OFFSET_SIDE_BITMAP" => LIGHT_BUFFER_OFFSET_SIDE_BITMAP as u32,
-        "LIGHT_BUFFER_SIZE_PER_LIGHT" => LIGHT_BUFFER_SIZE_PER_LIGHT as u32,
+        "TBO_VISION_ENTRY_SIZE" => TBO_VISION_ENTRY_SIZE as u32,
+        "TBO_VISION_BITMAP_OFFSET" => TBO_VISION_BITMAP_OFFSET as u32,
+        "TBO_VISION_BUFFER_SIZE" => TBO_VISION_BUFFER_SIZE as u32,
     };
 
     let shader_str = ::std::str::from_utf8(shader)
@@ -437,7 +437,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             .expect("Failed to copy instances");
         encoder.copy_buffer(&self.vision_upload, &self.bundle.data.vision_table, 0, 0, self.num_cells)
             .expect("Failed to copy cells");
-        encoder.copy_buffer(&self.light_upload, &self.light_buffer, 0, 0, LIGHT_BUFFER_NUM_ENTRIES)
+        encoder.copy_buffer(&self.light_upload, &self.light_buffer, 0, 0, LIGHT_BUFFER_SIZE)
             .expect("Failed to copy light info");
         encoder.copy_buffer(&self.light_list_upload, &self.bundle.data.light_list, 0, 0, MAX_NUM_LIGHTS)
             .expect("Failed to copy light info");
@@ -552,7 +552,7 @@ impl Cell {
 impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<'a, R> {
 
     type VisionCellGrid = VisionCellGrid<'b>;
-    type LightCellGrid = LightGrid<'b>;
+    type LightCellGrid = TboVisionGrid<'b>;
     type LightUpdate = Light;
 
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
@@ -580,10 +580,10 @@ impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<
             let index = self.next_light_index;
             self.next_light_index += 1;
 
-            let start = index * LIGHT_BUFFER_SIZE_PER_LIGHT;
-            let end = start + LIGHT_BUFFER_SIZE_PER_LIGHT;
+            let start = index * TBO_VISION_BUFFER_SIZE;
+            let end = start + TBO_VISION_BUFFER_SIZE;
 
-            Some((LightGrid {
+            Some((TboVisionGrid {
                 slice: &mut self.light_grid_writer[start..end],
                 width: self.world_width,
             }, &mut self.light_writer[index]))
@@ -635,33 +635,27 @@ impl<'a> VisionGrid for VisionCellGrid<'a> {
     }
 }
 
-struct LightCell<'a>(&'a mut [u8]);
+struct TboVisionCell<'a>(&'a mut [u8]);
 
-impl<'a> LightCell<'a> {
+impl<'a> TboVisionCell<'a> {
     fn see(&mut self, bitmap: DirectionBitmap, mut time: u64) {
-        for i in 0..LIGHT_BUFFER_ENTRY_SIZE_FRAME_COUNT {
+        for i in 0..TBO_VISION_FRAME_COUNT_SIZE {
             self.0[i] = time as u8;
             time >>= 8;
         }
-        self.0[LIGHT_BUFFER_OFFSET_SIDE_BITMAP] = bitmap.raw;
+        self.0[TBO_VISION_BITMAP_OFFSET] = bitmap.raw;
     }
 }
 
-pub struct LightGrid<'a> {
+pub struct TboVisionGrid<'a> {
     slice: &'a mut [u8],
     width: u32,
 }
 
-impl<'a> LightGrid<'a> {
-    fn get(&mut self, index: usize) -> LightCell {
-        LightCell(&mut self.slice[index..index + LIGHT_BUFFER_ENTRY_SIZE])
-    }
-}
-
-impl<'a> VisionGrid for LightGrid<'a> {
+impl<'a> VisionGrid for TboVisionGrid<'a> {
     fn see(&mut self, v: Vector2<u32>, bitmap: DirectionBitmap, time: u64) {
-        let index = ((v.y * self.width + v.x) as usize) * LIGHT_BUFFER_ENTRY_SIZE;
-        LightCell(&mut self.slice[index..index + LIGHT_BUFFER_ENTRY_SIZE]).see(bitmap, time);
+        let index = ((v.y * self.width + v.x) as usize) * TBO_VISION_ENTRY_SIZE;
+        TboVisionCell(&mut self.slice[index..index + TBO_VISION_ENTRY_SIZE]).see(bitmap, time);
     }
 }
 
