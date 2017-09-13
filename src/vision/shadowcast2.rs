@@ -45,7 +45,6 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
     } else {
         return None;
     };
-
     let (rel_x_min, rel_x_max, mut prev_visibility, mut first_iteration) = {
         let double_front_depth = depth * 2 - 1;
         let double_back_depth = depth * 2 + 1;
@@ -62,15 +61,7 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
             double_stop_num / stop_denom
         };
 
-        if rel_start == 0 {
-            if let Some(current_visibility) = octant.maybe_handle_first(grid, centre, y_index, vision_distance_squared, visibility, time, spatial_hash) {
-                (rel_start + 1, rel_stop, current_visibility, false)
-            } else {
-                (rel_start + 1, rel_stop, -1.0, true)
-            }
-        } else {
-            (rel_start, rel_stop, -1.0, true)
-        }
+        (rel_start, rel_stop, -1.0, true)
     };
 
     let mut prev_opaque = prev_visibility == 0.0;
@@ -151,7 +142,7 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
             }
         }
 
-        if visible {
+        if visible && octant.should_see(rel_x_index) {
             let token = grid.get_token(coord_u32);
             grid.see(token, time);
             grid.see_sides(token, direction_bitmap);

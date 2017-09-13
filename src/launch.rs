@@ -15,7 +15,6 @@ use direction::CardinalDirection;
 use content::{ChangeDesc, Animation, AnimationStatus, AnimatedChange};
 use policy;
 use vision::shadowcast;
-use vision::shadowcast2;
 
 pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_input: I, mut frontend_output: O) {
     let control_table = {
@@ -39,7 +38,6 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
 
     let mut spatial_hash = SpatialHashTable::new(metadata.width, metadata.height);
     let mut shadowcast_env = shadowcast::ShadowcastEnv::new();
-    let mut shadowcast2_env = shadowcast2::ShadowcastEnv::new();
 
     frontend_output.update_world_size(metadata.width, metadata.height);
 
@@ -209,7 +207,6 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
 
             if let Some(player_position) = entity_store.position.get(&player_id) {
                 shadowcast::observe(&mut state.vision_grid(), &mut shadowcast_env, *player_position, &spatial_hash, 8, count);
-//                shadowcast2::observe(&mut state.vision_grid(), &mut shadowcast2_env, *player_position, &spatial_hash, 8, count);
             }
         });
 
