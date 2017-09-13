@@ -288,7 +288,7 @@ fn populate_shader(shader: &[u8]) -> String {
         "DEPTH_GRADIENT" => DepthType::Gradient as u32,
         "DEPTH_BOTTOM" => DepthType::Bottom as u32,
         "MAX_CELL_TABLE_SIZE" => MAX_CELL_TABLE_SIZE as u32,
-        "SPRITE_EFFECT_OUTER_WATER" => SpriteEffect::OuterWater as u32,
+        "SPRITE_EFFECT_WATER" => SpriteEffect::Water as u32,
         "MAX_NUM_LIGHTS" => MAX_NUM_LIGHTS as u32,
         "LIGHT_BUFFER_ENTRY_SIZE" => LIGHT_BUFFER_ENTRY_SIZE as u32,
         "LIGHT_BUFFER_OFFSET_SIDE_BITMAP" => LIGHT_BUFFER_OFFSET_SIDE_BITMAP as u32,

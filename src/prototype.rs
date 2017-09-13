@@ -1,7 +1,7 @@
 use cgmath::Vector2;
 use entity_store::{EntityId, EntityChange, insert};
 use content::{Sprite, DepthType, DepthInfo, DoorState, DoorInfo,
-              DoorType, SpriteEffectInfo, SpriteEffect, LightInfo};
+              DoorType, SpriteEffectInfo, LightInfo};
 use append::Append;
 
 pub fn angler<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
@@ -42,14 +42,14 @@ pub fn inner_water<A: Append<EntityChange>>(changes: &mut A, id: EntityId, posit
     changes.append(insert::position(id, position));
     changes.append(insert::sprite(id, Sprite::InnerWater));
     changes.append(insert::depth(id, DepthInfo::new(DepthType::Gradient, 0.01)));
-    changes.append(insert::sprite_effect(id, SpriteEffectInfo::with_args(SpriteEffect::OuterWater, [6.0, 0.3, 0.7, 0.0])));
+    changes.append(insert::sprite_effect(id, SpriteEffectInfo::water(6, 0.3, 0.7)));
 }
 
 pub fn outer_floor<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
     changes.append(insert::position(id, position));
     changes.append(insert::sprite(id, Sprite::OuterFloor));
     changes.append(insert::depth(id, DepthType::Bottom.into()));
-    changes.append(insert::sprite_effect(id, SpriteEffectInfo::with_args(SpriteEffect::OuterWater, [3.0, 0.2, 0.8, 0.0])));
+    changes.append(insert::sprite_effect(id, SpriteEffectInfo::water(3, 0.2, 0.8)));
 }
 
 pub fn inner_door<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {

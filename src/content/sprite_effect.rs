@@ -1,6 +1,6 @@
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum SpriteEffect {
-    OuterWater,
+    Water,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -10,14 +10,10 @@ pub struct SpriteEffectInfo {
 }
 
 impl SpriteEffectInfo {
-    pub fn new(effect: SpriteEffect) -> Self {
+    pub fn water(steps: u32, min: f32, max: f32) -> Self {
         Self {
-            effect,
-            args: [0.0, 0.0, 0.0, 0.0],
+            effect: SpriteEffect::Water,
+            args: [steps as f32, min, max, 0.0],
         }
-    }
-
-    pub fn with_args(effect: SpriteEffect, args: [f32; 4]) -> Self {
-        Self { effect, args }
     }
 }

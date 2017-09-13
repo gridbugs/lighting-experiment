@@ -59,7 +59,7 @@ const uint DEPTH_FIXED = {{DEPTH_FIXED}}u;
 const uint DEPTH_GRADIENT = {{DEPTH_GRADIENT}}u;
 const uint DEPTH_BOTTOM = {{DEPTH_BOTTOM}}u;
 
-const uint SPRITE_EFFECT_OUTER_WATER = {{SPRITE_EFFECT_OUTER_WATER}}u;
+const uint SPRITE_EFFECT_WATER = {{SPRITE_EFFECT_WATER}}u;
 
 uint cell_index() {
     vec2 pos = a_Position + vec2(0.5);
@@ -84,7 +84,7 @@ float u64_uvec2_to_float(uvec2 u) {
     return float(u[1]) * MAXUINT_FLOAT + float(u[0]);
 }
 
-float outer_water_colour_mult(float steps, float base_mult, float max_mult) {
+float water_colour_mult(float steps, float base_mult, float max_mult) {
     float x_orig = a_Position.x;
     float y_orig = a_Position.y;
     float t_orig = u64_uvec2_to_float(u_TotalTimeMs_u64);
@@ -117,8 +117,8 @@ void main() {
 
     if ((a_Flags & FLAGS_SPRITE_EFFECT) != 0u) {
         switch (a_SpriteEffect) {
-            case SPRITE_EFFECT_OUTER_WATER:
-                v_ColourMult *= outer_water_colour_mult(a_SpriteEffectArgs[0], a_SpriteEffectArgs[1], a_SpriteEffectArgs[2]);
+            case SPRITE_EFFECT_WATER:
+                v_ColourMult *= water_colour_mult(a_SpriteEffectArgs[0], a_SpriteEffectArgs[1], a_SpriteEffectArgs[2]);
                 break;
         }
     }
