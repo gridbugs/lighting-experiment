@@ -18,7 +18,6 @@ impl SpriteEffectInfo {
     }
 
     pub fn with_args(effect: SpriteEffect, args: [f32; 4]) -> Self {
-
         Self { effect, args }
     }
 }
