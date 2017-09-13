@@ -9,7 +9,7 @@ use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::instance_manager::InstanceManager;
 use renderer::common;
 
-use direction::{Direction, ALL_DIRECTIONS_BITMAP, NO_DIRECTIONS_BITMAP, DirectionBitmap};
+use direction::{Direction, NO_DIRECTIONS_BITMAP, DirectionBitmap};
 use content::{Sprite, DepthType, DepthInfo, SpriteEffect};
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
@@ -543,21 +543,9 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
 }
 
 impl Cell {
-    fn see(&mut self, time: u64) {
-        self.last = u64_to_arr(time);
-    }
-    fn clear_sides(&mut self) {
-        // sides are sticky
-        self.side_bitmap = NO_DIRECTIONS_BITMAP as u32;
-    }
-    fn see_side(&mut self, direction: Direction) {
-        self.side_bitmap |= direction.bitmap_raw() as u32;
-    }
-    fn see_all_sides(&mut self) {
-        self.side_bitmap = ALL_DIRECTIONS_BITMAP as u32;
-    }
-    fn see_sides(&mut self, bitmap: DirectionBitmap) {
+    fn see(&mut self, bitmap: DirectionBitmap, time: u64) {
         self.side_bitmap = bitmap.raw as u32;
+        self.last = u64_to_arr(time);
     }
 }
 
@@ -641,46 +629,20 @@ pub struct VisionCellGrid<'a> {
 }
 
 impl<'a> VisionGrid for VisionCellGrid<'a> {
-    type Token = usize;
-    fn get_token(&self, v: Vector2<u32>) -> Self::Token {
-        (v.y * self.width + v.x) as Self::Token
-    }
-    fn see(&mut self, token: Self::Token, time: u64) {
-        self.slice[token].see(time);
-    }
-    fn clear_sides(&mut self, token: Self::Token) {
-        self.slice[token].clear_sides();
-    }
-    fn see_side(&mut self, token: Self::Token, direction: Direction) {
-        self.slice[token].see_side(direction);
-    }
-    fn see_all_sides(&mut self, token: Self::Token) {
-        self.slice[token].see_all_sides();
-    }
-    fn see_sides(&mut self, token: Self::Token, bitmap: DirectionBitmap) {
-        self.slice[token].see_sides(bitmap);
+    fn see(&mut self, v: Vector2<u32>, bitmap: DirectionBitmap, time: u64) {
+        let index = (v.y * self.width + v.x) as usize;
+        self.slice[index].see(bitmap, time);
     }
 }
 
 struct LightCell<'a>(&'a mut [u8]);
 
 impl<'a> LightCell<'a> {
-    fn see(&mut self, mut frame: u64) {
+    fn see(&mut self, bitmap: DirectionBitmap, mut time: u64) {
         for i in 0..LIGHT_BUFFER_ENTRY_SIZE_FRAME_COUNT {
-            self.0[i] = frame as u8;
-            frame >>= 8;
+            self.0[i] = time as u8;
+            time >>= 8;
         }
-    }
-    fn clear_sides(&mut self) {
-        self.0[LIGHT_BUFFER_OFFSET_SIDE_BITMAP] = NO_DIRECTIONS_BITMAP;
-    }
-    fn see_side(&mut self, direction: Direction) {
-        self.0[LIGHT_BUFFER_OFFSET_SIDE_BITMAP] |= direction.bitmap_raw();
-    }
-    fn see_all_sides(&mut self) {
-        self.0[LIGHT_BUFFER_OFFSET_SIDE_BITMAP] = ALL_DIRECTIONS_BITMAP;
-    }
-    fn see_sides(&mut self, bitmap: DirectionBitmap) {
         self.0[LIGHT_BUFFER_OFFSET_SIDE_BITMAP] = bitmap.raw;
     }
 }
@@ -691,30 +653,15 @@ pub struct LightGrid<'a> {
 }
 
 impl<'a> LightGrid<'a> {
-    fn get(&mut self, token: usize) -> LightCell {
-        LightCell(&mut self.slice[token..token + LIGHT_BUFFER_ENTRY_SIZE])
+    fn get(&mut self, index: usize) -> LightCell {
+        LightCell(&mut self.slice[index..index + LIGHT_BUFFER_ENTRY_SIZE])
     }
 }
 
 impl<'a> VisionGrid for LightGrid<'a> {
-    type Token = usize;
-    fn get_token(&self, v: Vector2<u32>) -> Self::Token {
-        ((v.y * self.width + v.x) as usize) * LIGHT_BUFFER_ENTRY_SIZE
-    }
-    fn see(&mut self, token: Self::Token, time: u64) {
-        self.get(token).see(time);
-    }
-    fn clear_sides(&mut self, token: Self::Token) {
-        self.get(token).clear_sides();
-    }
-    fn see_side(&mut self, token: Self::Token, direction: Direction) {
-        self.get(token).see_side(direction);
-    }
-    fn see_all_sides(&mut self, token: Self::Token) {
-        self.get(token).see_all_sides();
-    }
-    fn see_sides(&mut self, token: Self::Token, bitmap: DirectionBitmap) {
-        self.get(token).see_sides(bitmap);
+    fn see(&mut self, v: Vector2<u32>, bitmap: DirectionBitmap, time: u64) {
+        let index = ((v.y * self.width + v.x) as usize) * LIGHT_BUFFER_ENTRY_SIZE;
+        LightCell(&mut self.slice[index..index + LIGHT_BUFFER_ENTRY_SIZE]).see(bitmap, time);
     }
 }
 

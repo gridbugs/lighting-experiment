@@ -143,9 +143,7 @@ fn scan<G: VisionGrid, O: Octant>(grid: &mut G,
         }
 
         if visible && octant.should_see(rel_x_index) {
-            let token = grid.get_token(coord_u32);
-            grid.see(token, time);
-            grid.see_sides(token, direction_bitmap);
+            grid.see(coord_u32, direction_bitmap, time);
         }
 
         prev_visibility = cur_visibility;
@@ -207,9 +205,7 @@ fn observe_octant<G: VisionGrid, A: Octant, B: Octant>(grid: &mut G,
         }
 
         if let Some(corner_coord) = corner_coord {
-            let token = grid.get_token(corner_coord.cast());
-            grid.see(token, time);
-            grid.see_sides(token, corner_bitmap);
+            grid.see(corner_coord.cast(), corner_bitmap, time);
         }
 
         if env.queue_a_swap.is_empty() && env.queue_b_swap.is_empty() {
@@ -227,9 +223,7 @@ pub fn observe<G: VisionGrid>(grid: &mut G,
                   distance: u32, time: u64) {
     let coord = (position + Vector2::new(0.5, 0.5)).cast();
 
-    let token = grid.get_token(coord);
-    grid.see(token, time);
-    grid.see_all_sides(token);
+    grid.see(coord, DirectionBitmap::all(), time);
 
     let coord_u32 = coord.cast();
     let distance_squared = (distance * distance) as i32;

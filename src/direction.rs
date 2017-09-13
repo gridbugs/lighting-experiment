@@ -316,7 +316,7 @@ impl DirectionBitmap {
     }
 
     pub fn empty() -> Self {
-        Self::new(0)
+        Self::new(NO_DIRECTIONS_BITMAP)
     }
 
     pub fn all() -> Self {
