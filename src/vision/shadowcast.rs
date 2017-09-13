@@ -6,6 +6,18 @@ use direction::DirectionBitmap;
 
 use vision::shadowcast_octants::*;
 
+#[derive(Debug, Clone, Copy)]
+struct Gradient {
+    dx: i32,
+    dy: i32,
+}
+
+impl Gradient {
+    fn new(dx: i32, dy: i32) -> Self {
+        Self { dx, dy }
+    }
+}
+
 struct StaticParams<'a> {
     centre: Vector2<i32>,
     vision_distance_squared: i32,
@@ -14,8 +26,8 @@ struct StaticParams<'a> {
 }
 
 struct ScanParams {
-    min_gradient: Vector2<i32>,
-    max_gradient: Vector2<i32>,
+    min_gradient: Gradient,
+    max_gradient: Gradient,
     depth: i32,
     visibility: f32,
 }
@@ -23,8 +35,8 @@ struct ScanParams {
 impl Default for ScanParams {
     fn default() -> Self {
         Self {
-            min_gradient: Vector2::new(0, 1),
-            max_gradient: Vector2::new(1, 1),
+            min_gradient: Gradient::new(0, 1),
+            max_gradient: Gradient::new(1, 1),
             depth: 1,
             visibility: 1.0,
         }
@@ -46,8 +58,8 @@ fn scan<G, O>(grid: &mut G,
 {
     let ScanParams { mut min_gradient, max_gradient, depth, visibility } = params;
 
-    let y_index = if let Some(y_index) = octant.depth_index(static_params.centre, depth) {
-        y_index
+    let depth_index = if let Some(depth_index) = octant.depth_index(static_params.centre, depth) {
+        depth_index
     } else {
         return None;
     };
@@ -55,13 +67,13 @@ fn scan<G, O>(grid: &mut G,
     let front_gradient_y = depth * 2 - 1;
     let back_gradient_y = front_gradient_y + 2;
 
-    let double_start_num = min_gradient.y + front_gradient_y * min_gradient.x;
-    let double_stop_num = max_gradient.y + back_gradient_y * max_gradient.x;
+    let double_start_num = min_gradient.dy + front_gradient_y * min_gradient.dx;
+    let double_stop_num = max_gradient.dy + back_gradient_y * max_gradient.dx;
 
-    let rel_x_min = double_start_num / (2 * min_gradient.y);
+    let dx_min = double_start_num / (2 * min_gradient.dy);
 
-    let stop_denom = 2 * max_gradient.y;
-    let rel_x_max = if double_stop_num % stop_denom == 0 {
+    let stop_denom = 2 * max_gradient.dy;
+    let dx_max = if double_stop_num % stop_denom == 0 {
         (double_stop_num - 1) / stop_denom
     } else {
         double_stop_num / stop_denom
@@ -70,10 +82,10 @@ fn scan<G, O>(grid: &mut G,
     let mut first_iteration = true;
     let mut prev_visibility = 0.0;
     let mut prev_opaque = false;
-    let mut rel_x_index = rel_x_min;
+    let mut lateral_index = dx_min;
 
-    while rel_x_index <= rel_x_max {
-        let coord = if let Some(coord) = octant.make_coord(static_params.centre, rel_x_index, y_index) {
+    while lateral_index <= dx_max {
+        let coord = if let Some(coord) = octant.make_coord(static_params.centre, lateral_index, depth_index) {
             coord
         } else {
             break;
@@ -85,7 +97,7 @@ fn scan<G, O>(grid: &mut G,
             break;
         };
 
-        let gradient_x = rel_x_index * 2 - 1;
+        let gradient_x = lateral_index * 2 - 1;
         let mut direction_bitmap = DirectionBitmap::empty();
 
         let cur_visibility = (visibility - sh_cell.opacity_total as f32).max(0.0);
@@ -93,7 +105,7 @@ fn scan<G, O>(grid: &mut G,
 
         if cur_opaque {
             // check if we can actually see the facing side
-            if max_gradient.x * front_gradient_y > gradient_x * max_gradient.y {
+            if max_gradient.dx * front_gradient_y > gradient_x * max_gradient.dy {
                 direction_bitmap |= octant.facing_bitmap();
             } else {
                 direction_bitmap |= octant.facing_corner_bitmap();
@@ -110,7 +122,7 @@ fn scan<G, O>(grid: &mut G,
             } else {
                 front_gradient_y
             };
-            let gradient = Vector2::new(gradient_x, gradient_y);
+            let gradient = Gradient::new(gradient_x, gradient_y);
 
             if !prev_opaque {
                 // see beyond the previous section unless it's opaque
@@ -135,7 +147,7 @@ fn scan<G, O>(grid: &mut G,
         let visible = distance_squared < static_params.vision_distance_squared;
 
         // handle final cell
-        if rel_x_index == rel_x_max {
+        if lateral_index == dx_max {
             if !cur_opaque {
                 // see beyond the current section
                 next.push(ScanParams {
@@ -145,7 +157,7 @@ fn scan<G, O>(grid: &mut G,
                     visibility: cur_visibility,
                 });
             }
-            if visible && max_gradient.x == max_gradient.y {
+            if visible && max_gradient.dx == max_gradient.dy {
                 return Some(CornerInfo {
                     bitmap: direction_bitmap,
                     coord,
@@ -153,14 +165,14 @@ fn scan<G, O>(grid: &mut G,
             }
         }
 
-        if visible && octant.should_see(rel_x_index) {
+        if visible && octant.should_see(lateral_index) {
             grid.see(coord_u32, direction_bitmap, static_params.time);
         }
 
         prev_visibility = cur_visibility;
         prev_opaque = cur_opaque;
         first_iteration = false;
-        rel_x_index += 1;
+        lateral_index += 1;
     }
 
     None
