@@ -13,13 +13,13 @@ pub fn generate(changes: &mut Vec<EntityChange>,
         "..................................................",
         "..................................................",
         "..........######o###################..............",
-        ".........##,,,,,,%,,,,%,,,,,,,,,,,,#..............",
+        ".........##,,,,,,%,,,,%m,,,,,,,,,,,#..............",
         "........##,,,l,,,%,,,,%,,,,,,,,,,,,#..............",
-        "........#,,,,,,,,%,,@,%,,,####,,,,,#..............",
+        "........#,,,,,,,,%,,@,%%%%%%%%,,,,,#..............",
         "........#,,,,,,,,,,,,,+,,,,,,,,,,,,####o####......",
         "........o,,,,,,,,,,,,~%,,,,,,,,,,,,%,,,,,,,#......",
         "........#,,,,,,,,,,,~~%,,,,,,,,,,,,+,,,,,,,#......",
-        "........#,,,,,,,,,,~~~%,,,,,,,,,,,,%,,,,,,,#......",
+        "........#,,,,,,,,,,~~~%n,,,,,,,,,,,%,,,,,,,#......",
         "........#######*o############o######%%%%+%%####...",
         "...................................#,,,,,,,,,,#...",
         "...................................o,,,,,,,,,,#...",
@@ -57,7 +57,15 @@ pub fn generate(changes: &mut Vec<EntityChange>,
                     prototype::inner_floor(changes, allocator.allocate(), coord);
                 }
                 'l' => {
-                    prototype::light(changes, allocator.allocate(), coord);
+                    prototype::light(changes, allocator.allocate(), coord, [1.0, 1.0, 1.0]);
+                    prototype::inner_floor(changes, allocator.allocate(), coord);
+                }
+                'm' => {
+                    prototype::light(changes, allocator.allocate(), coord, [1.0, 0.0, 0.0]);
+                    prototype::inner_floor(changes, allocator.allocate(), coord);
+                }
+                'n' => {
+                    prototype::light(changes, allocator.allocate(), coord, [0.0, 1.0, 0.0]);
                     prototype::inner_floor(changes, allocator.allocate(), coord);
                 }
                 '%' => {

@@ -49,7 +49,7 @@ pub fn outer_floor<A: Append<EntityChange>>(changes: &mut A, id: EntityId, posit
     changes.append(insert::position(id, position));
     changes.append(insert::sprite(id, Sprite::OuterFloor));
     changes.append(insert::depth(id, DepthType::Bottom.into()));
-    changes.append(insert::sprite_effect(id, SpriteEffectInfo::with_args(SpriteEffect::OuterWater, [3.0, 0.05, 0.6, 0.0])));
+    changes.append(insert::sprite_effect(id, SpriteEffectInfo::with_args(SpriteEffect::OuterWater, [3.0, 0.2, 0.8, 0.0])));
 }
 
 pub fn inner_door<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
@@ -77,9 +77,9 @@ pub fn window<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: 
     changes.append(insert::opacity(id, -1.0));
 }
 
-pub fn light<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
+pub fn light<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>, colour: [f32; 3]) {
     changes.append(insert::position(id, position));
     changes.append(insert::sprite(id, Sprite::Light));
     changes.append(insert::depth(id, DepthInfo::new(DepthType::Fixed, 0.0)));
-    changes.append(insert::light(id, LightInfo::new(1.0, 20, 2.0, 1.0, 1.0, 1.0)));
+    changes.append(insert::light(id, LightInfo::new(1.0, 20, 2.0, colour[0], colour[1], colour[2])));
 }
