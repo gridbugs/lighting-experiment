@@ -3,7 +3,7 @@ use cgmath::Vector2;
 
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
-use vision::VisionGrid;
+use vision::{VisionGrid, VisionGridWithHistory};
 
 use input::Input;
 
@@ -15,7 +15,7 @@ pub trait LightUpdate {
 }
 
 pub trait OutputWorldState<'a, 'b> {
-    type VisionCellGrid: VisionGrid;
+    type VisionCellGrid: VisionGridWithHistory;
     type LightCellGrid: VisionGrid;
     type LightUpdate: LightUpdate;
     fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable);

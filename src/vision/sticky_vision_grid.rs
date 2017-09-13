@@ -1,7 +1,7 @@
 use cgmath::Vector2;
 use static_grid::StaticGrid;
 use direction::DirectionBitmap;
-use vision::VisionGrid;
+use vision::{VisionGrid, VisionGridWithHistory};
 
 pub struct VisionDirectionStore {
     grid: StaticGrid<DirectionBitmap>,
@@ -29,10 +29,10 @@ pub struct StickyVisionGrid<'a, G: VisionGrid> {
     vision_grid: G,
 }
 
-impl<'a, G: VisionGrid> VisionGrid for StickyVisionGrid<'a, G> {
+impl<'a, G: VisionGridWithHistory> VisionGrid for StickyVisionGrid<'a, G> {
     fn see(&mut self, v: Vector2<u32>, bitmap: DirectionBitmap, time: u64) {
         let direction_cell = self.direction_grid.get_checked_mut(v);
         *direction_cell |= bitmap;
-        self.vision_grid.see(v, *direction_cell, time);
+        self.vision_grid.see_with_history(v, bitmap, *direction_cell, time);
     }
 }

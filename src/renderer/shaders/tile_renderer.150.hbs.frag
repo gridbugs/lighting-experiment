@@ -25,7 +25,8 @@ uniform samplerBuffer t_LightTable;
 
 struct Cell {
     uvec2 last_u64;
-    uint side_bitmap;
+    uint current_side_bitmap;
+    uint history_side_bitmap;
 };
 
 const uint MAX_CELL_TABLE_SIZE = {{MAX_CELL_TABLE_SIZE}}u;
@@ -41,6 +42,10 @@ in float v_ColourMult;
 flat in uint v_CellIndex;
 
 out vec4 Target0;
+
+bool cell_is_visible(Cell cell) {
+    return cell.last_u64 == u_FrameCount_u64;
+}
 
 uvec2 light_timestamp(int base) {
     uint lo = uint(texelFetch(t_LightTable, base).r * 255) +
@@ -81,10 +86,17 @@ void main() {
 
     Cell vision_cell = u_VisionCells[v_CellIndex];
 
+    uint side_bitmap;
+    if (cell_is_visible(vision_cell)) {
+        side_bitmap = vision_cell.current_side_bitmap;
+    } else {
+        side_bitmap = vision_cell.history_side_bitmap;
+    }
+
     vec3 diffuse_total = vec3(0);
     for (uint i = 0u; i < u_NumLights; i++) {
         uint lit_sides = get_lit_sides(i);
-        uint visible_lit_sides = lit_sides & vision_cell.side_bitmap;
+        uint visible_lit_sides = lit_sides & side_bitmap;
         if (visible_lit_sides != 0u) {
             diffuse_total += diffuse_light(u_Lights[i], base_colour);
         }

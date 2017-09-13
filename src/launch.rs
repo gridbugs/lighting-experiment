@@ -208,7 +208,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
 
             if let Some(player_position) = entity_store.position.get(&player_id) {
                 let mut vision_grid = direction_store.sticky_vision_grid(state.vision_grid());
-                shadowcast::observe(&mut vision_grid, &mut shadowcast_env, *player_position, &spatial_hash, 8, count);
+                shadowcast::observe(&mut vision_grid, &mut shadowcast_env, *player_position, &spatial_hash, 20, count);
             }
         });
 
