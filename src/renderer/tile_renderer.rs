@@ -152,12 +152,6 @@ fn u64_to_arr(u: u64) -> [u32; 2] {
     [ u as u32, (u >> 32) as u32 ]
 }
 
-impl FrameInfo {
-    fn set_time(&mut self, time: u64) {
-        self.frame_count = u64_to_arr(time);
-    }
-}
-
 pub struct TileRenderer<R: gfx::Resources> {
     bundle: gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     instance_upload: gfx::handle::Buffer<R, Instance>,
