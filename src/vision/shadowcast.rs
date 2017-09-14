@@ -8,13 +8,13 @@ use vision::shadowcast_octants::*;
 
 #[derive(Debug, Clone, Copy)]
 struct Gradient {
-    dx: i32,
-    dy: i32,
+    lateral: i32,
+    depth: i32,
 }
 
 impl Gradient {
-    fn new(dx: i32, dy: i32) -> Self {
-        Self { dx, dy }
+    fn new(lateral: i32, depth: i32) -> Self {
+        Self { lateral, depth }
     }
 }
 
@@ -64,16 +64,16 @@ fn scan<G, O>(grid: &mut G,
         return None;
     };
 
-    let front_gradient_y = depth * 2 - 1;
-    let back_gradient_y = front_gradient_y + 2;
+    let front_gradient_depth = depth * 2 - 1;
+    let back_gradient_depth = front_gradient_depth + 2;
 
-    let double_start_num = min_gradient.dy + front_gradient_y * min_gradient.dx;
-    let double_stop_num = max_gradient.dy + back_gradient_y * max_gradient.dx;
+    let double_start_num = min_gradient.depth + front_gradient_depth * min_gradient.lateral;
+    let double_stop_num = max_gradient.depth + back_gradient_depth * max_gradient.lateral;
 
-    let dx_min = double_start_num / (2 * min_gradient.dy);
+    let lateral_min = double_start_num / (2 * min_gradient.depth);
 
-    let stop_denom = 2 * max_gradient.dy;
-    let dx_max = if double_stop_num % stop_denom == 0 {
+    let stop_denom = 2 * max_gradient.depth;
+    let lateral_max = if double_stop_num % stop_denom == 0 {
         (double_stop_num - 1) / stop_denom
     } else {
         double_stop_num / stop_denom
@@ -82,9 +82,9 @@ fn scan<G, O>(grid: &mut G,
     let mut first_iteration = true;
     let mut prev_visibility = 0.0;
     let mut prev_opaque = false;
-    let mut lateral_index = dx_min;
+    let mut lateral_index = lateral_min;
 
-    while lateral_index <= dx_max {
+    while lateral_index <= lateral_max {
         let coord = octant.make_coord(static_params.centre, lateral_index, depth_index);
         if coord.x < 0 || coord.x >= static_params.spatial_hash.width() as i32 ||
             coord.y < 0 || coord.y >= static_params.spatial_hash.height() as i32 {
@@ -97,7 +97,7 @@ fn scan<G, O>(grid: &mut G,
             break;
         };
 
-        let gradient_x = lateral_index * 2 - 1;
+        let gradient_lateral = lateral_index * 2 - 1;
         let mut direction_bitmap = DirectionBitmap::empty();
 
         let cur_visibility = (visibility - sh_cell.opacity_total as f32).max(0.0);
@@ -105,7 +105,7 @@ fn scan<G, O>(grid: &mut G,
 
         if cur_opaque {
             // check if we can actually see the facing side
-            if max_gradient.dx * front_gradient_y > gradient_x * max_gradient.dy {
+            if max_gradient.lateral * front_gradient_depth > gradient_lateral * max_gradient.depth {
                 direction_bitmap |= octant.facing_bitmap();
             } else {
                 direction_bitmap |= octant.facing_corner_bitmap();
@@ -117,12 +117,12 @@ fn scan<G, O>(grid: &mut G,
         // handle changes in opacity
         if !first_iteration && cur_visibility != prev_visibility {
             // use the back of the cell if necessary
-            let gradient_y = if cur_visibility < prev_visibility {
-                back_gradient_y
+            let gradient_depth = if cur_visibility < prev_visibility {
+                back_gradient_depth
             } else {
-                front_gradient_y
+                front_gradient_depth
             };
-            let gradient = Gradient::new(gradient_x, gradient_y);
+            let gradient = Gradient::new(gradient_lateral, gradient_depth);
 
             if !prev_opaque {
                 // see beyond the previous section unless it's opaque
@@ -147,7 +147,7 @@ fn scan<G, O>(grid: &mut G,
         let visible = distance_squared < static_params.vision_distance_squared;
 
         // handle final cell
-        if lateral_index == dx_max {
+        if lateral_index == lateral_max {
             if !cur_opaque {
                 // see beyond the current section
                 next.push(ScanParams {
@@ -157,7 +157,7 @@ fn scan<G, O>(grid: &mut G,
                     visibility: cur_visibility,
                 });
             }
-            if visible && max_gradient.dx == max_gradient.dy {
+            if visible && max_gradient.lateral == max_gradient.depth {
                 return Some(CornerInfo {
                     bitmap: direction_bitmap,
                     coord,
