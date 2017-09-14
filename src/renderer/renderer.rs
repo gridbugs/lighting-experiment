@@ -7,6 +7,7 @@ use renderer::formats::ColourFormat;
 use renderer::sprite_sheet::SpriteSheet;
 
 use res::{input_sprite, paths, files};
+use frontend::VisibleRange;
 
 pub struct Renderer<R: gfx::Resources> {
     tile_renderer: TileRenderer<R>,
@@ -83,5 +84,9 @@ impl<R: gfx::Resources> Renderer<R> {
         where C: gfx::CommandBuffer<R>,
     {
         self.tile_renderer.update_world_size(width, height, encoder);
+    }
+
+    pub fn visible_range(&self) -> VisibleRange {
+        self.tile_renderer.visible_range()
     }
 }

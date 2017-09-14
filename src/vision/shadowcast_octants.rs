@@ -1,10 +1,12 @@
 use cgmath::Vector2;
 use direction::{Direction, DirectionBitmap};
+use frontend::VisibleRange;
 
 pub trait Octant {
     fn depth_index(&self, centre: Vector2<i32>, depth: i32) -> Option<i32>;
     fn make_coord(&self, centre: Vector2<i32>, lateral_offset: i32, depth_index: i32) -> Vector2<i32>;
     fn lateral_max(&self, centre: Vector2<i32>) -> i32;
+    fn visible_lateral_limit(&self, centre: Vector2<i32>, range: VisibleRange) -> (i32, i32);
     fn facing_bitmap(&self) -> DirectionBitmap;
     fn across_bitmap(&self) -> DirectionBitmap;
     fn facing_corner_bitmap(&self) -> DirectionBitmap;
@@ -66,6 +68,14 @@ macro_rules! facing_corner {
     }
 }
 
+macro_rules! visible_lateral_limit {
+    ($d:ident, $min:ident, $max:ident) => {
+        fn visible_lateral_limit(&self, centre: Vector2<i32>, range: VisibleRange) -> (i32, i32) {
+            (range.$min - centre.$d, range.$max - centre.$d)
+        }
+    }
+}
+
 impl Octant for TopRight {
     fn depth_index(&self, centre: Vector2<i32>, depth: i32) -> Option<i32> {
         let index = centre.y - depth;
@@ -77,6 +87,7 @@ impl Octant for TopRight {
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         self.width - centre.x - 1
     }
+    visible_lateral_limit!{x, x_min, x_max}
     facing!{Direction::South.bitmap()}
     across!{Direction::West.bitmap()}
     facing_corner!{Direction::SouthWest.bitmap()}
@@ -94,6 +105,7 @@ impl Octant for RightTop {
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         centre.y
     }
+    visible_lateral_limit!{y, y_min, y_max}
     facing!{Direction::West.bitmap()}
     across!{Direction::South.bitmap()}
     facing_corner!{Direction::SouthWest.bitmap()}
@@ -111,6 +123,7 @@ impl Octant for TopLeft {
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         centre.x
     }
+    visible_lateral_limit!{x, x_min, x_max}
     facing!{Direction::South.bitmap()}
     across!{Direction::East.bitmap()}
     facing_corner!{Direction::SouthEast.bitmap()}
@@ -128,6 +141,7 @@ impl Octant for LeftTop {
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         centre.y
     }
+    visible_lateral_limit!{y, y_min, y_max}
     facing!{Direction::East.bitmap()}
     across!{Direction::South.bitmap()}
     facing_corner!{Direction::SouthEast.bitmap()}
@@ -145,6 +159,7 @@ impl Octant for BottomLeft {
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         centre.x
     }
+    visible_lateral_limit!{x, x_min, x_max}
     facing!{Direction::North.bitmap()}
     across!{Direction::East.bitmap()}
     facing_corner!{Direction::NorthEast.bitmap()}
@@ -162,6 +177,7 @@ impl Octant for LeftBottom {
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         self.height - centre.y - 1
     }
+    visible_lateral_limit!{y, y_min, y_max}
     facing!{Direction::East.bitmap()}
     across!{Direction::North.bitmap()}
     facing_corner!{Direction::NorthEast.bitmap()}
@@ -179,6 +195,7 @@ impl Octant for BottomRight {
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         self.width - centre.x - 1
     }
+    visible_lateral_limit!{x, x_min, x_max}
     facing!{Direction::North.bitmap()}
     across!{Direction::West.bitmap()}
     facing_corner!{Direction::NorthWest.bitmap()}
@@ -196,6 +213,7 @@ impl Octant for RightBottom {
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         self.height - centre.y - 1
     }
+    visible_lateral_limit!{y, y_min, y_max}
     facing!{Direction::West.bitmap()}
     across!{Direction::North.bitmap()}
     facing_corner!{Direction::NorthWest.bitmap()}

@@ -4,6 +4,7 @@ use cgmath::Vector2;
 use spatial_hash::SpatialHashTable;
 use vision::VisionGrid;
 use direction::DirectionBitmap;
+use frontend::VisibleRange;
 
 use vision::shadowcast_octants::*;
 
@@ -23,6 +24,7 @@ struct StaticParams<'a> {
     centre: Vector2<i32>,
     vision_distance_squared: i32,
     time: u64,
+    visible_range: VisibleRange,
     spatial_hash: &'a SpatialHashTable,
 }
 
@@ -80,6 +82,12 @@ fn scan<G, O>(grid: &mut G,
         double_stop_num / stop_denom
     };
     let lateral_max = cmp::min(lateral_max, octant.lateral_max(static_params.centre));
+
+    let (visible_lateral_min, visible_lateral_max) =
+        octant.visible_lateral_limit(static_params.centre, static_params.visible_range);
+
+    let lateral_min = cmp::max(lateral_min, visible_lateral_min);
+    let lateral_max = cmp::min(lateral_max, visible_lateral_max);
 
     let mut prev_visibility = 0.0;
     let mut prev_opaque = false;
@@ -240,6 +248,7 @@ pub fn observe<G>(grid: &mut G,
                   position: Vector2<f32>,
                   spatial_hash: &SpatialHashTable,
                   distance: u32,
+                  visible_range: VisibleRange,
                   time: u64)
     where G: VisionGrid,
 {
@@ -256,6 +265,7 @@ pub fn observe<G>(grid: &mut G,
         centre: coord,
         vision_distance_squared: (distance * distance) as i32,
         time,
+        visible_range,
         spatial_hash,
     };
 
