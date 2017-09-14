@@ -1,4 +1,5 @@
 use std::mem;
+use std::cmp;
 use cgmath::Vector2;
 use spatial_hash::SpatialHashTable;
 use vision::VisionGrid;
@@ -78,6 +79,7 @@ fn scan<G, O>(grid: &mut G,
     } else {
         double_stop_num / stop_denom
     };
+    let lateral_max = cmp::min(lateral_max, octant.lateral_max(static_params.centre));
 
     let mut first_iteration = true;
     let mut prev_visibility = 0.0;
@@ -144,7 +146,7 @@ fn scan<G, O>(grid: &mut G,
         // check if cell is in visible range
         let between = coord - static_params.centre;
         let distance_squared = between.x * between.x + between.y * between.y;
-        let visible = distance_squared < static_params.vision_distance_squared;
+        let in_range = distance_squared < static_params.vision_distance_squared;
 
         // handle final cell
         if lateral_index == lateral_max {
@@ -157,7 +159,7 @@ fn scan<G, O>(grid: &mut G,
                     visibility: cur_visibility,
                 });
             }
-            if visible && max_gradient.lateral == max_gradient.depth {
+            if in_range && lateral_index == depth {
                 return Some(CornerInfo {
                     bitmap: direction_bitmap,
                     coord,
@@ -165,7 +167,7 @@ fn scan<G, O>(grid: &mut G,
             }
         }
 
-        if visible && octant.should_see(lateral_index) {
+        if in_range && octant.should_see(lateral_index) {
             grid.see(coord_u32, direction_bitmap, static_params.time);
         }
 
@@ -251,8 +253,8 @@ pub fn observe<G>(grid: &mut G,
         grid.see(Vector2::new(coord.x as u32, coord.y as u32), DirectionBitmap::all(), time);
     }
 
-    let width = spatial_hash.width();
-    let height = spatial_hash.height();
+    let width = spatial_hash.width() as i32;
+    let height = spatial_hash.height() as i32;
 
     let params = StaticParams {
         centre: coord,

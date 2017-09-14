@@ -4,6 +4,7 @@ use direction::{Direction, DirectionBitmap};
 pub trait Octant {
     fn depth_index(&self, centre: Vector2<i32>, depth: i32) -> Option<i32>;
     fn make_coord(&self, centre: Vector2<i32>, lateral_offset: i32, depth_index: i32) -> Vector2<i32>;
+    fn lateral_max(&self, centre: Vector2<i32>) -> i32;
     fn facing_bitmap(&self) -> DirectionBitmap;
     fn across_bitmap(&self) -> DirectionBitmap;
     fn facing_corner_bitmap(&self) -> DirectionBitmap;
@@ -12,12 +13,12 @@ pub trait Octant {
 
 pub struct TopLeft;
 pub struct LeftTop;
-pub struct TopRight { pub width: u32 }
-pub struct RightTop { pub width: u32 }
-pub struct BottomLeft { pub height: u32 }
-pub struct LeftBottom { pub height: u32 }
-pub struct BottomRight { pub width: u32, pub height: u32 }
-pub struct RightBottom { pub width: u32, pub height: u32 }
+pub struct TopRight { pub width: i32 }
+pub struct RightTop { pub width: i32 }
+pub struct BottomLeft { pub height: i32 }
+pub struct LeftBottom { pub height: i32 }
+pub struct BottomRight { pub width: i32, pub height: i32 }
+pub struct RightBottom { pub width: i32, pub height: i32 }
 
 macro_rules! some_if {
     ($value:expr, $condition:expr) => {
@@ -37,7 +38,7 @@ macro_rules! see_ahead {
 
 macro_rules! no_see_ahead {
     () => {
-        fn should_see(&self, _lateral_offset: i32) -> bool { true }
+        fn should_see(&self, lateral_offset: i32) -> bool { lateral_offset != 0 }
     }
 }
 
@@ -73,6 +74,9 @@ impl Octant for TopRight {
     fn make_coord(&self, centre: Vector2<i32>, lateral_offset: i32, depth_index: i32) -> Vector2<i32> {
         Vector2::new(centre.x + lateral_offset, depth_index)
     }
+    fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
+        self.width - centre.x - 1
+    }
     facing!{Direction::South.bitmap()}
     across!{Direction::West.bitmap()}
     facing_corner!{Direction::SouthWest.bitmap()}
@@ -82,10 +86,13 @@ impl Octant for TopRight {
 impl Octant for RightTop {
     fn depth_index(&self, centre: Vector2<i32>, depth: i32) -> Option<i32> {
         let index = centre.x + depth;
-        some_if!(index, index < self.width as i32)
+        some_if!(index, index < self.width)
     }
     fn make_coord(&self, centre: Vector2<i32>, lateral_offset: i32, depth_index: i32) -> Vector2<i32> {
         Vector2::new(depth_index, centre.y - lateral_offset)
+    }
+    fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
+        centre.y
     }
     facing!{Direction::West.bitmap()}
     across!{Direction::South.bitmap()}
@@ -101,6 +108,9 @@ impl Octant for TopLeft {
     fn make_coord(&self, centre: Vector2<i32>, lateral_offset: i32, depth_index: i32) -> Vector2<i32> {
         Vector2::new(centre.x - lateral_offset, depth_index)
     }
+    fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
+        centre.x
+    }
     facing!{Direction::South.bitmap()}
     across!{Direction::East.bitmap()}
     facing_corner!{Direction::SouthEast.bitmap()}
@@ -115,6 +125,9 @@ impl Octant for LeftTop {
     fn make_coord(&self, centre: Vector2<i32>, lateral_offset: i32, depth_index: i32) -> Vector2<i32> {
         Vector2::new(depth_index, centre.y - lateral_offset)
     }
+    fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
+        centre.y
+    }
     facing!{Direction::East.bitmap()}
     across!{Direction::South.bitmap()}
     facing_corner!{Direction::SouthEast.bitmap()}
@@ -124,10 +137,13 @@ impl Octant for LeftTop {
 impl Octant for BottomLeft {
     fn depth_index(&self, centre: Vector2<i32>, depth: i32) -> Option<i32> {
         let index = centre.y + depth;
-        some_if!(index, index < self.height as i32)
+        some_if!(index, index < self.height)
     }
     fn make_coord(&self, centre: Vector2<i32>, lateral_offset: i32, depth_index: i32) -> Vector2<i32> {
         Vector2::new(centre.x - lateral_offset, depth_index)
+    }
+    fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
+        centre.x
     }
     facing!{Direction::North.bitmap()}
     across!{Direction::East.bitmap()}
@@ -143,6 +159,9 @@ impl Octant for LeftBottom {
     fn make_coord(&self, centre: Vector2<i32>, lateral_offset: i32, depth_index: i32) -> Vector2<i32> {
         Vector2::new(depth_index, centre.y + lateral_offset)
     }
+    fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
+        self.height - centre.y - 1
+    }
     facing!{Direction::East.bitmap()}
     across!{Direction::North.bitmap()}
     facing_corner!{Direction::NorthEast.bitmap()}
@@ -152,10 +171,13 @@ impl Octant for LeftBottom {
 impl Octant for BottomRight {
     fn depth_index(&self, centre: Vector2<i32>, depth: i32) -> Option<i32> {
         let index = centre.y + depth;
-        some_if!(index, index < self.height as i32)
+        some_if!(index, index < self.height)
     }
     fn make_coord(&self, centre: Vector2<i32>, lateral_offset: i32, depth_index: i32) -> Vector2<i32> {
         Vector2::new(centre.x + lateral_offset, depth_index)
+    }
+    fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
+        self.width - centre.x - 1
     }
     facing!{Direction::North.bitmap()}
     across!{Direction::West.bitmap()}
@@ -166,10 +188,13 @@ impl Octant for BottomRight {
 impl Octant for RightBottom {
     fn depth_index(&self, centre: Vector2<i32>, depth: i32) -> Option<i32> {
         let index = centre.x + depth;
-        some_if!(index, index < self.width as i32)
+        some_if!(index, index < self.width)
     }
     fn make_coord(&self, centre: Vector2<i32>, lateral_offset: i32, depth_index: i32) -> Vector2<i32> {
         Vector2::new(depth_index, centre.y + lateral_offset)
+    }
+    fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
+        self.height - centre.y - 1
     }
     facing!{Direction::West.bitmap()}
     across!{Direction::North.bitmap()}
