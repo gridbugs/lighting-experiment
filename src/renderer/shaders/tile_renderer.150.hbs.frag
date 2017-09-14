@@ -22,16 +22,7 @@ const uint TBO_VISION_BITMAP_OFFSET = {{TBO_VISION_BITMAP_OFFSET}}u;
 const uint TBO_VISION_ENTRY_SIZE = {{TBO_VISION_ENTRY_SIZE}}u;
 const uint TBO_VISION_BUFFER_SIZE = {{TBO_VISION_BUFFER_SIZE}}u;
 uniform samplerBuffer t_LightTable;
-
-struct Cell {
-    uvec2 last_u64;
-    uint side_bitmap;
-};
-
-const uint MAX_CELL_TABLE_SIZE = {{MAX_CELL_TABLE_SIZE}}u;
-uniform VisionTable {
-    Cell u_VisionCells[MAX_CELL_TABLE_SIZE];
-};
+uniform samplerBuffer t_VisionTable;
 
 uniform sampler2D t_Texture;
 
@@ -42,25 +33,29 @@ flat in uint v_CellIndex;
 
 out vec4 Target0;
 
-bool cell_is_visible(Cell cell) {
-    return cell.last_u64 == u_FrameCount_u64;
-}
+uvec2 get_vision_timestamp(int base, samplerBuffer table) {
+    uint lo = uint(texelFetch(table, base).r * 255) +
+        (uint(texelFetch(table, base + 1).r * 255) << 8) +
+        (uint(texelFetch(table, base + 2).r * 255) << 16) +
+        (uint(texelFetch(table, base + 3).r * 255) << 24);
 
-uvec2 light_timestamp(int base) {
-    uint lo = uint(texelFetch(t_LightTable, base).r * 255) +
-        (uint(texelFetch(t_LightTable, base + 1).r * 255) << 8) +
-        (uint(texelFetch(t_LightTable, base + 2).r * 255) << 16) +
-        (uint(texelFetch(t_LightTable, base + 3).r * 255) << 24);
-
-    uint hi = uint(texelFetch(t_LightTable, base + 4).r * 255);
+    uint hi = uint(texelFetch(table, base + 4).r * 255);
 
     return uvec2(lo, hi);
 }
 
+uint get_vision_bitmap(int base, samplerBuffer table) {
+    return uint(texelFetch(table, base + int(TBO_VISION_BITMAP_OFFSET)).r * 255);
+}
+
+bool timestamp_is_visible(uvec2 timestamp) {
+    return timestamp == u_FrameCount_u64;
+}
+
 uint get_lit_sides(uint i) {
     int base = int(i * TBO_VISION_BUFFER_SIZE + v_CellIndex * TBO_VISION_ENTRY_SIZE);
-    if (light_timestamp(base) == u_FrameCount_u64) {
-        return uint(texelFetch(t_LightTable, base + int(TBO_VISION_BITMAP_OFFSET)).r * 255);
+    if (timestamp_is_visible(get_vision_timestamp(base, t_LightTable))) {
+        return get_vision_bitmap(base, t_LightTable);
     }
     return 0u;
 }
@@ -83,15 +78,17 @@ void main() {
 
     vec3 base_colour = tex_colour.rgb * v_ColourMult;
 
-    Cell vision_cell = u_VisionCells[v_CellIndex];
+    int vision_base = int(v_CellIndex * TBO_VISION_ENTRY_SIZE);
+    uint vision_bitmap = get_vision_bitmap(vision_base, t_VisionTable);
+    uvec2 vision_timestamp = get_vision_timestamp(vision_base, t_VisionTable);
 
     uint side_bitmap;
 
     vec3 diffuse_total = vec3(0);
-    if (cell_is_visible(vision_cell)) {
+    if (timestamp_is_visible(vision_timestamp)) {
         for (uint i = 0u; i < u_NumLights; i++) {
             uint lit_sides = get_lit_sides(i);
-            uint visible_lit_sides = lit_sides & vision_cell.side_bitmap;
+            uint visible_lit_sides = lit_sides & vision_bitmap;
             if (visible_lit_sides != 0u) {
                 diffuse_total += diffuse_light(u_Lights[i], base_colour);
             }

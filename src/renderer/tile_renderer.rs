@@ -9,7 +9,7 @@ use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::instance_manager::InstanceManager;
 use renderer::common;
 
-use direction::{Direction, NO_DIRECTIONS_BITMAP, DirectionBitmap};
+use direction::{Direction, DirectionBitmap};
 use content::{Sprite, DepthType, DepthInfo, SpriteEffect};
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
@@ -73,12 +73,6 @@ gfx_constant_struct!( FrameInfo {
     num_lights: u32 = "u_NumLights",
 });
 
-gfx_constant_struct!( Cell {
-    last: [u32; 2] = "last_u64",
-    side_bitmap: u32 = "side_bitmap",
-    _pad0: u32 = "_pad0",
-});
-
 gfx_constant_struct!( Light {
     colour: [f32; 3] = "colour",
     _pad0: u32 = "_pad0",
@@ -87,7 +81,7 @@ gfx_constant_struct!( Light {
 });
 
 gfx_pipeline!( pipe {
-    vision_table: gfx::ConstantBuffer<Cell> = "VisionTable",
+    vision_table: gfx::ShaderResource<u8> = "t_VisionTable",
     light_table: gfx::ShaderResource<u8> = "t_LightTable",
     light_list: gfx::ConstantBuffer<Light> = "LightList",
     fixed_dimensions: gfx::ConstantBuffer<FixedDimensions> = "FixedDimensions",
@@ -101,16 +95,6 @@ gfx_pipeline!( pipe {
     out_colour: gfx::BlendTarget<ColourFormat> = ("Target0", gfx::state::ColorMask::all(), gfx::preset::blend::ALPHA),
     out_depth: gfx::DepthTarget<DepthFormat> = gfx::preset::depth::LESS_EQUAL_WRITE,
 });
-
-impl Default for Cell {
-    fn default() -> Self {
-        Self {
-            last: [0; 2],
-            side_bitmap: NO_DIRECTIONS_BITMAP as u32,
-            _pad0: 0,
-        }
-    }
-}
 
 pub mod instance_flags {
     pub const ENABLED: u32 = 1 << 0;
@@ -177,9 +161,10 @@ impl FrameInfo {
 pub struct TileRenderer<R: gfx::Resources> {
     bundle: gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     instance_upload: gfx::handle::Buffer<R, Instance>,
-    vision_upload: gfx::handle::Buffer<R, Cell>,
+    vision_upload: gfx::handle::Buffer<R, u8>,
     light_upload: gfx::handle::Buffer<R, u8>,
     light_list_upload: gfx::handle::Buffer<R, Light>,
+    vision_buffer: gfx::handle::Buffer<R, u8>,
     light_buffer: gfx::handle::Buffer<R, u8>,
     sprite_sheet: SpriteSheet<R>,
     width_px: u16,
@@ -349,11 +334,14 @@ impl<R: gfx::Resources> TileRenderer<R> {
         let (width_px, srv, colour_rtv, depth_rtv) =
             Self::create_targets(window_width_px, window_height_px, factory);
 
-        let vision_table = common::create_transfer_dst_buffer(MAX_CELL_TABLE_SIZE, factory)
-            .expect("Failed to create cell table");
+        let vision_buffer = common::create_transfer_dst_buffer(TBO_VISION_BUFFER_SIZE, factory)
+            .expect("Failed to create vision buffer");
+
+        let vision_buffer_srv = factory.view_buffer_as_shader_resource(&vision_buffer)
+            .expect("Failed to view vision buffer as shader resource");
 
         let light_buffer = common::create_transfer_dst_buffer(LIGHT_BUFFER_SIZE, factory)
-            .expect("Failed to create cell table");
+            .expect("Failed to create light buffer");
 
         let light_buffer_srv = factory.view_buffer_as_shader_resource(&light_buffer)
             .expect("Failed to view light buffer as shader resource");
@@ -362,7 +350,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             .expect("Failed to create light list");
 
         let data = pipe::Data {
-            vision_table,
+            vision_table: vision_buffer_srv,
             light_table: light_buffer_srv,
             light_list,
             fixed_dimensions: factory.create_constant_buffer(1),
@@ -382,12 +370,13 @@ impl<R: gfx::Resources> TileRenderer<R> {
             bundle: gfx::pso::bundle::Bundle::new(slice, pso, data),
             instance_upload: factory.create_upload_buffer(MAX_NUM_INSTANCES)
                 .expect("Failed to create upload buffer"),
-            vision_upload: factory.create_upload_buffer(MAX_CELL_TABLE_SIZE)
+            vision_upload: factory.create_upload_buffer(TBO_VISION_BUFFER_SIZE)
                 .expect("Failed to create upload buffer"),
             light_upload: factory.create_upload_buffer(LIGHT_BUFFER_SIZE)
                 .expect("Failed to create upload buffer"),
             light_list_upload: factory.create_upload_buffer(MAX_NUM_LIGHTS)
                 .expect("Failed to create upload buffer"),
+            vision_buffer,
             light_buffer,
             sprite_sheet,
             width_px,
@@ -435,7 +424,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
     {
         encoder.copy_buffer(&self.instance_upload, &self.bundle.data.instance, 0, 0, self.num_instances)
             .expect("Failed to copy instances");
-        encoder.copy_buffer(&self.vision_upload, &self.bundle.data.vision_table, 0, 0, self.num_cells)
+        encoder.copy_buffer(&self.vision_upload, &self.vision_buffer, 0, 0, self.num_cells * TBO_VISION_ENTRY_SIZE)
             .expect("Failed to copy cells");
         encoder.copy_buffer(&self.light_upload, &self.light_buffer, 0, 0, LIGHT_BUFFER_SIZE)
             .expect("Failed to copy light info");
@@ -525,7 +514,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
 
 pub struct RendererWorldState<'a, R: gfx::Resources> {
     instance_writer: gfx::mapping::Writer<'a, R, Instance>,
-    vision_writer: gfx::mapping::Writer<'a, R, Cell>,
+    vision_writer: gfx::mapping::Writer<'a, R, u8>,
     light_grid_writer: gfx::mapping::Writer<'a, R, u8>,
     light_writer: gfx::mapping::Writer<'a, R, Light>,
     world_width: u32,
@@ -542,16 +531,9 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
     next_light_index: usize,
 }
 
-impl Cell {
-    fn see(&mut self, bitmap: DirectionBitmap, time: u64) {
-        self.side_bitmap = bitmap.raw as u32;
-        self.last = u64_to_arr(time);
-    }
-}
-
 impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<'a, R> {
 
-    type VisionCellGrid = VisionCellGrid<'b>;
+    type VisionCellGrid = TboVisionGrid<'b>;
     type LightCellGrid = TboVisionGrid<'b>;
     type LightUpdate = Light;
 
@@ -569,7 +551,7 @@ impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<
     }
 
     fn vision_grid(&'b mut self) -> Self::VisionCellGrid {
-        VisionCellGrid {
+        TboVisionGrid {
             slice: &mut self.vision_writer,
             width: self.world_width,
         }
@@ -621,18 +603,6 @@ fn compute_scroll_offset(width: u16, height: u16, mid_position: Vector2<f32>) ->
     let mid = (mid_position + Vector2::new(0.5, 0.5))
         .mul_element_wise(Vector2::new(input_sprite::WIDTH_PX, input_sprite::HEIGHT_PX).cast());
     Vector2::new(mid.x - (width / 2) as f32, mid.y - (height / 2) as f32)
-}
-
-pub struct VisionCellGrid<'a> {
-    slice: &'a mut [Cell],
-    width: u32,
-}
-
-impl<'a> VisionGrid for VisionCellGrid<'a> {
-    fn see(&mut self, v: Vector2<u32>, bitmap: DirectionBitmap, time: u64) {
-        let index = (v.y * self.width + v.x) as usize;
-        self.slice[index].see(bitmap, time);
-    }
 }
 
 struct TboVisionCell<'a>(&'a mut [u8]);

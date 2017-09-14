@@ -24,15 +24,7 @@ uniform FrameInfo {
     uint u_NumLights;
 };
 
-struct Cell {
-    uvec2 last_u64;
-    uint side_bitmap;
-};
-
-const uint MAX_CELL_TABLE_SIZE = {{MAX_CELL_TABLE_SIZE}}u;
-uniform VisionTable {
-    Cell u_VisionCells[MAX_CELL_TABLE_SIZE];
-};
+uniform samplerBuffer t_VisionTable;
 
 in vec2 a_Pos;
 
@@ -51,6 +43,8 @@ out float v_ColourMult;
 flat out uint v_CellIndex;
 out vec2 v_FragPosition;
 
+const uint TBO_VISION_ENTRY_SIZE = {{TBO_VISION_ENTRY_SIZE}}u;
+
 const uint FLAGS_ENABLED = {{FLAGS_ENABLED}}u;
 const uint FLAGS_SPRITE_EFFECT = {{FLAGS_SPRITE_EFFECT}}u;
 
@@ -65,17 +59,19 @@ uint cell_index() {
     return uint(pos.x) + uint(pos.y) * u_WorldSizeUint.x;
 }
 
-Cell get_vision_cell() {
-    uint idx = cell_index();
-    return u_VisionCells[idx];
+uvec2 get_vision_timestamp(int base, samplerBuffer table) {
+    uint lo = uint(texelFetch(table, base).r * 255) +
+        (uint(texelFetch(table, base + 1).r * 255) << 8) +
+        (uint(texelFetch(table, base + 2).r * 255) << 16) +
+        (uint(texelFetch(table, base + 3).r * 255) << 24);
+
+    uint hi = uint(texelFetch(table, base + 4).r * 255);
+
+    return uvec2(lo, hi);
 }
 
-bool cell_is_visible(Cell cell) {
-    return cell.last_u64 == u_FrameCount_u64;
-}
-
-bool cell_is_seen(Cell cell) {
-    return cell.last_u64 != uvec2(0, 0);
+bool timestamp_is_seen(uvec2 timestamp) {
+    return timestamp != uvec2(0);
 }
 
 float u64_uvec2_to_float(uvec2 u) {
@@ -122,10 +118,10 @@ void main() {
         }
     }
 
-    Cell vision_cell = get_vision_cell();
     v_CellIndex = cell_index();
+    int vision_base = int(v_CellIndex * TBO_VISION_ENTRY_SIZE);
 
-    if (!cell_is_seen(vision_cell)) {
+    if (!timestamp_is_seen(get_vision_timestamp(vision_base, t_VisionTable))) {
         gl_Position = vec4(0.0, 0.0, 0.0, -1.0);
         return;
     }
