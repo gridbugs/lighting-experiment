@@ -7,6 +7,7 @@ pub trait Octant {
     fn make_coord(&self, centre: Vector2<i32>, lateral_offset: i32, depth_index: i32) -> Vector2<i32>;
     fn lateral_max(&self, centre: Vector2<i32>) -> i32;
     fn visible_lateral_limit(&self, centre: Vector2<i32>, range: VisibleRange) -> (i32, i32);
+    fn is_depth_visible(&self, depth_index: i32, range: VisibleRange) -> bool;
     fn facing_bitmap(&self) -> DirectionBitmap;
     fn across_bitmap(&self) -> DirectionBitmap;
     fn facing_corner_bitmap(&self) -> DirectionBitmap;
@@ -87,6 +88,9 @@ impl Octant for TopRight {
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         self.width - centre.x - 1
     }
+    fn is_depth_visible(&self, depth_index: i32, range: VisibleRange) -> bool {
+        depth_index >= range.y_min
+    }
     visible_lateral_limit!{x, x_min, x_max}
     facing!{Direction::South.bitmap()}
     across!{Direction::West.bitmap()}
@@ -104,6 +108,9 @@ impl Octant for RightTop {
     }
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         centre.y
+    }
+    fn is_depth_visible(&self, depth_index: i32, range: VisibleRange) -> bool {
+        depth_index <= range.x_max
     }
     visible_lateral_limit!{y, y_min, y_max}
     facing!{Direction::West.bitmap()}
@@ -123,6 +130,9 @@ impl Octant for TopLeft {
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         centre.x
     }
+    fn is_depth_visible(&self, depth_index: i32, range: VisibleRange) -> bool {
+        depth_index >= range.y_min
+    }
     visible_lateral_limit!{x, x_min, x_max}
     facing!{Direction::South.bitmap()}
     across!{Direction::East.bitmap()}
@@ -140,6 +150,9 @@ impl Octant for LeftTop {
     }
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         centre.y
+    }
+    fn is_depth_visible(&self, depth_index: i32, range: VisibleRange) -> bool {
+        depth_index >= range.x_min
     }
     visible_lateral_limit!{y, y_min, y_max}
     facing!{Direction::East.bitmap()}
@@ -159,6 +172,9 @@ impl Octant for BottomLeft {
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         centre.x
     }
+    fn is_depth_visible(&self, depth_index: i32, range: VisibleRange) -> bool {
+        depth_index <= range.y_max
+    }
     visible_lateral_limit!{x, x_min, x_max}
     facing!{Direction::North.bitmap()}
     across!{Direction::East.bitmap()}
@@ -176,6 +192,9 @@ impl Octant for LeftBottom {
     }
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         self.height - centre.y - 1
+    }
+    fn is_depth_visible(&self, depth_index: i32, range: VisibleRange) -> bool {
+        depth_index >= range.x_min
     }
     visible_lateral_limit!{y, y_min, y_max}
     facing!{Direction::East.bitmap()}
@@ -195,6 +214,9 @@ impl Octant for BottomRight {
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         self.width - centre.x - 1
     }
+    fn is_depth_visible(&self, depth_index: i32, range: VisibleRange) -> bool {
+        depth_index <= range.y_max
+    }
     visible_lateral_limit!{x, x_min, x_max}
     facing!{Direction::North.bitmap()}
     across!{Direction::West.bitmap()}
@@ -212,6 +234,9 @@ impl Octant for RightBottom {
     }
     fn lateral_max(&self, centre: Vector2<i32>) -> i32 {
         self.height - centre.y - 1
+    }
+    fn is_depth_visible(&self, depth_index: i32, range: VisibleRange) -> bool {
+        depth_index <= range.x_max
     }
     visible_lateral_limit!{y, y_min, y_max}
     facing!{Direction::West.bitmap()}

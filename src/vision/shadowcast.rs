@@ -67,6 +67,10 @@ fn scan<G, O>(grid: &mut G,
         return None;
     };
 
+    if !octant.is_depth_visible(depth_index, static_params.visible_range) {
+        return None;
+    }
+
     let front_gradient_depth = depth * 2 - 1;
     let back_gradient_depth = front_gradient_depth + 2;
 
