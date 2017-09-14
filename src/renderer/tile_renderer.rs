@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::time::Duration;
 use gfx;
+use toml::Value;
 
 use cgmath::{Vector2, ElementWise};
 use handlebars::Handlebars;
@@ -253,31 +255,51 @@ impl SpriteRenderInfo {
     }
 }
 
-fn populate_shader(shader: &[u8]) -> String {
+macro_rules! include_shader_part {
+    ($table:expr, $handlebars:expr, $key:expr, $file_name:expr) => {
+        {
+            let bytes = include_bytes!(concat!("shaders/", $file_name));
+            let shader_str = ::std::str::from_utf8(bytes)
+                .expect("Failed to convert part to utf8");
+            let expanded = $handlebars.template_render(shader_str, &$table)
+                .expect("Failed to render part template");
+            $table.insert($key, Value::String(expanded));
+        }
+    }
+}
+
+fn make_shader_template_context() -> (Handlebars, HashMap<&'static str, Value>) {
     let handlebars = {
         let mut h = Handlebars::new();
         h.register_escape_fn(|input| input.to_string());
         h
     };
 
-    let table = hashmap!{
-        "FLAGS_ENABLED" => instance_flags::ENABLED,
-        "FLAGS_SPRITE_EFFECT" => instance_flags::SPRITE_EFFECT,
-        "DEPTH_FIXED" => DepthType::Fixed as u32,
-        "DEPTH_GRADIENT" => DepthType::Gradient as u32,
-        "DEPTH_BOTTOM" => DepthType::Bottom as u32,
-        "MAX_CELL_TABLE_SIZE" => MAX_CELL_TABLE_SIZE as u32,
-        "SPRITE_EFFECT_WATER" => SpriteEffect::Water as u32,
-        "MAX_NUM_LIGHTS" => MAX_NUM_LIGHTS as u32,
-        "TBO_VISION_ENTRY_SIZE" => TBO_VISION_ENTRY_SIZE as u32,
-        "TBO_VISION_BITMAP_OFFSET" => TBO_VISION_BITMAP_OFFSET as u32,
-        "TBO_VISION_BUFFER_SIZE" => TBO_VISION_BUFFER_SIZE as u32,
+    use self::Value::*;
+    let mut table = hashmap!{
+        "FLAGS_ENABLED" => Integer(instance_flags::ENABLED as i64),
+        "FLAGS_SPRITE_EFFECT" => Integer(instance_flags::SPRITE_EFFECT as i64),
+        "DEPTH_FIXED" => Integer(DepthType::Fixed as i64),
+        "DEPTH_GRADIENT" => Integer(DepthType::Gradient as i64),
+        "DEPTH_BOTTOM" => Integer(DepthType::Bottom as i64),
+        "MAX_CELL_TABLE_SIZE" => Integer(MAX_CELL_TABLE_SIZE as i64),
+        "SPRITE_EFFECT_WATER" => Integer(SpriteEffect::Water as i64),
+        "MAX_NUM_LIGHTS" => Integer(MAX_NUM_LIGHTS as i64),
+        "TBO_VISION_ENTRY_SIZE" => Integer(TBO_VISION_ENTRY_SIZE as i64),
+        "TBO_VISION_BITMAP_OFFSET" => Integer(TBO_VISION_BITMAP_OFFSET as i64),
+        "TBO_VISION_BUFFER_SIZE" => Integer(TBO_VISION_BUFFER_SIZE as i64),
     };
 
+    include_shader_part!(table, handlebars, "INCLUDE_COMMON", "tile_renderer.150.hbs.comp");
+
+    (handlebars, table)
+}
+
+fn populate_shader(handlebars: &Handlebars, table: &HashMap<&'static str, Value>, shader: &[u8]) -> String {
     let shader_str = ::std::str::from_utf8(shader)
         .expect("Failed to convert shader to utf8");
 
-    handlebars.template_render(shader_str, &table)
+    handlebars.template_render(shader_str, table)
         .expect("Failed to render shader template")
 }
 
@@ -304,9 +326,11 @@ impl<R: gfx::Resources> TileRenderer<R> {
                   factory: &mut F) -> (Self, gfx::handle::ShaderResourceView<R, [f32; 4]>)
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
+        let (handlebars, context) = make_shader_template_context();
+
         let pso = factory.create_pipeline_simple(
-            populate_shader(include_bytes!("shaders/tile_renderer.150.hbs.vert")).as_bytes(),
-            populate_shader(include_bytes!("shaders/tile_renderer.150.hbs.frag")).as_bytes(),
+            populate_shader(&handlebars, &context, include_bytes!("shaders/tile_renderer.150.hbs.vert")).as_bytes(),
+            populate_shader(&handlebars, &context, include_bytes!("shaders/tile_renderer.150.hbs.frag")).as_bytes(),
             pipe::new()).expect("Failed to create pipeline");
 
         let vertex_data: Vec<Vertex> = common::QUAD_VERTICES_REFL.iter()

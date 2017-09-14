@@ -1,5 +1,7 @@
 #version 150 core
 
+{{INCLUDE_COMMON}}
+
 uniform FixedDimensions {
     vec2 u_SpriteSheetSize;
     vec2 u_CellSize;
@@ -16,12 +18,6 @@ uniform WorldDimensions {
 
 uniform Offset {
     vec2 u_ScrollOffsetPix;
-};
-
-uniform FrameInfo {
-    uvec2 u_FrameCount_u64;
-    uvec2 u_TotalTimeMs_u64;
-    uint u_NumLights;
 };
 
 uniform samplerBuffer t_VisionTable;
@@ -43,8 +39,6 @@ out float v_ColourMult;
 flat out uint v_CellIndex;
 out vec2 v_FragPosition;
 
-const uint TBO_VISION_ENTRY_SIZE = {{TBO_VISION_ENTRY_SIZE}}u;
-
 const uint FLAGS_ENABLED = {{FLAGS_ENABLED}}u;
 const uint FLAGS_SPRITE_EFFECT = {{FLAGS_SPRITE_EFFECT}}u;
 
@@ -57,21 +51,6 @@ const uint SPRITE_EFFECT_WATER = {{SPRITE_EFFECT_WATER}}u;
 uint cell_index() {
     vec2 pos = a_Position + vec2(0.5);
     return uint(pos.x) + uint(pos.y) * u_WorldSizeUint.x;
-}
-
-uvec2 get_vision_timestamp(int base, samplerBuffer table) {
-    uint lo = uint(texelFetch(table, base).r * 255) +
-        (uint(texelFetch(table, base + 1).r * 255) << 8) +
-        (uint(texelFetch(table, base + 2).r * 255) << 16) +
-        (uint(texelFetch(table, base + 3).r * 255) << 24);
-
-    uint hi = uint(texelFetch(table, base + 4).r * 255);
-
-    return uvec2(lo, hi);
-}
-
-bool timestamp_is_seen(uvec2 timestamp) {
-    return timestamp != uvec2(0);
 }
 
 float u64_uvec2_to_float(uvec2 u) {

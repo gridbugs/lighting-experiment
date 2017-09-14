@@ -9,6 +9,7 @@ extern crate num;
 #[macro_use] extern crate itertools;
 #[macro_use] extern crate maplit;
 extern crate handlebars;
+extern crate toml;
 
 #[macro_use] extern crate gfx;
 extern crate glutin;

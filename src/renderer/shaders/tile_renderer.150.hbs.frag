@@ -1,12 +1,6 @@
 #version 150 core
 
-const uint MAX_NUM_LIGHTS = {{MAX_NUM_LIGHTS}}u;
-
-uniform FrameInfo {
-    uvec2 u_FrameCount_u64;
-    uvec2 u_TotalTimeMs_u64;
-    uint u_NumLights;
-};
+{{INCLUDE_COMMON}}
 
 struct Light {
     vec3 colour;
@@ -18,9 +12,6 @@ uniform LightList {
     Light u_Lights[MAX_NUM_LIGHTS];
 };
 
-const uint TBO_VISION_BITMAP_OFFSET = {{TBO_VISION_BITMAP_OFFSET}}u;
-const uint TBO_VISION_ENTRY_SIZE = {{TBO_VISION_ENTRY_SIZE}}u;
-const uint TBO_VISION_BUFFER_SIZE = {{TBO_VISION_BUFFER_SIZE}}u;
 uniform samplerBuffer t_LightTable;
 uniform samplerBuffer t_VisionTable;
 
@@ -32,25 +23,6 @@ in float v_ColourMult;
 flat in uint v_CellIndex;
 
 out vec4 Target0;
-
-uvec2 get_vision_timestamp(int base, samplerBuffer table) {
-    uint lo = uint(texelFetch(table, base).r * 255) +
-        (uint(texelFetch(table, base + 1).r * 255) << 8) +
-        (uint(texelFetch(table, base + 2).r * 255) << 16) +
-        (uint(texelFetch(table, base + 3).r * 255) << 24);
-
-    uint hi = uint(texelFetch(table, base + 4).r * 255);
-
-    return uvec2(lo, hi);
-}
-
-uint get_vision_bitmap(int base, samplerBuffer table) {
-    return uint(texelFetch(table, base + int(TBO_VISION_BITMAP_OFFSET)).r * 255);
-}
-
-bool timestamp_is_visible(uvec2 timestamp) {
-    return timestamp == u_FrameCount_u64;
-}
 
 uint get_lit_sides(uint i) {
     int base = int(i * TBO_VISION_BUFFER_SIZE + v_CellIndex * TBO_VISION_ENTRY_SIZE);
