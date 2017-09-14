@@ -81,12 +81,10 @@ fn scan<G, O>(grid: &mut G,
     };
     let lateral_max = cmp::min(lateral_max, octant.lateral_max(static_params.centre));
 
-    let mut first_iteration = true;
     let mut prev_visibility = 0.0;
     let mut prev_opaque = false;
-    let mut lateral_index = lateral_min;
 
-    while lateral_index <= lateral_max {
+    for lateral_index in lateral_min...lateral_max {
         let coord = octant.make_coord(static_params.centre, lateral_index, depth_index);
         if coord.x < 0 || coord.x >= static_params.spatial_hash.width() as i32 ||
             coord.y < 0 || coord.y >= static_params.spatial_hash.height() as i32 {
@@ -98,6 +96,11 @@ fn scan<G, O>(grid: &mut G,
         } else {
             break;
         };
+
+        // check if cell is in visible range
+        let between = coord - static_params.centre;
+        let distance_squared = between.x * between.x + between.y * between.y;
+        let in_range = distance_squared < static_params.vision_distance_squared;
 
         let gradient_lateral = lateral_index * 2 - 1;
         let mut direction_bitmap = DirectionBitmap::empty();
@@ -117,7 +120,7 @@ fn scan<G, O>(grid: &mut G,
         };
 
         // handle changes in opacity
-        if !first_iteration && cur_visibility != prev_visibility {
+        if lateral_index != lateral_min && cur_visibility != prev_visibility {
             // use the back of the cell if necessary
             let gradient_depth = if cur_visibility < prev_visibility {
                 back_gradient_depth
@@ -126,7 +129,7 @@ fn scan<G, O>(grid: &mut G,
             };
             let gradient = Gradient::new(gradient_lateral, gradient_depth);
 
-            if !prev_opaque {
+            if !prev_opaque && in_range {
                 // see beyond the previous section unless it's opaque
                 next.push(ScanParams {
                     min_gradient,
@@ -143,14 +146,9 @@ fn scan<G, O>(grid: &mut G,
             }
         }
 
-        // check if cell is in visible range
-        let between = coord - static_params.centre;
-        let distance_squared = between.x * between.x + between.y * between.y;
-        let in_range = distance_squared < static_params.vision_distance_squared;
-
         // handle final cell
         if lateral_index == lateral_max {
-            if !cur_opaque {
+            if !cur_opaque && in_range {
                 // see beyond the current section
                 next.push(ScanParams {
                     min_gradient,
@@ -173,8 +171,6 @@ fn scan<G, O>(grid: &mut G,
 
         prev_visibility = cur_visibility;
         prev_opaque = cur_opaque;
-        first_iteration = false;
-        lateral_index += 1;
     }
 
     None

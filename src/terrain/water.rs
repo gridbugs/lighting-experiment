@@ -4,8 +4,8 @@ use entity_id_allocator::EntityIdAllocator;
 use terrain::TerrainMetadata;
 use prototype;
 
-const WIDTH: u32 = 40;
-const HEIGHT: u32 = 40;
+const WIDTH: u32 = 100;
+const HEIGHT: u32 = 100;
 
 const PLAYER_POSITION: Vector2<f32> = Vector2 { x: (WIDTH / 2) as f32, y: (HEIGHT / 2) as f32 };
 

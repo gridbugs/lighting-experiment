@@ -23,8 +23,8 @@ use util::time::duration_millis;
 
 const NUM_ROWS: u16 = 15;
 const HEIGHT_PX: u16 = NUM_ROWS * input_sprite::HEIGHT_PX as u16;
-const MAX_NUM_INSTANCES: usize = 4096;
-const MAX_CELL_TABLE_SIZE: usize = 4096;
+const MAX_NUM_INSTANCES: usize = 65536;
+const MAX_CELL_TABLE_SIZE: usize = 16384;
 const MAX_NUM_LIGHTS: usize = 32;
 
 const TBO_VISION_FRAME_COUNT_SIZE: usize = 5; // 40 bit uint
