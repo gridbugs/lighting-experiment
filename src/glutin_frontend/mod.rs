@@ -34,7 +34,8 @@ pub fn create() -> (GlutinFrontendInput, GlutinFrontendOutput) {
     let builder = glutin::WindowBuilder::new();
 
     let events_loop = glutin::EventsLoop::new();
-    let context = glutin::ContextBuilder::new();
+    let context = glutin::ContextBuilder::new()
+        .with_vsync(true);
 
     let (window, mut device, mut factory, rtv, dsv) =
         gfx_window_glutin::init::<ColourFormat, DepthFormat>(builder, context, &events_loop);
