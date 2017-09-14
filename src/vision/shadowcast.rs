@@ -85,9 +85,9 @@ fn scan<G, O>(grid: &mut G,
     let mut lateral_index = dx_min;
 
     while lateral_index <= dx_max {
-        let coord = if let Some(coord) = octant.make_coord(static_params.centre, lateral_index, depth_index) {
-            coord
-        } else {
+        let coord = octant.make_coord(static_params.centre, lateral_index, depth_index);
+        if coord.x < 0 || coord.x >= static_params.spatial_hash.width() as i32 ||
+            coord.y < 0 || coord.y >= static_params.spatial_hash.height() as i32 {
             break;
         };
         let coord_u32 = coord.cast();
@@ -246,9 +246,10 @@ pub fn observe<G>(grid: &mut G,
     where G: VisionGrid,
 {
     let coord = (position + Vector2::new(0.5, 0.5)).cast();
-    let coord_u32 = coord.cast();
 
-    grid.see(coord_u32, DirectionBitmap::all(), time);
+    if coord.x >= 0 && coord.y >= 0 {
+        grid.see(Vector2::new(coord.x as u32, coord.y as u32), DirectionBitmap::all(), time);
+    }
 
     let width = spatial_hash.width();
     let height = spatial_hash.height();
