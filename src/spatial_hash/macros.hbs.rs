@@ -46,9 +46,9 @@ macro_rules! insert {
     ($self:expr, $entity_id:expr, $store:expr) => {
 {{#each components}}
     {{#if type}}
-        {{#if fields.f64_total}}
+        {{#if fields.f32_total}}
         if let Some(v) = $store.{{@key}}.get(&$entity_id) {
-            $self.{{fields.f64_total.aggregate_name}} += *v;
+            $self.{{fields.f32_total.aggregate_name}} += *v;
         }
         {{/if}}
         {{#if fields.count}}
@@ -81,9 +81,9 @@ macro_rules! remove {
     ($self:expr, $entity_id:expr, $store:expr) => {
 {{#each components}}
     {{#if type}}
-        {{#if fields.f64_total}}
+        {{#if fields.f32_total}}
         if let Some(v) = $store.{{@key}}.get(&$entity_id) {
-            $self.{{fields.f64_total.aggregate_name}} -= *v;
+            $self.{{fields.f32_total.aggregate_name}} -= *v;
         }
         {{/if}}
         {{#if fields.count}}
@@ -182,14 +182,14 @@ macro_rules! insert_match {
         {{/if}}
                     if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
                         if let Some(old) = $store.{{@key}}.get(&$id) {
-        {{#if fields.f64_total}}
+        {{#if fields.f32_total}}
                             let increase = value - *old;
-                            cell.{{fields.f64_total.aggregate_name}} += increase;
+                            cell.{{fields.f32_total.aggregate_name}} += increase;
                             cell.last_updated = $time;
         {{/if}}
                         } else {
-        {{#if fields.f64_total}}
-                            cell.{{fields.f64_total.aggregate_name}} += value;
+        {{#if fields.f32_total}}
+                            cell.{{fields.f32_total.aggregate_name}} += value;
                             cell.last_updated = $time;
         {{/if}}
         {{#if fields.count}}
@@ -270,9 +270,9 @@ macro_rules! remove_match {
                     }
         {{/if}}
                     if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
-        {{#if fields.f64_total}}
+        {{#if fields.f32_total}}
                         if let Some(value) = $store.{{@key}}.get(&$id) {
-                            cell.{{fields.f64_total.aggregate_name}} -= *value;
+                            cell.{{fields.f32_total.aggregate_name}} -= *value;
                             cell.last_updated = $time;
                         }
         {{/if}}

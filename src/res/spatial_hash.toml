@@ -5,7 +5,7 @@ imports = [
 position_component = 'position'
 
 [fields]
-opacity_total = { component = 'opacity', aggregate = 'f64_total' }
+opacity_total = { component = 'opacity', aggregate = 'f32_total' }
 solid_count = { component = 'solid', aggregate = 'count' }
 door_set = { component = 'door', aggregate = 'set' }
 wall_neighbours = { component = 'wall', aggregate = 'neighbour_count' }

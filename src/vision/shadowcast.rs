@@ -117,7 +117,7 @@ fn scan<G, O>(grid: &mut G,
         let gradient_lateral = lateral_index * 2 - 1;
         let mut direction_bitmap = DirectionBitmap::empty();
 
-        let cur_visibility = (visibility - sh_cell.opacity_total as f32).max(0.0);
+        let cur_visibility = (visibility - sh_cell.opacity_total).max(0.0);
         let cur_opaque = cur_visibility == 0.0;
 
         if cur_opaque {

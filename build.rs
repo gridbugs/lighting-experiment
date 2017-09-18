@@ -234,7 +234,7 @@ fn render_spatial_hash_template_internal<P: AsRef<Path>>(desc: SpatialHashDesc,
 
         let (aggregate_type, aggregate_cons) = match field.aggregate.as_ref() {
             "count" => ("usize", "0"),
-            "f64_total" => ("f64", "0.0"),
+            "f32_total" => ("f32", "0.0"),
             "set" => ("HashSet<EntityId>", "HashSet::new()"),
             "neighbour_count" => ("NeighbourCount", "NeighbourCount::new()"),
             "void" => ("", ""),
