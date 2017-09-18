@@ -1,3 +1,4 @@
+use std::time::Duration;
 use entity_store::{EntityChange, ComponentValue, EntityStore, insert, remove};
 use spatial_hash::SpatialHashTable;
 use append::Append;
@@ -32,17 +33,29 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
                         return false;
                     }
                 }
-            }
 
-            if let Some(current_position) = entity_store.position.get(&id) {
-                if position != *current_position {
-                    for (door_id, door_info) in entity_store.door.iter() {
-                        if let Some(door_position) = entity_store.position.get(door_id) {
-                            if *door_position != position {
-                                let mut door_info = *door_info;
-                                if door_info.state == DoorState::Open {
-                                    door_info.state = DoorState::Closed;
-                                    reactions.append(ChangeDesc::immediate(insert::door(*door_id, door_info)));
+                if let Some(current_position) = entity_store.position.get(&id) {
+                    if position != *current_position {
+
+                        if entity_store.bump_attack.contains(&id) {
+                            if let Some(_enemy_id) = sh_cell.enemy_set.iter().next() {
+                                reactions.append(ChangeDesc::bump_slide(id,
+                                                                        *current_position,
+                                                                        position,
+                                                                        Duration::from_millis(50),
+                                                                        0.6));
+                                return false;
+                            }
+                        }
+
+                        for (door_id, door_info) in entity_store.door.iter() {
+                            if let Some(door_position) = entity_store.position.get(door_id) {
+                                if *door_position != position {
+                                    let mut door_info = *door_info;
+                                    if door_info.state == DoorState::Open {
+                                        door_info.state = DoorState::Closed;
+                                        reactions.append(ChangeDesc::immediate(insert::door(*door_id, door_info)));
+                                    }
                                 }
                             }
                         }

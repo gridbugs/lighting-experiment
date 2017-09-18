@@ -13,6 +13,14 @@ pub enum Animation {
         progress: f32,
         duration: Duration,
     },
+    BumpSlide {
+        id: EntityId,
+        base: Vector2<f32>,
+        path: Vector2<f32>,
+        progress: f32,
+        duration: Duration,
+        turnaround_progress: f32,
+    },
     Sprites {
         id: EntityId,
         animation: SpriteAnimation,
@@ -55,6 +63,28 @@ impl Animation {
 
                 if progress < 1.0 {
                     AnimationStatus::Running(Animation::Slide { id, base, path, progress, duration })
+                } else {
+                    AnimationStatus::Finished
+                }
+            }
+            BumpSlide { id, base, path, mut progress, duration, turnaround_progress } => {
+                let progress_delta = duration_ratio(time_delta, duration) * 2.0;
+                progress += progress_delta;
+                if progress > 2.0 {
+                    progress = 2.0;
+                }
+
+                let mult = if progress < 1.0 {
+                    progress
+                } else {
+                    2.0 - progress
+                } * turnaround_progress;
+
+                let new_position = base + path * mult;
+                changes.append(Unchecked(insert::position(id, new_position)));
+
+                if progress < 2.0 {
+                    AnimationStatus::Running(Animation::BumpSlide { id, base, path, progress, duration, turnaround_progress })
                 } else {
                     AnimationStatus::Finished
                 }

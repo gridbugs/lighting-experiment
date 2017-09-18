@@ -3,6 +3,8 @@ pub enum Sprite {
     Blank = 0,
 
     Angler,
+    Crab,
+
     OuterFloor,
     InnerFloor,
     OuterWall,

@@ -15,10 +15,10 @@ pub fn generate(changes: &mut Vec<EntityChange>,
         "..........######o###################..............",
         ".........##,,,,,,%,,,,%m,,,,,,,,,,,#..............",
         "........##,,,l,,,%,,,,%,,,,,,,,,,,,#..............",
-        "........#,,,,,,,,%,,@,%%%%%%%%,,,,,#..............",
+        "........#,,,,,,,,%,,,,%%%%%%%%,,,,,#..............",
         "........#,,,,,,,,,,,,,+,,,,,,,,,,,,####o####......",
-        "........o,,,,,,,,,,,,~%,,,,,,,,,,,,%,,,,,,,#......",
-        "........#,,,,,,,,,,,~~%,,,,,,,,,,,,+,,,,,,,#......",
+        "........o,,,,@,,,,c,,~%,,,,,,,,,,,,%,,,,,,,#......",
+        "........#,,,,,,,,,,,C~%,,,,,,,,,,,,+,,,,,,,#......",
         "........#,,,,,,,,,,~~~%n,,,,,,,,,,,%,,,,,,,#......",
         "........#######*o############o######%%%%+%%####...",
         "...................................#,,,,,,,,,,#...",
@@ -54,6 +54,15 @@ pub fn generate(changes: &mut Vec<EntityChange>,
                     let player_id = allocator.allocate();
                     metadata.player_id = Some(player_id);
                     prototype::angler(changes, player_id, coord);
+                    prototype::inner_floor(changes, allocator.allocate(), coord);
+                }
+                'c' => {
+                    prototype::crab(changes, allocator.allocate(), coord);
+                    prototype::inner_floor(changes, allocator.allocate(), coord);
+                }
+                'C' => {
+                    prototype::crab(changes, allocator.allocate(), coord);
+                    prototype::inner_water(changes, allocator.allocate(), coord);
                     prototype::inner_floor(changes, allocator.allocate(), coord);
                 }
                 'l' => {
