@@ -1,8 +1,8 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Sprite {
     Blank = 0,
+
     Angler,
-    AnglerBob,
     OuterFloor,
     InnerFloor,
     OuterWall,

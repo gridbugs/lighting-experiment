@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::time::{Instant, Duration};
+use std::time::Instant;
 use std::mem;
 use cgmath::Vector2;
 use frontend::{FrontendOutput, FrontendInput, OutputWorldState, LightUpdate};
@@ -69,9 +69,6 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
     let mut running = true;
     let mut count = 1;
 
-    let bob_duration = Duration::from_millis(500);
-    let mut bob_acc = Duration::from_millis(0);
-
     let start_instant = Instant::now();
     let mut frame_instant = start_instant;
 
@@ -117,12 +114,6 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
         });
 
         let visible_range = frontend_output.visible_range();
-
-        bob_acc += frame_duration;
-        if bob_acc >= bob_duration {
-            bob_acc -= bob_duration;
-            proposed_actions.push_back(ActionType::Bob(player_id));
-        }
 
         for a in proposed_actions.drain(..) {
             a.populate(&entity_store, &mut change_descs);

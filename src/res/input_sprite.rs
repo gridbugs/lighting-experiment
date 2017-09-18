@@ -13,7 +13,6 @@ pub fn input_sprites() -> Vec<InputSprite> {
 
     vec![
         character(Angler, [0, 0], Some([0, 8]), None),
-        character(AnglerBob, [1, 0], Some([0, 8]), None),
         floor(InnerFloor, [0, 0], None, None),
         floor(OuterFloor, [0, 1], None, None),
         floor(InnerWater, [1, 1], None, None),
