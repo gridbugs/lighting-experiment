@@ -4,6 +4,7 @@ pub enum Sprite {
 
     Angler,
     Crab,
+    Snail,
 
     OuterFloor,
     InnerFloor,

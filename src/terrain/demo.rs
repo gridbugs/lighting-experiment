@@ -17,7 +17,7 @@ pub fn generate(changes: &mut Vec<EntityChange>,
         "........##,,,l,,,%,,,,%,,,,,,,,,,,,#..............",
         "........#,,,,,,,,%,,,,%%%%%%%%,,,,,#..............",
         "........#,,,,,,,,,,,,,+,,,,,,,,,,,,####o####......",
-        "........o,,,,@,,,,c,,~%,,,,,,,,,,,,%,,,,,,,#......",
+        "........o,,,,@,,,,c,sS%,,,,,,,,,,,,%,,,,,,,#......",
         "........#,,,,,,,,,,,C~%,,,,,,,,,,,,+,,,,,,,#......",
         "........#,,,,,,,,,,~~~%n,,,,,,,,,,,%,,,,,,,#......",
         "........#######*o############o######%%%%+%%####...",
@@ -62,6 +62,15 @@ pub fn generate(changes: &mut Vec<EntityChange>,
                 }
                 'C' => {
                     prototype::crab(changes, allocator.allocate(), coord);
+                    prototype::inner_water(changes, allocator.allocate(), coord);
+                    prototype::inner_floor(changes, allocator.allocate(), coord);
+                }
+                's' => {
+                    prototype::snail(changes, allocator.allocate(), coord);
+                    prototype::inner_floor(changes, allocator.allocate(), coord);
+                }
+                'S' => {
+                    prototype::snail(changes, allocator.allocate(), coord);
                     prototype::inner_water(changes, allocator.allocate(), coord);
                     prototype::inner_floor(changes, allocator.allocate(), coord);
                 }

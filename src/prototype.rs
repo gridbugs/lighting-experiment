@@ -24,7 +24,14 @@ pub fn crab<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Ve
     changes.append(insert::enemy(id));
 }
 
-
+pub fn snail<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
+    changes.append(insert::position(id, position));
+    changes.append(insert::sprite(id, Sprite::Snail));
+    changes.append(insert::depth(id, DepthInfo::new(DepthType::Fixed, -0.4)));
+    changes.append(insert::collider(id));
+    changes.append(insert::door_opener(id));
+    changes.append(insert::enemy(id));
+}
 
 pub fn inner_wall<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
     changes.append(insert::position(id, position));
