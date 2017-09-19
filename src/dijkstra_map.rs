@@ -1,11 +1,11 @@
 use std::collections::VecDeque;
 use cgmath::Vector2;
 use static_grid::StaticGrid;
-use direction::{DirectionsCardinal, Direction};
+use direction::{CardinalDirection, CardinalDirections};
 use spatial_hash::{SpatialHashTable, SpatialHashCell};
 
 pub enum DirectionInfo {
-    Direction(Direction),
+    Direction(CardinalDirection),
     AtDestination,
     NoInformation,
 }
@@ -64,7 +64,7 @@ impl DijkstraMap {
                 break;
             }
 
-            for direction in DirectionsCardinal {
+            for direction in CardinalDirections {
                 let next_signed_coord = signed_coord + direction.vector();
                 if let Some(cell) = self.grid.get_signed_mut(next_signed_coord) {
                     let next_coord = next_signed_coord.cast();
@@ -96,7 +96,7 @@ impl DijkstraMap {
         let mut best_value = cell.value;
         let mut info = DirectionInfo::AtDestination;
 
-        for direction in DirectionsCardinal {
+        for direction in CardinalDirections {
             let neighbour_coord = coord.cast() + direction.vector();
             if let Some(neighbour_cell) = self.grid.get_signed(neighbour_coord) {
                 if neighbour_cell.seq == self.seq && neighbour_cell.value < best_value {

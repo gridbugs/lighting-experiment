@@ -13,9 +13,11 @@ use control::Control;
 use input::{Input, Bindable, Unbindable, System};
 use direction::CardinalDirection;
 use content::{ChangeDesc, Animation, AnimationStatus, AnimatedChange};
-use policy;
 use vision::shadowcast;
 use ai_info::GlobalAiInfo;
+use turn::TurnState;
+use policy;
+use ai;
 
 pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_input: I, mut frontend_output: O) {
     let control_table = {
@@ -27,6 +29,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
             Right => Move(East),
             Down => Move(South),
             Left => Move(West),
+            Space => Wait,
         })
     };
 
@@ -58,6 +61,8 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
         }
     });
 
+    let mut turn_state = TurnState::Player;
+
     let mut proposed_actions = VecDeque::new();
     let mut staged_changes = VecDeque::new();
 
@@ -75,6 +80,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
     let mut frame_instant = start_instant;
 
     while running {
+        let mut next_turn_state = turn_state;
 
         let now = Instant::now();
         let frame_duration = now - frame_instant;
@@ -85,7 +91,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
             use self::Input::*;
             match input {
                 Bindable(b) => {
-                    if !animations.is_empty() {
+                    if turn_state != TurnState::Player || !animations.is_empty() {
                         return;
                     }
                     if let Some(control) = control_table.get(b) {
@@ -94,7 +100,10 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                             Move(direction) => {
                                 proposed_actions.push_back(ActionType::Walk(player_id, direction));
                             }
+                            Wait => {}
                         }
+
+                        next_turn_state = turn_state.next_state();
                     }
                 }
                 Unbindable(u) => {
@@ -114,6 +123,15 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                 }
             }
         });
+
+        if turn_state == TurnState::Npc && animations.is_empty() {
+            for npc_id in entity_store.npc.iter() {
+                if let Some(action_type) = ai::next_action(*npc_id, &entity_store, &ai_info) {
+                    proposed_actions.push_back(action_type);
+                }
+            }
+            next_turn_state = turn_state.next_state();
+        }
 
         let visible_range = frontend_output.visible_range();
 
@@ -212,5 +230,6 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
         frontend_output.draw();
 
         count += 1;
+        turn_state = next_turn_state;
     }
 }

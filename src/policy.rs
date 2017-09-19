@@ -38,11 +38,11 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
                     if position != *current_position {
 
                         if entity_store.bump_attack.contains(&id) {
-                            if let Some(_enemy_id) = sh_cell.enemy_set.iter().next() {
+                            if let Some(_attackable_id) = sh_cell.attackable_set.iter().next() {
                                 reactions.append(ChangeDesc::bump_slide(id,
                                                                         *current_position,
                                                                         position,
-                                                                        Duration::from_millis(50),
+                                                                        Duration::from_millis(100),
                                                                         0.6));
                                 return false;
                             }

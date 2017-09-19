@@ -13,6 +13,7 @@ pub fn angler<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: 
     changes.append(insert::door_opener(id));
     changes.append(insert::light(id, LightInfo::new(0.2, 20, 1.0, 1.0, 1.0, 1.0)));
     changes.append(insert::bump_attack(id));
+    changes.append(insert::attackable(id));
 }
 
 pub fn crab<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
@@ -21,7 +22,9 @@ pub fn crab<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Ve
     changes.append(insert::depth(id, DepthInfo::new(DepthType::Fixed, -0.4)));
     changes.append(insert::collider(id));
     changes.append(insert::door_opener(id));
-    changes.append(insert::enemy(id));
+    changes.append(insert::npc(id));
+    changes.append(insert::bump_attack(id));
+    changes.append(insert::attackable(id));
 }
 
 pub fn snail<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {
@@ -30,7 +33,9 @@ pub fn snail<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: V
     changes.append(insert::depth(id, DepthInfo::new(DepthType::Fixed, -0.4)));
     changes.append(insert::collider(id));
     changes.append(insert::door_opener(id));
-    changes.append(insert::enemy(id));
+    changes.append(insert::npc(id));
+    changes.append(insert::bump_attack(id));
+    changes.append(insert::attackable(id));
 }
 
 pub fn inner_wall<A: Append<EntityChange>>(changes: &mut A, id: EntityId, position: Vector2<f32>) {

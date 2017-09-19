@@ -48,6 +48,8 @@ mod control_table;
 mod vision;
 mod dijkstra_map;
 mod ai_info;
+mod ai;
+mod turn;
 
 fn main() {
     let (input, output) = glutin_frontend::create();

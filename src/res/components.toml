@@ -21,5 +21,6 @@ sprite = { type = 'Sprite', name = 'Sprite' }
 depth = { type = 'DepthInfo', name = 'Depth' }
 sprite_effect = { type = 'SpriteEffectInfo', name = 'SpriteEffect' }
 light = { type = 'LightInfo', name = 'Light', store = 'btree' }
-enemy = { name = 'Enemy' }
+npc = { name = 'Npc', store = 'hash' }
 bump_attack = { name = 'BumpAttack' }
+attackable = { name = 'Attackable' }
