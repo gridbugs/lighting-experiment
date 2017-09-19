@@ -72,6 +72,14 @@ impl<T> StaticGrid<T> {
         coord.x >= 0 && coord.y >= 0 && (coord.x as u32) < self.width && (coord.y as u32) < self.height
     }
 
+    pub fn convert_signed(&self, coord: Vector2<i32>) -> Option<Vector2<u32>> {
+        if self.contains_signed(coord) {
+            Some(coord.cast())
+        } else {
+            None
+        }
+    }
+
     pub fn get(&self, coord: Vector2<u32>) -> Option<&T> {
         if coord.x < self.width {
             self.items.get(self.wrap(coord) as usize)

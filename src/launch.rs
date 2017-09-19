@@ -15,6 +15,7 @@ use direction::CardinalDirection;
 use content::{ChangeDesc, Animation, AnimationStatus, AnimatedChange};
 use policy;
 use vision::shadowcast;
+use ai_info::GlobalAiInfo;
 
 pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_input: I, mut frontend_output: O) {
     let control_table = {
@@ -38,6 +39,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
 
     let mut spatial_hash = SpatialHashTable::new(metadata.width, metadata.height);
     let mut shadowcast_env = shadowcast::ShadowcastEnv::new();
+    let mut ai_info = GlobalAiInfo::new(metadata.width, metadata.height);
 
     frontend_output.update_world_size(metadata.width, metadata.height);
 
@@ -147,11 +149,13 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                 match desc {
                     Immediate(change) => {
                         if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs_swap) {
+                            ai_info.update(&change, &entity_store, &spatial_hash);
                             staged_changes.push_back(change);
                         }
                     }
                     AnimatedChange(eventual_change, animation) => {
                         if policy::check(&eventual_change, &entity_store, &spatial_hash, &mut change_descs_swap) {
+                            ai_info.update(&eventual_change, &entity_store, &spatial_hash);
                             animations.push_back(animation);
                         }
                     }
