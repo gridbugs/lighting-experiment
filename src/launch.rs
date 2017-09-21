@@ -63,7 +63,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
     let mut spatial_hash = SpatialHashTable::new(metadata.width, metadata.height);
     let mut shadowcast_env = shadowcast::ShadowcastEnv::new();
     let mut ai_info = GlobalAiInfo::new(metadata.width, metadata.height);
-    let mut ai_env = AiEnv::new();
+    let mut ai_env = AiEnv::new(metadata.width, metadata.height);
 
     frontend_output.update_world_size(metadata.width, metadata.height);
 
@@ -147,7 +147,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
         });
 
         if turn_state == TurnState::Npc && animations.is_empty() {
-            ai_env.append_actions(&mut proposed_actions, &entity_store, &ai_info);
+            ai_env.append_actions(&mut proposed_actions, &entity_store, &spatial_hash, &ai_info);
             next_turn_state = turn_state.next_state();
         }
 

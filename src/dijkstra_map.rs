@@ -1,24 +1,8 @@
 use std::collections::VecDeque;
 use cgmath::Vector2;
 use static_grid::StaticGrid;
-use direction::{CardinalDirection, CardinalDirections};
+use direction::CardinalDirections;
 use spatial_hash::{SpatialHashTable, SpatialHashCell};
-
-pub enum DirectionInfo {
-    Direction(CardinalDirection),
-    AtDestination,
-    NoInformation,
-}
-
-impl DirectionInfo {
-    pub fn direction(&self) -> Option<CardinalDirection> {
-        if let &DirectionInfo::Direction(direction) = self {
-            Some(direction)
-        } else {
-            None
-        }
-    }
-}
 
 struct Cell {
     seq: u64,
@@ -100,32 +84,5 @@ impl DijkstraMap {
         }
 
         self.coord_queue.clear();
-    }
-
-    pub fn choose_direction(&self, coord: Vector2<i32>) -> DirectionInfo {
-        let cell = if let Some(cell) = self.grid.get_signed(coord) {
-            cell
-        } else {
-            return DirectionInfo::NoInformation;
-        };
-
-        if cell.seq != self.seq {
-            return DirectionInfo::NoInformation;
-        }
-
-        let mut best_value = cell.value;
-        let mut info = DirectionInfo::AtDestination;
-
-        for direction in CardinalDirections {
-            let neighbour_coord = coord.cast() + direction.vector();
-            if let Some(neighbour_cell) = self.grid.get_signed(neighbour_coord) {
-                if neighbour_cell.seq == self.seq && neighbour_cell.value < best_value {
-                    best_value = neighbour_cell.value;
-                    info = DirectionInfo::Direction(direction);
-                }
-            }
-        }
-
-        info
     }
 }

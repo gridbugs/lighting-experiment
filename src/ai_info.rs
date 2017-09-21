@@ -1,5 +1,5 @@
 use cgmath::Vector2;
-use dijkstra_map::{DijkstraMap, DirectionInfo};
+use dijkstra_map::DijkstraMap;
 use entity_store::{EntityChange, ComponentValue, EntityStore};
 use spatial_hash::{SpatialHashTable, SpatialHashCell};
 
@@ -35,10 +35,6 @@ impl GlobalAiInfo {
             }
             _ => {}
         }
-    }
-
-    pub fn choose_direction(&self, coord: Vector2<i32>) -> DirectionInfo {
-        self.distance_to_player.choose_direction(coord)
     }
 
     pub fn get_distance(&self, coord: Vector2<i32>) -> Option<u32> {

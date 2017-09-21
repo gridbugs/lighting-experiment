@@ -12,3 +12,4 @@ wall_neighbours = { component = 'wall', aggregate = 'neighbour_count' }
 wall_set = { component = 'wall', aggregate = 'set' }
 attackable_set = { component = 'attackable', aggregate = 'set' }
 npc_count = { component = 'npc', aggregate = 'count' }
+player_count = { component = 'player', aggregate = 'count' }
