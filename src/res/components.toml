@@ -9,6 +9,7 @@ imports = [
 
 [components]
 position = { type = 'Vector2<f32>', name = 'Position' }
+coord = { type = 'Vector2<i32>', name = 'Coord' }
 solid = { name = 'Solid' }
 collider = { name = 'Collider' }
 opacity = { type = 'f32', name = 'Opacity' }

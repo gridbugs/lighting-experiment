@@ -7,7 +7,7 @@ use prototype;
 const WIDTH: u32 = 100;
 const HEIGHT: u32 = 100;
 
-const PLAYER_POSITION: Vector2<f32> = Vector2 { x: (WIDTH / 2) as f32, y: (HEIGHT / 2) as f32 };
+const PLAYER_POSITION: Vector2<i32> = Vector2 { x: WIDTH as i32 / 2, y: HEIGHT as i32 / 2 };
 
 pub fn generate(changes: &mut Vec<EntityChange>,
                 allocator: &mut EntityIdAllocator) -> TerrainMetadata {

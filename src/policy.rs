@@ -11,8 +11,8 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
 
     use self::EntityChange::*;
     match change {
-        &Insert(id, ComponentValue::Position(position)) => {
-            if let Some(sh_cell) = spatial_hash.get_float(position) {
+        &Insert(id, ComponentValue::Coord(coord)) => {
+            if let Some(sh_cell) = spatial_hash.get_signed(coord) {
 
                 if entity_store.door_opener.contains(&id) {
                     // open doors by bumping into them
@@ -34,14 +34,14 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
                     }
                 }
 
-                if let Some(current_position) = entity_store.position.get(&id) {
-                    if position != *current_position {
+                if let Some(current_coord) = entity_store.coord.get(&id) {
+                    if coord != *current_coord {
 
                         if entity_store.bump_attack.contains(&id) {
                             if let Some(_attackable_id) = sh_cell.attackable_set.iter().next() {
                                 reactions.append(ChangeDesc::bump_slide(id,
-                                                                        *current_position,
-                                                                        position,
+                                                                        current_coord.cast(),
+                                                                        coord.cast(),
                                                                         Duration::from_millis(100),
                                                                         0.6));
                                 return false;
@@ -49,8 +49,8 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
                         }
 
                         for (door_id, door_info) in entity_store.door.iter() {
-                            if let Some(door_position) = entity_store.position.get(door_id) {
-                                if *door_position != position {
+                            if let Some(door_coord) = entity_store.coord.get(door_id) {
+                                if *door_coord != coord {
                                     let mut door_info = *door_info;
                                     if door_info.state == DoorState::Open {
                                         door_info.state = DoorState::Closed;
@@ -59,8 +59,14 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
                                 }
                             }
                         }
+
+                        // Start the slide animation for the move.
+                        reactions.append(ChangeDesc::slide(id, current_coord.cast(), coord.cast(), Duration::from_millis(50)));
                     }
                 }
+            } else {
+                // No spatial hash cell for destination - prevent the move.
+                return false;
             }
         }
         &Insert(id, ComponentValue::Door(door_info)) => {

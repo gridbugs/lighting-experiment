@@ -1,6 +1,4 @@
-use std::time::Duration;
-
-use entity_store::{EntityId, EntityStore};
+use entity_store::{EntityId, EntityStore, insert};
 use direction::CardinalDirection;
 use append::Append;
 use content::ChangeDesc;
@@ -20,8 +18,8 @@ impl ActionType {
 }
 
 pub fn walk<A: Append<ChangeDesc>>(id: EntityId, dir: CardinalDirection, entity_store: &EntityStore, changes: &mut A) {
-    let current_position = entity_store.position.get(&id).cloned().expect("Expected position");
-    let new_position = current_position + dir.vector().cast();
+    let current_coord = entity_store.coord.get(&id).cloned().expect("Expected coord");
+    let new_coord = current_coord + dir.vector();
 
-    changes.append(ChangeDesc::slide(id, current_position, new_position, Duration::from_millis(50)));
+    changes.append(ChangeDesc::immediate(insert::coord(id, new_coord)));
 }

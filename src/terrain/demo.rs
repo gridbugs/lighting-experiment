@@ -38,7 +38,7 @@ pub fn generate(changes: &mut Vec<EntityChange>,
     for row in strings.iter() {
         let mut x = 0;
         for ch in row.chars() {
-            let coord = Vector2::new(x, y).cast();
+            let coord = Vector2::new(x, y);
             match ch {
                 '.' => {
                     prototype::outer_floor(changes, allocator.allocate(), coord);

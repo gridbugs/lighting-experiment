@@ -157,12 +157,12 @@ macro_rules! insert_match {
         match $component {
             &ComponentValue::{{position_name}}(position) => {
                 if let Some(current) = $store.{{position_component}}.get(&$id) {
-                    if let Some(mut cell) = $self.grid.get_signed_mut(current.cast()) {
+                    if let Some(mut cell) = $self.grid.get_signed_mut(*current) {
                         cell.remove($id, $store, $time);
                     }
                     remove_neighbours!($self, $id, $store, current);
                 }
-                if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
+                if let Some(mut cell) = $self.grid.get_signed_mut(position) {
                     cell.insert($id, $store, $time);
                 }
                 insert_neighbours!($self, $id, $store, position);
@@ -180,7 +180,7 @@ macro_rules! insert_match {
                         }
                     }
         {{/if}}
-                    if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
+                    if let Some(mut cell) = $self.grid.get_signed_mut(*position) {
                         if let Some(old) = $store.{{@key}}.get(&$id) {
         {{#if fields.f32_total}}
                             let increase = value - *old;
@@ -221,7 +221,7 @@ macro_rules! insert_match {
                         }
                     }
         {{/if}}
-                    if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
+                    if let Some(mut cell) = $self.grid.get_signed_mut(*position) {
                         if !$store.{{@key}}.contains(&$id) {
         {{#if fields.count}}
                             cell.{{fields.count.aggregate_name}} += 1;
@@ -250,7 +250,7 @@ macro_rules! remove_match {
         match $typ {
             ComponentType::{{position_name}} => {
                 if let Some(current) = $store.{{position_component}}.get(&$id) {
-                    if let Some(mut cell) = $self.grid.get_signed_mut(current.cast()) {
+                    if let Some(mut cell) = $self.grid.get_signed_mut(*current) {
                         cell.remove($id, $store, $time);
                     }
                     remove_neighbours!($self, $id, $store, current);
@@ -269,7 +269,7 @@ macro_rules! remove_match {
                         }
                     }
         {{/if}}
-                    if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
+                    if let Some(mut cell) = $self.grid.get_signed_mut(*position) {
         {{#if fields.f32_total}}
                         if let Some(value) = $store.{{@key}}.get(&$id) {
                             cell.{{fields.f32_total.aggregate_name}} -= *value;
@@ -300,7 +300,7 @@ macro_rules! remove_match {
                         }
                     }
         {{/if}}
-                    if let Some(mut cell) = $self.grid.get_signed_mut(position.cast()) {
+                    if let Some(mut cell) = $self.grid.get_signed_mut(*position) {
                         if $store.{{@key}}.contains(&$id) {
         {{#if fields.count}}
                             cell.{{fields.count.aggregate_name}} -= 1;

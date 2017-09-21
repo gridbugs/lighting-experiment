@@ -34,7 +34,7 @@ impl Env {
 fn insert_change() {
     let mut env = Env::new();
 
-    env.commit(insert::position(0, Vector2::new(0, 0).cast()));
+    env.commit(insert::coord(0, Vector2::new(0, 0).cast()));
     env.commit(insert::opacity(0, 0.5));
 
     assert_eq!((env.spatial_hash.get(Vector2::new(0, 0)).unwrap().opacity_total * 10.0).round(), 5.0);
@@ -48,12 +48,12 @@ fn insert_change() {
 fn insert_move() {
     let mut env = Env::new();
 
-    env.commit(insert::position(0, Vector2::new(0, 0).cast()));
+    env.commit(insert::coord(0, Vector2::new(0, 0).cast()));
     env.commit(insert::opacity(0, 0.5));
 
     assert_eq!((env.spatial_hash.get(Vector2::new(0, 0)).unwrap().opacity_total * 10.0).round(), 5.0);
 
-    env.commit(insert::position(0, Vector2::new(1, 0).cast()));
+    env.commit(insert::coord(0, Vector2::new(1, 0).cast()));
 
     assert_eq!((env.spatial_hash.get(Vector2::new(0, 0)).unwrap().opacity_total * 10.0).round(), 0.0);
     assert_eq!((env.spatial_hash.get(Vector2::new(1, 0)).unwrap().opacity_total * 10.0).round(), 5.0);
@@ -63,7 +63,7 @@ fn insert_move() {
 fn redundant() {
     let mut env = Env::new();
 
-    env.commit(insert::position(0, Vector2::new(0, 0).cast()));
+    env.commit(insert::coord(0, Vector2::new(0, 0).cast()));
     env.commit(insert::solid(0));
     env.commit(insert::solid(0));
 
@@ -79,7 +79,7 @@ fn redundant() {
 fn neighbour_count_insert() {
     let mut env = Env::new();
 
-    env.commit(insert::position(0, Vector2::new(1, 1).cast()));
+    env.commit(insert::coord(0, Vector2::new(1, 1).cast()));
     env.commit(insert::wall(0));
 
     assert_eq!(env.spatial_hash.get(Vector2::new(0, 0)).unwrap().wall_neighbours.get(Direction::SouthEast), 1);

@@ -17,7 +17,6 @@ use vision::shadowcast;
 use ai_info::GlobalAiInfo;
 use turn::TurnState;
 use policy;
-use ai;
 
 pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_input: I, mut frontend_output: O) {
     let control_table = {
@@ -125,11 +124,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
         });
 
         if turn_state == TurnState::Npc && animations.is_empty() {
-            for npc_id in entity_store.npc.iter() {
-                if let Some(action_type) = ai::next_action(*npc_id, &entity_store, &ai_info) {
-                    proposed_actions.push_back(action_type);
-                }
-            }
+            // TODO
             next_turn_state = turn_state.next_state();
         }
 
@@ -169,12 +164,6 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                         if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs_swap) {
                             ai_info.update(&change, &entity_store, &spatial_hash);
                             staged_changes.push_back(change);
-                        }
-                    }
-                    AnimatedChange(eventual_change, animation) => {
-                        if policy::check(&eventual_change, &entity_store, &spatial_hash, &mut change_descs_swap) {
-                            ai_info.update(&eventual_change, &entity_store, &spatial_hash);
-                            animations.push_back(animation);
                         }
                     }
                     Animation(animation) => {
