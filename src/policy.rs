@@ -36,6 +36,9 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
 
                 if let Some(current_coord) = entity_store.coord.get(&id) {
                     if coord != *current_coord {
+                        if entity_store.npc.contains(&id) && sh_cell.npc_count > 0 {
+                            return false;
+                        }
 
                         if entity_store.bump_attack.contains(&id) {
                             if let Some(_attackable_id) = sh_cell.attackable_set.iter().next() {

@@ -4,7 +4,7 @@ use std::mem;
 use cgmath::Vector2;
 use frontend::{FrontendOutput, FrontendInput, OutputWorldState, LightUpdate};
 use terrain;
-use entity_store::{EntityStore, ComponentValue, EntityChange};
+use entity_store::{EntityStore, ComponentValue, EntityChange, EntityId};
 use spatial_hash::SpatialHashTable;
 use entity_id_allocator::EntityIdAllocator;
 use content::ActionType;
@@ -16,7 +16,28 @@ use content::{ChangeDesc, Animation, AnimationStatus, AnimatedChange};
 use vision::shadowcast;
 use ai_info::GlobalAiInfo;
 use turn::TurnState;
+use ai::AiEnv;
 use policy;
+
+fn commit<'a, 'b, S: OutputWorldState<'a, 'b>>(change: EntityChange,
+                                               state: &mut S,
+                                               entity_store: &mut EntityStore,
+                                               spatial_hash: &mut SpatialHashTable,
+                                               time: u64,
+                                               player_id: EntityId)
+{
+    state.update(&change, entity_store, spatial_hash);
+
+    spatial_hash.update(entity_store, &change, time);
+
+    if let EntityChange::Insert(id, ComponentValue::Position(new_position)) = change {
+        if id == player_id {
+            state.set_player_position(new_position);
+        }
+    }
+
+    entity_store.commit(change);
+}
 
 pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_input: I, mut frontend_output: O) {
     let control_table = {
@@ -42,6 +63,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
     let mut spatial_hash = SpatialHashTable::new(metadata.width, metadata.height);
     let mut shadowcast_env = shadowcast::ShadowcastEnv::new();
     let mut ai_info = GlobalAiInfo::new(metadata.width, metadata.height);
+    let mut ai_env = AiEnv::new();
 
     frontend_output.update_world_size(metadata.width, metadata.height);
 
@@ -60,10 +82,11 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
         }
     });
 
+    ai_info.set_player_coord(*entity_store.coord.get(&player_id).expect("Missing player coord"), &spatial_hash);
+
     let mut turn_state = TurnState::Player;
 
     let mut proposed_actions = VecDeque::new();
-    let mut staged_changes = VecDeque::new();
 
     let mut change_descs = VecDeque::new();
     let mut change_descs_swap = VecDeque::new();
@@ -124,7 +147,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
         });
 
         if turn_state == TurnState::Npc && animations.is_empty() {
-            // TODO
+            ai_env.append_actions(&mut proposed_actions, &entity_store, &ai_info);
             next_turn_state = turn_state.next_state();
         }
 
@@ -145,57 +168,44 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
         }
         mem::swap(&mut animations, &mut animations_swap);
 
-        for animated_change in animated_changes.drain(..) {
-            match animated_change {
-                AnimatedChange::Checked(change) => {
-                    if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs) {
-                        staged_changes.push_back(change);
-                    }
-                }
-                AnimatedChange::Unchecked(change) => staged_changes.push_back(change),
-            }
-        }
-
-        loop {
-            for desc in change_descs.drain(..) {
-                use self::ChangeDesc::*;
-                match desc {
-                    Immediate(change) => {
-                        if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs_swap) {
-                            ai_info.update(&change, &entity_store, &spatial_hash);
-                            staged_changes.push_back(change);
-                        }
-                    }
-                    Animation(animation) => {
-                        animations.push_back(animation);
-                    }
-                }
-            }
-            if change_descs_swap.is_empty() {
-                break;
-            } else {
-                mem::swap(&mut change_descs, &mut change_descs_swap);
-            }
-        }
-
         frontend_output.with_world_state(|state| {
 
-            state.set_frame_info(count, total_duration);
-
-            for change in staged_changes.drain(..) {
-
-                state.update(&change, &entity_store, &spatial_hash);
-
-                spatial_hash.update(&entity_store, &change, count);
-
-                if let EntityChange::Insert(id, ComponentValue::Position(new_position)) = change {
-                    if id == player_id {
-                        state.set_player_position(new_position);
+            for animated_change in animated_changes.drain(..) {
+                match animated_change {
+                    AnimatedChange::Checked(change) => {
+                        if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs) {
+                            commit(change, state, &mut entity_store, &mut spatial_hash, count, player_id);
+                        }
+                    }
+                    AnimatedChange::Unchecked(change) => {
+                        commit(change, state, &mut entity_store, &mut spatial_hash, count, player_id);
                     }
                 }
-
-                entity_store.commit(change);
             }
+
+            loop {
+                for desc in change_descs.drain(..) {
+                    use self::ChangeDesc::*;
+                    match desc {
+                        Immediate(change) => {
+                            if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs_swap) {
+                                ai_info.update(&change, &entity_store, &spatial_hash);
+                                commit(change, state, &mut entity_store, &mut spatial_hash, count, player_id);
+                            }
+                        }
+                        Animation(animation) => {
+                            animations.push_back(animation);
+                        }
+                    }
+                }
+                if change_descs_swap.is_empty() {
+                    break;
+                } else {
+                    mem::swap(&mut change_descs, &mut change_descs_swap);
+                }
+            }
+
+            state.set_frame_info(count, total_duration);
 
             for (id, light_info) in entity_store.light.iter() {
                 if let Some(position) = entity_store.position.get(id) {

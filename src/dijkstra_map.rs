@@ -10,6 +10,16 @@ pub enum DirectionInfo {
     NoInformation,
 }
 
+impl DirectionInfo {
+    pub fn direction(&self) -> Option<CardinalDirection> {
+        if let &DirectionInfo::Direction(direction) = self {
+            Some(direction)
+        } else {
+            None
+        }
+    }
+}
+
 struct Cell {
     seq: u64,
     value: u32,
@@ -37,6 +47,16 @@ impl DijkstraMap {
             coord_queue: VecDeque::new(),
             seq: 0,
         }
+    }
+
+    pub fn get_distance(&self, coord: Vector2<i32>) -> Option<u32> {
+        self.grid.get_signed(coord).and_then(|cell| {
+            if cell.seq == self.seq {
+                Some(cell.value)
+            } else {
+                None
+            }
+        })
     }
 
     pub fn compute_distance_to_coord<P>(&mut self, spatial_hash: &SpatialHashTable, coord: Vector2<u32>, threshold: u32,
@@ -82,8 +102,8 @@ impl DijkstraMap {
         self.coord_queue.clear();
     }
 
-    pub fn choose_direction(&self, coord: Vector2<u32>) -> DirectionInfo {
-        let cell = if let Some(cell) = self.grid.get(coord) {
+    pub fn choose_direction(&self, coord: Vector2<i32>) -> DirectionInfo {
+        let cell = if let Some(cell) = self.grid.get_signed(coord) {
             cell
         } else {
             return DirectionInfo::NoInformation;
