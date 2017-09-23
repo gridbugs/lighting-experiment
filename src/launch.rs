@@ -190,6 +190,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                         Immediate(change) => {
                             if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs_swap) {
                                 ai_info.update(&change, &entity_store, &spatial_hash);
+                                ai_env.update(&change, &entity_store);
                                 commit(change, state, &mut entity_store, &mut spatial_hash, count, player_id);
                             }
                         }

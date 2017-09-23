@@ -1,9 +1,8 @@
 use cgmath::Vector2;
 use dijkstra_map::DijkstraMap;
-use search::SearchEnv;
+use search::{self, SearchEnv, PathNode};
 use entity_store::{EntityChange, ComponentValue, EntityStore};
 use spatial_hash::{SpatialHashTable, SpatialHashCell};
-use direction::CardinalDirection;
 
 const DISTANCE_TO_PLAYER_THRESHOLD: u32 = 20;
 
@@ -48,12 +47,13 @@ impl GlobalAiInfo {
         self.distance_to_player.get_distance(coord)
     }
 
-    pub fn search_start_to_player<P>(&mut self,
-                                     spatial_hash: &SpatialHashTable,
-                                     start: Vector2<i32>,
-                                     can_enter: P) -> Option<CardinalDirection>
+    pub fn search_to_player<P>(&mut self,
+                               spatial_hash: &SpatialHashTable,
+                               start: Vector2<i32>,
+                               can_enter: P,
+                               path: &mut Vec<PathNode>) -> search::Result<()>
         where P: Fn(&SpatialHashCell, Vector2<u32>) -> bool,
     {
-        self.search_env.search_start(spatial_hash, start, self.player_coord, can_enter)
+        self.search_env.search(spatial_hash, start, self.player_coord, can_enter, path)
     }
 }

@@ -1,9 +1,24 @@
 use std::cmp::Ordering;
+use std::result;
 use std::collections::BinaryHeap;
 use cgmath::Vector2;
 use static_grid::StaticGrid;
 use spatial_hash::{SpatialHashTable, SpatialHashCell};
 use direction::{CardinalDirection, CardinalDirections};
+
+#[derive(Debug, Clone, Copy)]
+pub struct PathNode {
+    pub direction: CardinalDirection,
+    pub origin: Vector2<i32>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Error {
+    NoPath,
+    OutOfBounds,
+}
+
+pub type Result<T> = result::Result<T, Error>;
 
 struct Node {
     cost: u32,
@@ -60,20 +75,21 @@ impl SearchEnv {
         }
     }
 
-    pub fn search_start<P>(&mut self,
-                           spatial_hash: &SpatialHashTable,
-                           start: Vector2<i32>,
-                           end: Vector2<i32>,
-                           can_enter: P) -> Option<CardinalDirection>
+    pub fn search<P>(&mut self,
+                     spatial_hash: &SpatialHashTable,
+                     start: Vector2<i32>,
+                     end: Vector2<i32>,
+                     can_enter: P,
+                     path: &mut Vec<PathNode>) -> Result<()>
         where P: Fn(&SpatialHashCell, Vector2<u32>) -> bool,
     {
         if start == end {
-            return None;
+            return Err(Error::OutOfBounds);
         }
         let (start, end) = if let Some((start, end)) = self.search_bounds(start, end) {
             (start, end)
         } else {
-            return None;
+            return Err(Error::OutOfBounds);
         };
 
         self.seq += 1;
@@ -122,20 +138,22 @@ impl SearchEnv {
 
         if found {
             let mut coord = end;
-            let mut last_direction = CardinalDirection::North;
             loop {
                 let cell = self.grid.get_checked(coord);
-                if let Some(direction) = cell.enter_direction {
-                    let enter_direction = direction.opposite();
-                    coord = (coord.cast() + enter_direction.vector()).cast();
-                    last_direction = direction;
+                if let Some(enter_direction) = cell.enter_direction {
+                    let origin = coord.cast() + enter_direction.opposite().vector();
+                    path.push(PathNode {
+                        direction: enter_direction,
+                        origin,
+                    });
+                    coord = origin.cast();
                 } else {
-                    return Some(last_direction);
+                    return Ok(());
                 }
             }
         }
 
-        None
+        return Err(Error::NoPath);
     }
 
     fn search_bounds(&self, start_coord: Vector2<i32>, end_coord: Vector2<i32>) -> Option<(Vector2<u32>, Vector2<u32>)> {
