@@ -33,7 +33,7 @@ impl AiEnv {
                                                  actions: &mut A,
                                                  entity_store: &EntityStore,
                                                  spatial_hash: &SpatialHashTable,
-                                                 global_info: &GlobalAiInfo)
+                                                 global_info: &mut GlobalAiInfo)
     {
         self.seq += 1;
         self.npcs.clear();
@@ -75,17 +75,21 @@ impl AiEnv {
             if let Some((attempt_direction, destination)) = best_destination {
 
                 if let Some(sh_cell) = spatial_hash.get_signed(destination) {
-                    let seq = if sh_cell.player_count == 0 {
-                        self.movement_grid.get_signed_mut(destination).expect("Incorrect movement grid size")
+                    let coord = if sh_cell.player_count == 0 {
+                        destination
                     } else {
-                        self.movement_grid.get_signed_mut(npc.coord).expect("Incorrect movement grid size")
+                        npc.coord
                     };
 
-                    let maybe_direction = if *seq == self.seq {
-                        // TODO: try getting direction with search
-                        None
+                    let maybe_direction = if *self.movement_grid.get_checked(coord.cast()) == self.seq {
+                        println!("searching");
+                        global_info.search_start_to_player(spatial_hash, npc.coord, |sh_cell, coord| {
+                            sh_cell.solid_count == 0 &&
+                                sh_cell.door_set.is_empty() &&
+                                *self.movement_grid.get_checked(coord) != self.seq
+                        })
                     } else {
-                        *seq = self.seq;
+                        *self.movement_grid.get_checked_mut(coord.cast()) = self.seq;
                         Some(attempt_direction)
                     };
 

@@ -147,7 +147,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
         });
 
         if turn_state == TurnState::Npc && animations.is_empty() {
-            ai_env.append_actions(&mut proposed_actions, &entity_store, &spatial_hash, &ai_info);
+            ai_env.append_actions(&mut proposed_actions, &entity_store, &spatial_hash, &mut ai_info);
             next_turn_state = turn_state.next_state();
         }
 

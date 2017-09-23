@@ -47,6 +47,7 @@ mod control;
 mod control_table;
 mod vision;
 mod dijkstra_map;
+mod search;
 mod ai_info;
 mod ai;
 mod turn;

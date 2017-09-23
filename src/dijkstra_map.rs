@@ -43,13 +43,18 @@ impl DijkstraMap {
         })
     }
 
-    pub fn compute_distance_to_coord<P>(&mut self, spatial_hash: &SpatialHashTable, coord: Vector2<u32>, threshold: u32,
+    pub fn compute_distance_to_coord<P>(&mut self,
+                                        spatial_hash: &SpatialHashTable,
+                                        coord: Vector2<i32>,
+                                        threshold: u32,
                                         can_enter: P)
         where P: Fn(&SpatialHashCell) -> bool,
     {
-        if !self.grid.contains(coord) {
+        let coord = if let Some(coord) = self.grid.convert_signed(coord) {
+            coord
+        } else {
             return;
-        }
+        };
 
         self.seq += 1;
 
@@ -72,12 +77,14 @@ impl DijkstraMap {
                 let next_signed_coord = signed_coord + direction.vector();
                 if let Some(cell) = self.grid.get_signed_mut(next_signed_coord) {
                     let next_coord = next_signed_coord.cast();
-                    let sh_cell = spatial_hash.get(next_coord).expect("Spatial hash of different size to dijkstra map");
+                    if cell.seq != self.seq {
+                        let sh_cell = spatial_hash.get(next_coord).expect("Spatial hash of different size to dijkstra map");
 
-                    if cell.seq != self.seq && can_enter(sh_cell) {
-                        cell.seq = self.seq;
-                        cell.value = next_value;
-                        self.coord_queue.push_back(next_coord);
+                        if can_enter(sh_cell) {
+                            cell.seq = self.seq;
+                            cell.value = next_value;
+                            self.coord_queue.push_back(next_coord);
+                        }
                     }
                 }
             }
