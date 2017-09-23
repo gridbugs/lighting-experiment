@@ -51,6 +51,7 @@ mod search;
 mod ai_info;
 mod ai;
 mod turn;
+mod vec_pool;
 
 fn main() {
     let (input, output) = glutin_frontend::create();

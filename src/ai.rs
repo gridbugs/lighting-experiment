@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use fnv::FnvHashMap;
 use cgmath::Vector2;
 use entity_store::{EntityId, EntityChange, EntityStore};
 use spatial_hash::SpatialHashTable;
@@ -8,6 +8,7 @@ use append::Append;
 use direction::CardinalDirections;
 use static_grid::StaticGrid;
 use search::PathNode;
+use vec_pool::VecPool;
 
 #[derive(Debug)]
 struct NpcInfo {
@@ -20,7 +21,8 @@ pub struct AiEnv {
     npcs: Vec<NpcInfo>,
     movement_grid: StaticGrid<u64>,
     seq: u64,
-    paths: HashMap<EntityId, Vec<PathNode>>,
+    paths: FnvHashMap<EntityId, Vec<PathNode>>,
+    path_pool: VecPool<PathNode>,
 }
 
 impl AiEnv {
@@ -29,7 +31,8 @@ impl AiEnv {
             npcs: Vec::new(),
             movement_grid: StaticGrid::new_copy(width, height, 0),
             seq: 0,
-            paths: HashMap::new(),
+            paths: FnvHashMap::default(),
+            path_pool: VecPool::new(),
         }
     }
 
@@ -76,7 +79,7 @@ impl AiEnv {
                 false
             };
             if remove_path {
-                self.paths.remove(&npc.id);
+                self.path_pool.free(self.paths.remove(&npc.id).unwrap());
             }
 
             let mut best_destination = None;
@@ -101,7 +104,7 @@ impl AiEnv {
                     };
 
                     let maybe_direction = if *self.movement_grid.get_checked(coord.cast()) == self.seq {
-                        let mut path = Vec::new();
+                        let mut path = self.path_pool.alloc();
                         let result = global_info.search_to_player(spatial_hash, npc.coord, |sh_cell, coord| {
                             sh_cell.solid_count == 0 &&
                                 sh_cell.door_set.is_empty() &&
@@ -112,6 +115,7 @@ impl AiEnv {
                             self.paths.insert(npc.id, path);
                             Some(first.direction)
                         } else {
+                            self.path_pool.free(path);
                             None
                         }
                     } else {
@@ -127,12 +131,18 @@ impl AiEnv {
         }
     }
 
+    fn clear_paths(&mut self) {
+        for (_, path) in self.paths.drain() {
+            self.path_pool.free(path);
+        }
+    }
+
     pub fn update(&mut self, change: &EntityChange, entity_store: &EntityStore) {
         use self::EntityChange::*;
         match change {
             &Insert(id, _) => {
                 if entity_store.player.contains(&id) {
-                    self.paths.clear()
+                    self.clear_paths();
                 }
             }
             _ => {}
