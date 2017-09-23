@@ -21,20 +21,25 @@ pub enum Error {
 pub type Result<T> = result::Result<T, Error>;
 
 struct Node {
-    cost: u32,
     score: u32,
     coord: Vector2<u32>,
 }
 
 struct Cell {
-    seq: u64,
+    cost: u32,
+    score: u32,
+    visited: u64,
+    seen: u64,
     enter_direction: Option<CardinalDirection>,
 }
 
 impl Default for Cell {
     fn default() -> Self {
         Self {
-            seq: 0,
+            cost: 0,
+            score: 0,
+            visited: 0,
+            seen: 0,
             enter_direction: None,
         }
     }
@@ -95,43 +100,67 @@ impl SearchEnv {
         self.seq += 1;
         self.queue.clear();
         self.queue.push(Node {
-            cost: 0,
             score: 0,
             coord: start,
         });
         {
             let cell = self.grid.get_checked_mut(start);
-            cell.seq = self.seq;
             cell.enter_direction = None;
         }
 
         let mut found = false;
 
-        'outer: while let Some(node) = self.queue.pop() {
+        while let Some(node) = self.queue.pop() {
+            let base_cost = {
+                let cell = self.grid.get_checked_mut(node.coord);
+                if cell.visited == self.seq {
+                    // already been here
+                    continue;
+                }
+                if node.coord == end {
+                    found = true;
+                    break;
+                }
+
+                cell.visited = self.seq;
+
+                cell.cost
+            };
+
             let signed_coord = node.coord.cast();
-            let cost = node.cost + 1;
 
             for direction in CardinalDirections {
                 let next_signed_coord = signed_coord + direction.vector();
                 if let Some(cell) = self.grid.get_signed_mut(next_signed_coord) {
-                    if cell.seq != self.seq {
-                        let next_coord = next_signed_coord.cast();
-                        let sh_cell = spatial_hash.get(next_coord).expect("Spatial hash of different size to dijkstra map");
-                        if can_enter(sh_cell, next_coord) {
-                            cell.seq = self.seq;
-                            cell.enter_direction = Some(direction);
-                            if next_coord == end {
-                                // found path to dest
-                                found = true;
-                                break 'outer;
-                            }
-                            self.queue.push(Node {
-                                cost,
-                                score: cost,
-                                coord: next_coord,
-                            });
-                        }
+
+                    let next_coord = next_signed_coord.cast();
+                    let sh_cell = spatial_hash.get(next_coord).expect("Spatial hash of different size to dijkstra map");
+                    if !can_enter(sh_cell, next_coord) {
+                        continue;
                     }
+
+                    if cell.visited == self.seq {
+                        // already visited
+                        continue;
+                    }
+                    let cost = base_cost + 1; // TODO
+                    let heuristic = 0; // TODO
+                    let score = cost + heuristic;
+                    if cell.seen == self.seq && cell.score <= score {
+                        // already een better score
+                        continue;
+                    }
+
+                    // update the best info for the cell
+                    cell.seen = self.seq;
+                    cell.cost = cost;
+                    cell.score = score;
+                    cell.enter_direction = Some(direction);
+
+                    self.queue.push(Node {
+                        score,
+                        coord: next_coord,
+                    });
                 }
             }
         }
