@@ -82,7 +82,6 @@ impl AiEnv {
                     };
 
                     let maybe_direction = if *self.movement_grid.get_checked(coord.cast()) == self.seq {
-                        println!("searching");
                         global_info.search_start_to_player(spatial_hash, npc.coord, |sh_cell, coord| {
                             sh_cell.solid_count == 0 &&
                                 sh_cell.door_set.is_empty() &&

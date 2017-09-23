@@ -68,7 +68,6 @@ impl SearchEnv {
         where P: Fn(&SpatialHashCell, Vector2<u32>) -> bool,
     {
         if start == end {
-            println!("start and end are the same");
             return None;
         }
         let (start, end) = if let Some((start, end)) = self.search_bounds(start, end) {
@@ -77,7 +76,6 @@ impl SearchEnv {
             return None;
         };
 
-        println!("searching from {:?} to {:?}", start, end);
         self.seq += 1;
         self.queue.clear();
         self.queue.push(Node {
@@ -94,7 +92,6 @@ impl SearchEnv {
         let mut found = false;
 
         'outer: while let Some(node) = self.queue.pop() {
-            println!("expanded {:?}", node.coord);
             let signed_coord = node.coord.cast();
             let cost = node.cost + 1;
 
@@ -105,7 +102,6 @@ impl SearchEnv {
                         let next_coord = next_signed_coord.cast();
                         let sh_cell = spatial_hash.get(next_coord).expect("Spatial hash of different size to dijkstra map");
                         if can_enter(sh_cell, next_coord) {
-                            println!("visited {:?}", next_coord);
                             cell.seq = self.seq;
                             cell.enter_direction = Some(direction);
                             if next_coord == end {
@@ -125,7 +121,6 @@ impl SearchEnv {
         }
 
         if found {
-            println!("found {:?}", end);
             let mut coord = end;
             let mut last_direction = CardinalDirection::North;
             loop {
@@ -134,9 +129,7 @@ impl SearchEnv {
                     let enter_direction = direction.opposite();
                     coord = (coord.cast() + enter_direction.vector()).cast();
                     last_direction = direction;
-                    println!("  -> {:?}", coord);
                 } else {
-                    println!("{:?}", last_direction);
                     return Some(last_direction);
                 }
             }
@@ -149,13 +142,11 @@ impl SearchEnv {
         let start_coord = if let Some(start_coord) = self.grid.convert_signed(start_coord) {
             start_coord
         } else {
-            println!("failed to convert start");
             return None;
         };
         let end_coord = if let Some(end_coord) = self.grid.convert_signed(end_coord) {
             end_coord
         } else {
-            println!("failed to convert end");
             return None;
         };
         Some((start_coord, end_coord))
