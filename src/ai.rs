@@ -10,6 +10,8 @@ use static_grid::StaticGrid;
 use search::PathNode;
 use vec_pool::VecPool;
 
+const OCCUPIED_MOVE_COST: u32 = 1000;
+
 #[derive(Debug)]
 struct NpcInfo {
     id: EntityId,
@@ -104,16 +106,33 @@ impl AiEnv {
                     };
 
                     let maybe_direction = if *self.movement_grid.get_checked(coord.cast()) == self.seq {
+                        // something is where we want to be, so search for a path around it
                         let mut path = self.path_pool.alloc();
                         let result = global_info.search_to_player(spatial_hash, npc.coord, |sh_cell, coord| {
-                            sh_cell.solid_count == 0 &&
-                                sh_cell.door_set.is_empty() &&
-                                *self.movement_grid.get_checked(coord) != self.seq
+                            if sh_cell.solid_count == 0 && sh_cell.door_set.is_empty() {
+                                if *self.movement_grid.get_checked(coord) == self.seq {
+                                    // something plans to move here - prefer to not move here
+                                    Some(OCCUPIED_MOVE_COST)
+                                } else {
+                                    Some(1)
+                                }
+                            } else {
+                                None
+                            }
                         }, &mut path);
                         if result.is_ok() {
                             let first = path.pop().expect("Empty path");
-                            self.paths.insert(npc.id, path);
-                            Some(first.direction)
+                            let first_coord = (first.origin + first.direction.vector()).cast();
+                            if *self.movement_grid.get_checked(first_coord) == self.seq {
+                                // something is still where we want to be - we won't be moving
+                                *self.movement_grid.get_checked_mut(npc.coord.cast()) = self.seq;
+                                self.path_pool.free(path);
+                                None
+                            } else {
+                                *self.movement_grid.get_checked_mut(first_coord) = self.seq;
+                                self.paths.insert(npc.id, path);
+                                Some(first.direction)
+                            }
                         } else {
                             self.path_pool.free(path);
                             None

@@ -5,6 +5,7 @@ use cgmath::Vector2;
 use static_grid::StaticGrid;
 use spatial_hash::{SpatialHashTable, SpatialHashCell};
 use direction::{CardinalDirection, CardinalDirections};
+use dijkstra_map::DijkstraMap;
 
 #[derive(Debug, Clone, Copy)]
 pub struct PathNode {
@@ -80,13 +81,14 @@ impl SearchEnv {
         }
     }
 
-    pub fn search<P>(&mut self,
+    pub fn search<C>(&mut self,
                      spatial_hash: &SpatialHashTable,
                      start: Vector2<i32>,
                      end: Vector2<i32>,
-                     can_enter: P,
+                     cost_fn: C,
+                     dijkstra_map: &DijkstraMap,
                      path: &mut Vec<PathNode>) -> Result<()>
-        where P: Fn(&SpatialHashCell, Vector2<u32>) -> bool,
+        where C: Fn(&SpatialHashCell, Vector2<u32>) -> Option<u32>,
     {
         if start == end {
             return Err(Error::OutOfBounds);
@@ -133,18 +135,27 @@ impl SearchEnv {
                 let next_signed_coord = signed_coord + direction.vector();
                 if let Some(cell) = self.grid.get_signed_mut(next_signed_coord) {
 
-                    let next_coord = next_signed_coord.cast();
-                    let sh_cell = spatial_hash.get(next_coord).expect("Spatial hash of different size to dijkstra map");
-                    if !can_enter(sh_cell, next_coord) {
-                        continue;
-                    }
-
                     if cell.visited == self.seq {
                         // already visited
                         continue;
                     }
-                    let cost = base_cost + 1; // TODO
-                    let heuristic = 0; // TODO
+
+                    let next_coord = next_signed_coord.cast();
+
+                    let heuristic = if let Some(distance) = dijkstra_map.get_distance(next_coord) {
+                        distance
+                    } else {
+                        continue;
+                    };
+
+                    let sh_cell = spatial_hash.get(next_coord).expect("Spatial hash of different size to dijkstra map");
+                    let next_cost = if let Some(next_cost) = cost_fn(sh_cell, next_coord) {
+                        next_cost
+                    } else {
+                        continue;
+                    };
+
+                    let cost = base_cost + next_cost;
                     let score = cost + heuristic;
                     if cell.seen == self.seq && cell.score <= score {
                         // already een better score

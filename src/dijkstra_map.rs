@@ -33,7 +33,17 @@ impl DijkstraMap {
         }
     }
 
-    pub fn get_distance(&self, coord: Vector2<i32>) -> Option<u32> {
+    pub fn get_distance(&self, coord: Vector2<u32>) -> Option<u32> {
+        self.grid.get(coord).and_then(|cell| {
+            if cell.seq == self.seq {
+                Some(cell.value)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn get_distance_signed(&self, coord: Vector2<i32>) -> Option<u32> {
         self.grid.get_signed(coord).and_then(|cell| {
             if cell.seq == self.seq {
                 Some(cell.value)

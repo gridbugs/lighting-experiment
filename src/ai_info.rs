@@ -44,16 +44,16 @@ impl GlobalAiInfo {
     }
 
     pub fn get_distance(&self, coord: Vector2<i32>) -> Option<u32> {
-        self.distance_to_player.get_distance(coord)
+        self.distance_to_player.get_distance_signed(coord)
     }
 
-    pub fn search_to_player<P>(&mut self,
+    pub fn search_to_player<C>(&mut self,
                                spatial_hash: &SpatialHashTable,
                                start: Vector2<i32>,
-                               can_enter: P,
+                               cost_fn: C,
                                path: &mut Vec<PathNode>) -> search::Result<()>
-        where P: Fn(&SpatialHashCell, Vector2<u32>) -> bool,
+        where C: Fn(&SpatialHashCell, Vector2<u32>) -> Option<u32>,
     {
-        self.search_env.search(spatial_hash, start, self.player_coord, can_enter, path)
+        self.search_env.search(spatial_hash, start, self.player_coord, cost_fn, &self.distance_to_player, path)
     }
 }
