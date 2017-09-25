@@ -23,7 +23,6 @@ pub fn crab<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vecto
     changes.append(insert::sprite(id, Sprite::Crab));
     changes.append(insert::depth(id, DepthInfo::new(DepthType::Fixed, -0.4)));
     changes.append(insert::collider(id));
-    changes.append(insert::door_opener(id));
     changes.append(insert::npc(id));
     changes.append(insert::bump_attack(id));
     changes.append(insert::attackable(id));
@@ -35,7 +34,6 @@ pub fn snail<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vect
     changes.append(insert::sprite(id, Sprite::Snail));
     changes.append(insert::depth(id, DepthInfo::new(DepthType::Fixed, -0.4)));
     changes.append(insert::collider(id));
-    changes.append(insert::door_opener(id));
     changes.append(insert::npc(id));
     changes.append(insert::bump_attack(id));
     changes.append(insert::attackable(id));

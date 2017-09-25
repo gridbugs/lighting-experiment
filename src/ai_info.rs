@@ -25,18 +25,24 @@ impl GlobalAiInfo {
         }
     }
 
-    pub fn set_player_coord(&mut self, coord: Vector2<i32>, spatial_hash: &SpatialHashTable) {
+    pub fn set_player_coord(&mut self, coord: Vector2<i32>) {
         self.player_coord = coord;
-        self.distance_to_player.compute_distance_to_coord(spatial_hash, coord, DISTANCE_TO_PLAYER_THRESHOLD, general_can_enter);
     }
 
-    pub fn update(&mut self, change: &EntityChange, entity_store: &EntityStore, spatial_hash: &SpatialHashTable) {
+    pub fn compute_distances(&mut self, spatial_hash: &SpatialHashTable) {
+        self.distance_to_player.compute_distance_to_coord(spatial_hash,
+                                                          self.player_coord,
+                                                          DISTANCE_TO_PLAYER_THRESHOLD,
+                                                          general_can_enter);
+    }
+
+    pub fn update(&mut self, change: &EntityChange, entity_store: &EntityStore) {
         use self::EntityChange::*;
         use self::ComponentValue::*;
         match change {
             &Insert(id, Coord(coord)) => {
                 if entity_store.player.contains(&id) {
-                    self.set_player_coord(coord, spatial_hash);
+                    self.set_player_coord(coord);
                 }
             }
             _ => {}

@@ -87,7 +87,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
         }
     });
 
-    ai_info.set_player_coord(*entity_store.coord.get(&player_id).expect("Missing player coord"), &spatial_hash);
+    ai_info.set_player_coord(*entity_store.coord.get(&player_id).expect("Missing player coord"));
 
     let mut turn = TurnInfo {
         state: TurnState::Player,
@@ -155,6 +155,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
         });
 
         if turn.state == TurnState::Npc && animations.is_empty() {
+            ai_info.compute_distances(&spatial_hash);
             ai_env.append_actions(&mut proposed_actions, &entity_store, &spatial_hash, &mut ai_info);
             next_turn = turn.next();
         }
@@ -199,7 +200,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                     match desc {
                         Immediate(change) => {
                             if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs_swap) {
-                                ai_info.update(&change, &entity_store, &spatial_hash);
+                                ai_info.update(&change, &entity_store);
                                 ai_env.update(&change, &entity_store);
                                 commit(change, state, &mut entity_store, &mut spatial_hash, &mut door_manager, count, turn, player_id);
                             }
