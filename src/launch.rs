@@ -15,20 +15,24 @@ use direction::CardinalDirection;
 use content::{ChangeDesc, Animation, AnimationStatus, AnimatedChange};
 use vision::shadowcast;
 use ai_info::GlobalAiInfo;
-use turn::TurnState;
+use turn::{TurnInfo, TurnState};
 use ai::AiEnv;
+use door_manager::DoorManager;
 use policy;
 
 fn commit<'a, 'b, S: OutputWorldState<'a, 'b>>(change: EntityChange,
                                                state: &mut S,
                                                entity_store: &mut EntityStore,
                                                spatial_hash: &mut SpatialHashTable,
+                                               door_manager: &mut DoorManager,
                                                time: u64,
+                                               turn: TurnInfo,
                                                player_id: EntityId)
 {
     state.update(&change, entity_store, spatial_hash);
 
     spatial_hash.update(entity_store, &change, time);
+    door_manager.update(&change, turn);
 
     if let EntityChange::Insert(id, ComponentValue::Position(new_position)) = change {
         if id == player_id {
@@ -64,6 +68,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
     let mut shadowcast_env = shadowcast::ShadowcastEnv::new();
     let mut ai_info = GlobalAiInfo::new(metadata.width, metadata.height);
     let mut ai_env = AiEnv::new(metadata.width, metadata.height);
+    let mut door_manager = DoorManager::new();
 
     frontend_output.update_world_size(metadata.width, metadata.height);
 
@@ -84,7 +89,10 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
 
     ai_info.set_player_coord(*entity_store.coord.get(&player_id).expect("Missing player coord"), &spatial_hash);
 
-    let mut turn_state = TurnState::Player;
+    let mut turn = TurnInfo {
+        state: TurnState::Player,
+        count: 0,
+    };
 
     let mut proposed_actions = VecDeque::new();
 
@@ -102,7 +110,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
     let mut frame_instant = start_instant;
 
     while running {
-        let mut next_turn_state = turn_state;
+        let mut next_turn = turn;
 
         let now = Instant::now();
         let frame_duration = now - frame_instant;
@@ -113,7 +121,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
             use self::Input::*;
             match input {
                 Bindable(b) => {
-                    if turn_state != TurnState::Player || !animations.is_empty() {
+                    if turn.state != TurnState::Player || !animations.is_empty() {
                         return;
                     }
                     if let Some(control) = control_table.get(b) {
@@ -125,7 +133,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                             Wait => {}
                         }
 
-                        next_turn_state = turn_state.next_state();
+                        next_turn = turn.next();
                     }
                 }
                 Unbindable(u) => {
@@ -146,10 +154,12 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
             }
         });
 
-        if turn_state == TurnState::Npc && animations.is_empty() {
+        if turn.state == TurnState::Npc && animations.is_empty() {
             ai_env.append_actions(&mut proposed_actions, &entity_store, &spatial_hash, &mut ai_info);
-            next_turn_state = turn_state.next_state();
+            next_turn = turn.next();
         }
+
+        door_manager.close_doors(&mut proposed_actions, &entity_store, turn);
 
         let visible_range = frontend_output.visible_range();
 
@@ -174,11 +184,11 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                 match animated_change {
                     AnimatedChange::Checked(change) => {
                         if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs) {
-                            commit(change, state, &mut entity_store, &mut spatial_hash, count, player_id);
+                            commit(change, state, &mut entity_store, &mut spatial_hash, &mut door_manager, count, turn, player_id);
                         }
                     }
                     AnimatedChange::Unchecked(change) => {
-                        commit(change, state, &mut entity_store, &mut spatial_hash, count, player_id);
+                        commit(change, state, &mut entity_store, &mut spatial_hash, &mut door_manager, count, turn, player_id);
                     }
                 }
             }
@@ -191,7 +201,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                             if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs_swap) {
                                 ai_info.update(&change, &entity_store, &spatial_hash);
                                 ai_env.update(&change, &entity_store);
-                                commit(change, state, &mut entity_store, &mut spatial_hash, count, player_id);
+                                commit(change, state, &mut entity_store, &mut spatial_hash, &mut door_manager, count, turn, player_id);
                             }
                         }
                         Animation(animation) => {
@@ -230,6 +240,6 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
         frontend_output.draw();
 
         count += 1;
-        turn_state = next_turn_state;
+        turn = next_turn;
     }
 }

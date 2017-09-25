@@ -13,7 +13,7 @@ pub struct GlobalAiInfo {
 }
 
 fn general_can_enter(cell: &SpatialHashCell) -> bool {
-    cell.solid_count == 0 && cell.door_set.is_empty()
+    cell.solid_count == 0
 }
 
 impl GlobalAiInfo {

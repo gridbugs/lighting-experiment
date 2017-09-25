@@ -50,6 +50,7 @@ mod dijkstra_map;
 mod search;
 mod ai_info;
 mod ai;
+mod door_manager;
 mod turn;
 mod vec_pool;
 

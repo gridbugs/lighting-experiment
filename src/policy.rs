@@ -51,18 +51,6 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
                             }
                         }
 
-                        for (door_id, door_info) in entity_store.door.iter() {
-                            if let Some(door_coord) = entity_store.coord.get(door_id) {
-                                if *door_coord != coord {
-                                    let mut door_info = *door_info;
-                                    if door_info.state == DoorState::Open {
-                                        door_info.state = DoorState::Closed;
-                                        reactions.append(ChangeDesc::immediate(insert::door(*door_id, door_info)));
-                                    }
-                                }
-                            }
-                        }
-
                         // Start the slide animation for the move.
                         reactions.append(ChangeDesc::slide(id, current_coord.cast(), coord.cast(), Duration::from_millis(50)));
                     }
@@ -73,6 +61,7 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
             }
         }
         &Insert(id, ComponentValue::Door(door_info)) => {
+            // animations and status effects of a door being opened or closed
             match door_info.state {
                 DoorState::Open => {
                     reactions.append(ChangeDesc::immediate(remove::solid(id)));
@@ -81,6 +70,13 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
                                                          insert::sprite(id, door_info.typ.open_sprite())));
                 }
                 DoorState::Closed => {
+                    if let Some(coord) = entity_store.coord.get(&id) {
+                        if let Some(sh_cell) = spatial_hash.get_signed(*coord) {
+                            if sh_cell.npc_count > 0 || sh_cell.player_count > 0 {
+                                return false;
+                            }
+                        }
+                    }
                     reactions.append(ChangeDesc::immediate(insert::solid(id)));
                     reactions.append(ChangeDesc::sprites(id, door_info.typ.close_animation(),
                                      insert::door_closing_finished(id)));
@@ -88,6 +84,7 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
             }
         }
         &Insert(id, ComponentValue::DoorClosingFinished) => {
+            // extra changes to apply once a door is fully closed
             reactions.append(ChangeDesc::immediate(insert::opacity(id, 1.0)));
             if let Some(door_info) = entity_store.door.get(&id) {
                 reactions.append(ChangeDesc::immediate(insert::sprite(id, door_info.typ.closed_sprite())));
