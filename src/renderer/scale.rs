@@ -91,11 +91,13 @@ impl<R: gfx::Resources> Scale<R> {
         // which interpolation will occur.
         let interpolate_strip_width = 1.0 / upscale as f32;
 
-        encoder.update_constant_buffer(&self.bundle.data.info, &Info {
+        let info = Info {
             tex_size: [self.in_width as f32, self.in_height as f32],
             interpolate_threshold_from_centre,
             interpolate_strip_width,
-        });
+        };
+
+        encoder.update_constant_buffer(&self.bundle.data.info, &info);
     }
 
     pub fn clear<C>(&self, encoder: &mut gfx::Encoder<R, C>)
