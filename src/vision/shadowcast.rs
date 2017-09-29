@@ -96,7 +96,7 @@ fn scan<G, O>(grid: &mut G,
     let mut prev_visibility = 0.0;
     let mut prev_opaque = false;
 
-    for lateral_index in lateral_min...lateral_max {
+    for lateral_index in lateral_min..=lateral_max {
         let coord = octant.make_coord(static_params.centre, lateral_index, depth_index);
         if coord.x < 0 || coord.x >= static_params.spatial_hash.width() as i32 ||
             coord.y < 0 || coord.y >= static_params.spatial_hash.height() as i32 {
