@@ -10,6 +10,7 @@ use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::common;
 use res::input_sprite::{self, InputSprite, InputSpriteLocation};
 use content::sprite::{self, Sprite};
+use content::health_overlay::{self, HealthOverlay};
 
 // one for each combination of wall neighbours
 const TILES_PER_WALL: u32 = 256;
@@ -78,16 +79,21 @@ impl Default for SpriteResolution {
 #[derive(Debug)]
 pub struct SpriteTable {
     sprites: Vec<SpriteResolution>,
+    health_overlays: Vec<SpriteResolution>,
 }
 
 impl SpriteTable {
-    pub fn new(sprites: Vec<SpriteResolution>) -> Self {
+    fn new(sprites: Vec<SpriteResolution>, health_overlays: Vec<SpriteResolution>) -> Self {
         SpriteTable {
-            sprites
+            sprites,
+            health_overlays,
         }
     }
-    pub fn get(&self, sprite: sprite::Sprite) -> Option<&SpriteResolution> {
+    pub fn get_sprite(&self, sprite: Sprite) -> Option<&SpriteResolution> {
         self.sprites.get(sprite as usize)
+    }
+    pub fn get_health_overlay(&self, health_overlay: HealthOverlay) -> Option<&SpriteResolution> {
+        self.health_overlays.get(health_overlay as usize)
     }
 }
 
@@ -130,6 +136,7 @@ struct SpriteSheetBuilder<R: gfx::Resources> {
     height: u32,
     input_sprites: Vec<input_sprite::InputSprite>,
     sprite_table: Vec<SpriteResolution>,
+    health_overlay_table: Vec<SpriteResolution>,
     image: RgbaImage,
     bundle: gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     upload: gfx::handle::Buffer<R, Instance>,
@@ -163,6 +170,11 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                     width += top.size.x + front.size.x;
                     height = cmp::max(cmp::max(top.size.y, front.size.y), height);
                 }
+                &HealthOverlay { location, .. } => {
+                    num_instances += 1;
+                    width += location.size.x;
+                    height = cmp::max(height, location.size.y);
+                }
             }
         }
 
@@ -172,6 +184,11 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         let mut sprite_table = Vec::new();
         for _ in 0..sprite::NUM_SPRITES {
             sprite_table.push(SpriteResolution::default());
+        }
+
+        let mut health_overlay_table = Vec::new();
+        for _ in 0..health_overlay::NUM_HEALTH_OVERLAYS {
+            health_overlay_table.push(SpriteResolution::default());
         }
 
         let pso = factory.create_pipeline_simple(
@@ -222,6 +239,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
             height,
             input_sprites,
             sprite_table,
+            health_overlay_table,
             image,
             bundle,
             upload,
@@ -311,8 +329,21 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                         depth: SIMPLE_DEPTH,
                     };
                     instance_index += 1;
-
-
+                }
+                &InputSprite::HealthOverlay { health_overlay, location } => {
+                    self.health_overlay_table[health_overlay as usize] = SpriteResolution::Simple(SpriteLocation {
+                        position: sprite_sheet_x as f32,
+                        size: location.size.cast(),
+                        offset: location.offset.cast(),
+                    });
+                    mapping[instance_index] = Instance {
+                        in_pix_pos: location.position.cast().into(),
+                        out_pix_pos: [sprite_sheet_x as f32, 0.0],
+                        pix_size: location.size.cast().into(),
+                        depth: SIMPLE_DEPTH,
+                    };
+                    instance_index += 1;
+                    sprite_sheet_x += location.size.x;
                 }
             }
         }
@@ -392,13 +423,14 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
     }
 
     fn build(self) -> SpriteSheet<R> {
-        let Self { shader_resource_view, width, height, sprite_table, .. } = self;
+        let Self { shader_resource_view, width, height, sprite_table, health_overlay_table, .. } = self;
         SpriteSheet {
             shader_resource_view,
             width,
             height,
             sprite_table: SpriteTable {
                 sprites: sprite_table,
+                health_overlays: health_overlay_table,
             },
         }
     }
@@ -416,9 +448,5 @@ impl<R: gfx::Resources> SpriteSheet<R> {
         builder.populate(factory);
         builder.draw(encoder, device);
         builder.build()
-    }
-
-    pub fn get(&self, sprite: sprite::Sprite) -> Option<&SpriteResolution> {
-        self.sprite_table.get(sprite)
     }
 }

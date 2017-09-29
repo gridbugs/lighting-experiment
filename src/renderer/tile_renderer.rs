@@ -189,7 +189,7 @@ pub struct WallSpriteRenderInfo {
 
 impl WallSpriteRenderInfo {
     pub fn resolve(sprite: Sprite, sprite_table: &SpriteTable) -> Option<Self> {
-        if let Some(&SpriteResolution::Wall(location)) = sprite_table.get(sprite) {
+        if let Some(&SpriteResolution::Wall(location)) = sprite_table.get_sprite(sprite) {
             return Some(Self {
                 base_x: location.base(),
                 size: location.size().x,
@@ -205,7 +205,7 @@ impl WallSpriteRenderInfo {
 impl SpriteRenderInfo {
     pub fn resolve(sprite: Sprite, sprite_table: &SpriteTable,
                position: Vector2<f32>, spatial_hash: &SpatialHashTable) -> Option<Self> {
-        if let Some(sprite_resolution) = sprite_table.get(sprite) {
+        if let Some(sprite_resolution) = sprite_table.get_sprite(sprite) {
             let (position_x, size, offset, wall_info) = match sprite_resolution {
                 &SpriteResolution::Simple(location) => {
                     (location.position, location.size, location.offset, None)

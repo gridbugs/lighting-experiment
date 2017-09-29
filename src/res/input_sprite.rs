@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use cgmath::{Vector2, ElementWise};
 use direction::Direction;
-use content::Sprite;
+use content::{Sprite, HealthOverlay};
 
 pub const WIDTH_PX: u32 = 16;
 pub const HEIGHT_PX: u32 = 16;
@@ -42,6 +42,10 @@ pub fn input_sprites() -> Vec<InputSprite> {
         general_wall_fit(Window, [0, 0], None, None),
 
         feature(Light, [0, 0], None, None),
+
+        health_overlay(HealthOverlay::Full, [0, 0]),
+        health_overlay(HealthOverlay::Half, [1, 0]),
+        health_overlay(HealthOverlay::Empty, [2, 0]),
     ]
 }
 
@@ -67,6 +71,10 @@ pub enum InputSprite {
         sprite: Sprite,
         top: InputSpriteLocation,
         front: InputSpriteLocation,
+    },
+    HealthOverlay {
+        health_overlay: HealthOverlay,
+        location: InputSpriteLocation,
     },
 }
 
@@ -216,6 +224,23 @@ fn feature(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>, size: O
             position,
             size,
             offset,
+        },
+    }
+}
+
+const HEALTH_OVERLAY_START: Vector2<u32> = Vector2 { x: 0, y: FEATURE_START.y + FEATURE_TOTAL_HEIGHT };
+const HEALTH_OVERLAY_DIMENSIONS: Vector2<u32> = Vector2 { x: 8, y: 7 };
+const HEALTH_OVERLAY_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
+const HEALTH_OVERLAY_TOTAL_HEIGHT: u32 = 7;
+
+fn health_overlay(typ: HealthOverlay, position: [u32; 2]) -> InputSprite {
+    let position = HEALTH_OVERLAY_START + Vector2::from(position).mul_element_wise(HEALTH_OVERLAY_DIMENSIONS);
+    InputSprite::HealthOverlay {
+        health_overlay: typ,
+        location: InputSpriteLocation {
+            position,
+            size: HEALTH_OVERLAY_DIMENSIONS,
+            offset: HEALTH_OVERLAY_OFFSET,
         },
     }
 }

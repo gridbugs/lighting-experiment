@@ -27,3 +27,6 @@ pub use self::sprite_effect::{SpriteEffect, SpriteEffectInfo};
 
 pub mod light;
 pub use self::light::LightInfo;
+
+pub mod health_overlay;
+pub use self::health_overlay::HealthOverlay;
