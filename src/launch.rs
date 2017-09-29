@@ -154,6 +154,10 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
             }
         });
 
+        if !running {
+            break;
+        }
+
         if turn.state == TurnState::Npc && animations.is_empty() {
             ai_info.compute_distances(&spatial_hash);
             ai_env.append_actions(&mut proposed_actions, &entity_store, &spatial_hash, &mut ai_info);
