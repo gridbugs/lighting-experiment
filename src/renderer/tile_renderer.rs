@@ -76,10 +76,8 @@ gfx_constant_struct!( FrameInfo {
 });
 
 gfx_constant_struct!( Light {
-    colour: [f32; 3] = "colour",
-    _pad0: u32 = "_pad0",
-    position: [f32; 3] = "position",
-    intensity: f32 = "intensity",
+    colour: [f32; 4] = "colour",
+    position: [f32; 4] = "position",
 });
 
 gfx_pipeline!( pipe {
@@ -688,9 +686,11 @@ impl LightUpdate for Light {
         self.position[2] = height;
     }
     fn set_colour(&mut self, colour: [f32; 3]) {
-        self.colour = colour;
+        self.colour[0] = colour[0];
+        self.colour[1] = colour[1];
+        self.colour[2] = colour[2];
     }
     fn set_intensity(&mut self, intensity: f32) {
-        self.intensity = intensity;
+        self.colour[3] = intensity;
     }
 }

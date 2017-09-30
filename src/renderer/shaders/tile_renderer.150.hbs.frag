@@ -3,9 +3,8 @@
 {{INCLUDE_COMMON}}
 
 struct Light {
-    vec3 colour;
-    vec3 position;
-    float intensity;
+    vec4 colour;
+    vec4 position;
 };
 
 uniform LightList {
@@ -35,8 +34,8 @@ uint get_lit_sides(uint i) {
 const vec3 VERTICAL = vec3(0, 0, 1);
 
 vec3 diffuse_light(Light light, vec3 surface_colour) {
-    vec3 direction = normalize(light.position - vec3(v_FragPosition, 0));
-    return surface_colour * light.colour * light.intensity * dot(direction, VERTICAL);
+    vec3 direction = normalize(light.position.xyz - vec3(v_FragPosition, 0));
+    return surface_colour * light.colour.rgb * light.colour.a * dot(direction, VERTICAL);
 }
 
 const float AMBIENT_LIGHT_MULT = 0.1;
