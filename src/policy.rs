@@ -46,7 +46,7 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
                                                                         current_coord.cast(),
                                                                         coord.cast(),
                                                                         Duration::from_millis(100),
-                                                                        0.6));
+                                                                        0.49));
                                 return false;
                             }
                         }
