@@ -5,6 +5,7 @@ imports = [
     'content::DepthInfo',
     'content::SpriteEffectInfo',
     'content::LightInfo',
+    'content::HealthInfo',
 ]
 
 [components]
@@ -25,3 +26,4 @@ light = { type = 'LightInfo', name = 'Light', store = 'btree' }
 npc = { name = 'Npc', store = 'hash' }
 bump_attack = { name = 'BumpAttack' }
 attackable = { name = 'Attackable' }
+health = { type = 'HealthInfo', name = 'Health', store = 'hash' }

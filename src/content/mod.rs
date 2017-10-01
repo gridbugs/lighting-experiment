@@ -30,3 +30,6 @@ pub use self::light::LightInfo;
 
 pub mod health_overlay;
 pub use self::health_overlay::HealthOverlay;
+
+pub mod health;
+pub use self::health::HealthInfo;

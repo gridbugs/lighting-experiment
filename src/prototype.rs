@@ -1,7 +1,7 @@
 use cgmath::Vector2;
 use entity_store::{EntityId, EntityChange, insert};
 use content::{Sprite, DepthType, DepthInfo, DoorState, DoorInfo,
-              DoorType, SpriteEffectInfo, LightInfo};
+              DoorType, SpriteEffectInfo, LightInfo, HealthInfo};
 use append::Append;
 
 pub fn angler<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vector2<i32>) {
@@ -26,6 +26,7 @@ pub fn crab<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vecto
     changes.append(insert::npc(id));
     changes.append(insert::bump_attack(id));
     changes.append(insert::attackable(id));
+    changes.append(insert::health(id, HealthInfo::full(4)));
 }
 
 pub fn snail<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vector2<i32>) {
@@ -37,6 +38,7 @@ pub fn snail<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vect
     changes.append(insert::npc(id));
     changes.append(insert::bump_attack(id));
     changes.append(insert::attackable(id));
+    changes.append(insert::health(id, HealthInfo::full(3)));
 }
 
 pub fn inner_wall<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vector2<i32>) {
