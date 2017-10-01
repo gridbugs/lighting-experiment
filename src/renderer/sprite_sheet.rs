@@ -98,7 +98,7 @@ impl SpriteTable {
 }
 
 pub struct SpriteSheet<R: gfx::Resources> {
-    pub shader_resource_view: gfx::handle::ShaderResourceView<R, [f32; 4]>,
+    pub srv: gfx::handle::ShaderResourceView<R, [f32; 4]>,
     pub width: u32,
     pub height: u32,
     pub sprite_table: SpriteTable,
@@ -131,7 +131,7 @@ gfx_pipeline!( pipe {
 });
 
 struct SpriteSheetBuilder<R: gfx::Resources> {
-    shader_resource_view: gfx::handle::ShaderResourceView<R, [f32; 4]>,
+    srv: gfx::handle::ShaderResourceView<R, [f32; 4]>,
     width: u32,
     height: u32,
     input_sprites: Vec<input_sprite::InputSprite>,
@@ -234,7 +234,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
             .expect("Failed to create upload buffer");
 
         SpriteSheetBuilder {
-            shader_resource_view: srv,
+            srv,
             width,
             height,
             input_sprites,
@@ -423,9 +423,9 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
     }
 
     fn build(self) -> SpriteSheet<R> {
-        let Self { shader_resource_view, width, height, sprite_table, health_overlay_table, .. } = self;
+        let Self { srv, width, height, sprite_table, health_overlay_table, .. } = self;
         SpriteSheet {
-            shader_resource_view,
+            srv,
             width,
             height,
             sprite_table: SpriteTable {

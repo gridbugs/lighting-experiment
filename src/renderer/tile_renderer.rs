@@ -9,6 +9,7 @@ use handlebars::Handlebars;
 use renderer::sprite_sheet::{SpriteSheet, SpriteTable, SpriteResolution};
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::instance_manager::InstanceManager;
+use renderer::render_target::RenderTarget;
 use renderer::common;
 
 use direction::{Direction, DirectionBitmap};
@@ -21,8 +22,6 @@ use frontend::{OutputWorldState, LightUpdate, VisibleRange};
 use res::input_sprite;
 use util::time::duration_millis;
 
-const NUM_ROWS: u16 = 15;
-const HEIGHT_PX: u16 = NUM_ROWS * input_sprite::HEIGHT_PX as u16;
 const MAX_NUM_INSTANCES: usize = 65536;
 const MAX_CELL_TABLE_SIZE: usize = 16384;
 const MAX_NUM_LIGHTS: usize = 32;
@@ -161,8 +160,6 @@ pub struct TileRenderer<R: gfx::Resources> {
     vision_buffer: gfx::handle::Buffer<R, u8>,
     light_buffer: gfx::handle::Buffer<R, u8>,
     sprite_sheet: SpriteSheet<R>,
-    width_px: u16,
-    height_px: u16,
     num_instances: usize,
     num_cells: usize,
     instance_manager: InstanceManager,
@@ -303,26 +300,9 @@ fn populate_shader(handlebars: &Handlebars, table: &HashMap<&'static str, Value>
 }
 
 impl<R: gfx::Resources> TileRenderer<R> {
-    fn scaled_width(window_width_px: u16, window_height_px: u16) -> u16 {
-        ((window_width_px as u32 * HEIGHT_PX as u32) / window_height_px as u32) as u16
-    }
-    fn create_targets<F>(window_width_px: u16, window_height_px: u16, factory: &mut F)
-        -> (u16, gfx::handle::ShaderResourceView<R, [f32; 4]>,
-            gfx::handle::RenderTargetView<R, ColourFormat>,
-            gfx::handle::DepthStencilView<R, DepthFormat>)
-        where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
-    {
-        let width_px = Self::scaled_width(window_width_px, window_height_px);
-        let (_, srv, colour_rtv) = factory.create_render_target(width_px, HEIGHT_PX)
-            .expect("Failed to create render target for sprite sheet");
-        let (_, _, depth_rtv) = factory.create_depth_stencil(width_px, HEIGHT_PX)
-            .expect("Failed to create depth stencil");
-        (width_px, srv, colour_rtv, depth_rtv)
-    }
     pub fn new<F>(sprite_sheet: SpriteSheet<R>,
-                  window_width_px: u16,
-                  window_height_px: u16,
-                  factory: &mut F) -> (Self, gfx::handle::ShaderResourceView<R, [f32; 4]>)
+                  target: &RenderTarget<R>,
+                  factory: &mut F) -> Self
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
         let (handlebars, context) = make_shader_template_context();
@@ -347,9 +327,6 @@ impl<R: gfx::Resources> TileRenderer<R> {
         let sampler = factory.create_sampler(
             gfx::texture::SamplerInfo::new(gfx::texture::FilterMethod::Scale,
                                            gfx::texture::WrapMode::Tile));
-
-        let (width_px, srv, colour_rtv, depth_rtv) =
-            Self::create_targets(window_width_px, window_height_px, factory);
 
         let vision_buffer = common::create_transfer_dst_buffer(TBO_VISION_BUFFER_SIZE, factory)
             .expect("Failed to create vision buffer");
@@ -378,12 +355,12 @@ impl<R: gfx::Resources> TileRenderer<R> {
             vertex: vertex_buffer,
             instance: common::create_instance_buffer(MAX_NUM_INSTANCES, factory)
                 .expect("Failed to create instance buffer"),
-            out_colour: colour_rtv,
-            out_depth: depth_rtv,
-            tex: (sprite_sheet.shader_resource_view.clone(), sampler),
+            out_colour: target.rtv.clone(),
+            out_depth: target.dsv.clone(),
+            tex: (sprite_sheet.srv.clone(), sampler),
         };
 
-        (TileRenderer {
+        Self {
             bundle: gfx::pso::bundle::Bundle::new(slice, pso, data),
             instance_upload: factory.create_upload_buffer(MAX_NUM_INSTANCES)
                 .expect("Failed to create upload buffer"),
@@ -396,8 +373,6 @@ impl<R: gfx::Resources> TileRenderer<R> {
             vision_buffer,
             light_buffer,
             sprite_sheet,
-            width_px,
-            height_px: HEIGHT_PX,
             num_instances: 0,
             num_cells: 0,
             instance_manager: InstanceManager::new(),
@@ -405,28 +380,24 @@ impl<R: gfx::Resources> TileRenderer<R> {
             world_width: 0,
             world_height: 0,
             visible_range: VisibleRange::default(),
-        }, srv)
+        }
     }
 
-    pub fn dimensions(&self) -> (u16, u16) {
-        (self.width_px, self.height_px)
-    }
-
-    pub fn init<C>(&self, encoder: &mut gfx::Encoder<R, C>)
+    pub fn init<C>(&self, target: &RenderTarget<R>, encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {
         encoder.update_constant_buffer(&self.bundle.data.fixed_dimensions, &FixedDimensions {
             sprite_sheet_size: [self.sprite_sheet.width as f32, self.sprite_sheet.height as f32],
             cell_size: [input_sprite::WIDTH_PX as f32, input_sprite::HEIGHT_PX as f32],
         });
-        self.update_output_dimensions(encoder);
+        self.update_output_dimensions(target, encoder);
     }
 
-    pub fn update_output_dimensions<C>(&self, encoder: &mut gfx::Encoder<R, C>)
+    fn update_output_dimensions<C>(&self, target: &RenderTarget<R>, encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {
         encoder.update_constant_buffer(&self.bundle.data.output_dimensions, &OutputDimensions {
-            output_size: [self.width_px as f32, self.height_px as f32],
+            output_size: [target.width as f32, target.height as f32],
         });
     }
 
@@ -451,7 +422,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
         encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);
     }
 
-    pub fn world_state<F>(&mut self, factory: &mut F) -> RendererWorldState<R>
+    pub fn world_state<F>(&mut self, target: &RenderTarget<R>, factory: &mut F) -> RendererWorldState<R>
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
         let instance_writer = factory.write_mapping(&self.instance_upload)
@@ -477,38 +448,30 @@ impl<R: gfx::Resources> TileRenderer<R> {
             instance_manager: &mut self.instance_manager,
             num_instances: &mut self.num_instances,
             player_position: None,
-            width_px: self.width_px,
-            height_px: self.height_px,
+            width_px: target.width,
+            height_px: target.height,
             mid_position: &mut self.mid_position,
             frame_count: 0,
             total_time_ms: 0,
             next_light_index: 0,
             visible_range: &mut self.visible_range,
+            num_rows: target.num_rows,
         }
     }
 
-    pub fn handle_resize<C, F>(&mut self, width: u16, height: u16,
-                               encoder: &mut gfx::Encoder<R, C>, factory: &mut F)
-        -> gfx::handle::ShaderResourceView<R, [f32; 4]>
+    pub fn handle_resize<C>(&mut self, target: &RenderTarget<R>, encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
-              F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
-        let (target_width_px, srv, colour_rtv, depth_rtv) =
-            Self::create_targets(width, height, factory);
+        self.bundle.data.out_colour = target.rtv.clone();
+        self.bundle.data.out_depth = target.dsv.clone();
+        self.visible_range = compute_visible_range(self.mid_position, target.width as i32, target.num_rows);
 
-        self.width_px = target_width_px;
-        self.bundle.data.out_colour = colour_rtv;
-        self.bundle.data.out_depth = depth_rtv;
-        self.visible_range = compute_visible_range(self.mid_position, self.width_px as i32);
+        self.update_output_dimensions(target, encoder);
 
-        self.update_output_dimensions(encoder);
-
-        let scroll_offset = compute_scroll_offset(self.width_px, self.height_px, self.mid_position);
+        let scroll_offset = compute_scroll_offset(target.width, target.height, self.mid_position);
         encoder.update_constant_buffer(&self.bundle.data.offset, &Offset {
             scroll_offset_pix: scroll_offset.into(),
         });
-
-        srv
     }
 
     pub fn update_world_size<C>(&mut self, width: u32, height: u32,
@@ -554,6 +517,7 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
     total_time_ms: u64,
     next_light_index: usize,
     visible_range: &'a mut VisibleRange,
+    num_rows: u16,
 }
 
 impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<'a, R> {
@@ -611,7 +575,7 @@ impl<'a, R: gfx::Resources> RendererWorldState<'a, R> {
         if let Some(player_position) = self.player_position {
             *self.mid_position = player_position;
             let scroll_offset = compute_scroll_offset(self.width_px, self.height_px, player_position);
-            *self.visible_range = compute_visible_range(player_position, self.width_px as i32);
+            *self.visible_range = compute_visible_range(player_position, self.width_px as i32, self.num_rows);
             encoder.update_constant_buffer(&self.bundle.data.offset, &Offset {
                 scroll_offset_pix: scroll_offset.into(),
             });
@@ -631,8 +595,8 @@ fn compute_scroll_offset(width: u16, height: u16, mid_position: Vector2<f32>) ->
     Vector2::new(mid.x - (width / 2) as f32, mid.y - (height / 2) as f32)
 }
 
-fn compute_visible_range(mid_position: Vector2<f32>, width_px: i32) -> VisibleRange {
-    let dy = (NUM_ROWS / 2) as i32;
+fn compute_visible_range(mid_position: Vector2<f32>, width_px: i32, num_rows: u16) -> VisibleRange {
+    let dy = (num_rows / 2) as i32;
     let mid_y = mid_position.y as i32; // rounded down
 
     let y_min = mid_y - dy;

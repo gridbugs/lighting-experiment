@@ -5,6 +5,8 @@ mod scale;
 mod common;
 mod renderer;
 mod instance_manager;
+mod field_ui;
+mod render_target;
 
 pub use self::formats::{ColourFormat, DepthFormat};
 pub use self::renderer::Renderer;
