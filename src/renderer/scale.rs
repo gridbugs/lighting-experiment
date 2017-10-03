@@ -28,12 +28,14 @@ pub struct Scale<R: gfx::Resources> {
 }
 
 impl<R: gfx::Resources> Scale<R> {
-    pub fn new<F>(out_rtv: gfx::handle::RenderTargetView<R, ColourFormat>,
-                  in_srv: gfx::handle::ShaderResourceView<R, [f32; 4]>,
-                  srv_width: u16,
-                  srv_height: u16,
-                  factory: &mut F) -> Self
+    pub fn new<F, C>(out_rtv: gfx::handle::RenderTargetView<R, ColourFormat>,
+                     in_srv: gfx::handle::ShaderResourceView<R, [f32; 4]>,
+                     srv_width: u16,
+                     srv_height: u16,
+                     factory: &mut F,
+                     encoder: &mut gfx::Encoder<R, C>) -> Self
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
+              C: gfx::CommandBuffer<R>,
     {
         let pso = factory.create_pipeline_simple(
             include_bytes!("shaders/scale.150.vert"),
@@ -64,14 +66,16 @@ impl<R: gfx::Resources> Scale<R> {
             tex: (in_srv, sampler),
         };
 
-        Scale {
+        let ret = Scale {
             bundle: gfx::pso::bundle::Bundle::new(slice, pso, data),
             in_width: srv_width,
             in_height: srv_height,
-        }
+        };
+        ret.init(encoder);
+        ret
     }
 
-    pub fn init<C>(&self, encoder: &mut gfx::Encoder<R, C>)
+    fn init<C>(&self, encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {
         let (out_width, ..) = self.bundle.data.out_colour.get_dimensions();

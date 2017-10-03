@@ -2,6 +2,7 @@ use gfx;
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::render_target::RenderTarget;
 use renderer::common;
+use renderer::sprite_sheet::FieldUiSpriteTable;
 
 gfx_vertex_struct!( Vertex {
     pos: [f32; 2] = "a_Pos",
@@ -15,10 +16,11 @@ gfx_pipeline!( pipe {
 
 pub struct FieldUi<R: gfx::Resources> {
     bundle: gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
+    sprite_table: FieldUiSpriteTable,
 }
 
 impl<R: gfx::Resources> FieldUi<R> {
-    pub fn new<F>(target: &RenderTarget<R>, factory: &mut F) -> Self
+    pub fn new<F>(sprite_table: FieldUiSpriteTable, target: &RenderTarget<R>, factory: &mut F) -> Self
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
 
@@ -49,6 +51,7 @@ impl<R: gfx::Resources> FieldUi<R> {
 
         Self {
             bundle,
+            sprite_table,
         }
     }
 

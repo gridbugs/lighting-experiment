@@ -5,7 +5,7 @@ use renderer::tile_renderer::{TileRenderer, RendererWorldState};
 use renderer::scale::Scale;
 use renderer::field_ui::FieldUi;
 use renderer::formats::ColourFormat;
-use renderer::sprite_sheet::SpriteSheet;
+use renderer::sprite_sheet;
 use renderer::render_target::RenderTarget;
 
 use res::{input_sprite, paths, files};
@@ -32,20 +32,17 @@ impl<R: gfx::Resources> Renderer<R> {
             .expect(format!("Failed to open sprite sheet (looked for {})",
                             sprite_sheet_path.display()).as_ref())
             .to_rgba();
-        let sprite_sheet =
-            SpriteSheet::new(image, input_sprite::input_sprites(),
-                             factory, encoder, device);
+        let (sprite_sheet, tile_table, field_ui_table) =
+            sprite_sheet::create(image, input_sprite::input_sprites(),
+                                 factory, encoder, device);
 
         let (width, height, ..) = rtv.get_dimensions();
 
         let target = RenderTarget::new((width, height), factory);
 
-        let tile_renderer = TileRenderer::new(sprite_sheet, &target, factory);
-        let field_ui = FieldUi::new(&target, factory);
-        let scale = Scale::new(rtv.clone(), target.srv.clone(), target.width, target.height, factory);
-
-        tile_renderer.init(&target, encoder);
-        scale.init(encoder);
+        let tile_renderer = TileRenderer::new(&sprite_sheet, tile_table, &target, factory, encoder);
+        let field_ui = FieldUi::new(field_ui_table, &target, factory);
+        let scale = Scale::new(rtv.clone(), target.srv.clone(), target.width, target.height, factory, encoder);
 
         Renderer {
             target,

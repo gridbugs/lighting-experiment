@@ -77,31 +77,24 @@ impl Default for SpriteResolution {
 }
 
 #[derive(Debug)]
-pub struct SpriteTable {
-    tile_sprites: Vec<SpriteResolution>,
-    field_ui_sprites: Vec<SpriteResolution>,
-}
+pub struct TileSpriteTable(Vec<SpriteResolution>);
+pub struct FieldUiSpriteTable(Vec<SpriteResolution>);
 
-impl SpriteTable {
-    fn new(tile_sprites: Vec<SpriteResolution>, field_ui_sprites: Vec<SpriteResolution>) -> Self {
-        SpriteTable {
-            tile_sprites,
-            field_ui_sprites,
-        }
+impl TileSpriteTable {
+    pub fn get(&self, sprite: TileSprite) -> Option<&SpriteResolution> {
+        self.0.get(sprite as usize)
     }
-    pub fn get_tile_sprite(&self, sprite: TileSprite) -> Option<&SpriteResolution> {
-        self.tile_sprites.get(sprite as usize)
-    }
-    pub fn get_field_ui_sprite(&self, sprite: FieldUiSprite) -> Option<&SpriteResolution> {
-        self.field_ui_sprites.get(sprite as usize)
+}
+impl FieldUiSpriteTable {
+    pub fn get(&self, sprite: FieldUiSprite) -> Option<&SpriteResolution> {
+        self.0.get(sprite as usize)
     }
 }
 
-pub struct SpriteSheet<R: gfx::Resources> {
+pub struct SpriteSheetTexture<R: gfx::Resources> {
     pub srv: gfx::handle::ShaderResourceView<R, [f32; 4]>,
     pub width: u32,
     pub height: u32,
-    pub sprite_table: SpriteTable,
 }
 
 gfx_vertex_struct!( Vertex {
@@ -422,31 +415,28 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         encoder.flush(device);
     }
 
-    fn build(self) -> SpriteSheet<R> {
+    fn build(self) -> (SpriteSheetTexture<R>, TileSpriteTable, FieldUiSpriteTable) {
         let Self { srv, width, height, tile_sprite_table, field_ui_sprite_table, .. } = self;
-        SpriteSheet {
+        let sprite_sheet = SpriteSheetTexture {
             srv,
             width,
             height,
-            sprite_table: SpriteTable {
-                tile_sprites: tile_sprite_table,
-                field_ui_sprites: field_ui_sprite_table,
-            },
-        }
+        };
+
+        (sprite_sheet, TileSpriteTable(tile_sprite_table), FieldUiSpriteTable(field_ui_sprite_table))
     }
 }
 
-impl<R: gfx::Resources> SpriteSheet<R> {
-    pub fn new<C, F, D>(image: RgbaImage, input_sprites: Vec<InputSprite>,
-                        factory: &mut F, encoder: &mut gfx::Encoder<R, C>,
-                        device: &mut D) -> Self
-        where C: gfx::CommandBuffer<R>,
-              F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
-              D: gfx::traits::Device<Resources=R, CommandBuffer=C>,
-    {
-        let mut builder = SpriteSheetBuilder::new(image, input_sprites, factory);
-        builder.populate(factory);
-        builder.draw(encoder, device);
-        builder.build()
-    }
+pub fn create<R, C, F, D>(image: RgbaImage, input_sprites: Vec<InputSprite>,
+                          factory: &mut F, encoder: &mut gfx::Encoder<R, C>,
+                          device: &mut D) -> (SpriteSheetTexture<R>, TileSpriteTable, FieldUiSpriteTable)
+    where R: gfx::Resources,
+          C: gfx::CommandBuffer<R>,
+          F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
+          D: gfx::traits::Device<Resources=R, CommandBuffer=C>,
+{
+    let mut builder = SpriteSheetBuilder::new(image, input_sprites, factory);
+    builder.populate(factory);
+    builder.draw(encoder, device);
+    builder.build()
 }

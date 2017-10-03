@@ -5,7 +5,7 @@ use spatial_hash::SpatialHashTable;
 use id_allocator::IdAllocator;
 
 use renderer::tile_renderer::{Instance, SpriteRenderInfo, WallSpriteRenderInfo, instance_flags};
-use renderer::sprite_sheet::SpriteTable;
+use renderer::sprite_sheet::TileSpriteTable;
 
 use direction::Directions;
 use content::TileSprite;
@@ -30,7 +30,7 @@ impl InstanceManager {
     }
 
     fn update_sprite(&mut self, instances: &mut [Instance],
-                     entity_store: &EntityStore,spatial_hash: &SpatialHashTable, sprite_table: &SpriteTable,
+                     entity_store: &EntityStore,spatial_hash: &SpatialHashTable, sprite_table: &TileSpriteTable,
                      index: InstanceIndex, position: Vector2<f32>, sprite: TileSprite) {
         if let Some(sprite_info) = SpriteRenderInfo::resolve(
             sprite, sprite_table, position, spatial_hash
@@ -61,7 +61,7 @@ impl InstanceManager {
                   entity_change: &EntityChange,
                   entity_store: &EntityStore,
                   spatial_hash: &SpatialHashTable,
-                  sprite_table: &SpriteTable) {
+                  sprite_table: &TileSpriteTable) {
 
         use self::ComponentValue::*;
         use self::EntityChange::*;

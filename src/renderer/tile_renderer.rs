@@ -6,7 +6,7 @@ use toml::Value;
 use cgmath::{Vector2, ElementWise};
 use handlebars::Handlebars;
 
-use renderer::sprite_sheet::{SpriteSheet, SpriteTable, SpriteResolution};
+use renderer::sprite_sheet::{SpriteSheetTexture, TileSpriteTable, SpriteResolution};
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::instance_manager::InstanceManager;
 use renderer::render_target::RenderTarget;
@@ -159,7 +159,7 @@ pub struct TileRenderer<R: gfx::Resources> {
     light_list_upload: gfx::handle::Buffer<R, Light>,
     vision_buffer: gfx::handle::Buffer<R, u8>,
     light_buffer: gfx::handle::Buffer<R, u8>,
-    sprite_sheet: SpriteSheet<R>,
+    sprite_table: TileSpriteTable,
     num_instances: usize,
     num_cells: usize,
     instance_manager: InstanceManager,
@@ -183,8 +183,8 @@ pub struct WallSpriteRenderInfo {
 }
 
 impl WallSpriteRenderInfo {
-    pub fn resolve(sprite: TileSprite, sprite_table: &SpriteTable) -> Option<Self> {
-        if let Some(&SpriteResolution::Wall(location)) = sprite_table.get_tile_sprite(sprite) {
+    pub fn resolve(sprite: TileSprite, sprite_table: &TileSpriteTable) -> Option<Self> {
+        if let Some(&SpriteResolution::Wall(location)) = sprite_table.get(sprite) {
             return Some(Self {
                 base_x: location.base(),
                 size: location.size().x,
@@ -198,9 +198,9 @@ impl WallSpriteRenderInfo {
 }
 
 impl SpriteRenderInfo {
-    pub fn resolve(sprite: TileSprite, sprite_table: &SpriteTable,
+    pub fn resolve(sprite: TileSprite, sprite_table: &TileSpriteTable,
                position: Vector2<f32>, spatial_hash: &SpatialHashTable) -> Option<Self> {
-        if let Some(sprite_resolution) = sprite_table.get_tile_sprite(sprite) {
+        if let Some(sprite_resolution) = sprite_table.get(sprite) {
             let (position_x, size, offset, wall_info) = match sprite_resolution {
                 &SpriteResolution::Simple(location) => {
                     (location.position, location.size, location.offset, None)
@@ -300,10 +300,13 @@ fn populate_shader(handlebars: &Handlebars, table: &HashMap<&'static str, Value>
 }
 
 impl<R: gfx::Resources> TileRenderer<R> {
-    pub fn new<F>(sprite_sheet: SpriteSheet<R>,
-                  target: &RenderTarget<R>,
-                  factory: &mut F) -> Self
+    pub fn new<F, C>(sprite_sheet: &SpriteSheetTexture<R>,
+                     sprite_table: TileSpriteTable,
+                     target: &RenderTarget<R>,
+                     factory: &mut F,
+                     encoder: &mut gfx::Encoder<R, C>) -> Self
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
+              C: gfx::CommandBuffer<R>
     {
         let (handlebars, context) = make_shader_template_context();
 
@@ -360,7 +363,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             tex: (sprite_sheet.srv.clone(), sampler),
         };
 
-        Self {
+        let ret = Self {
             bundle: gfx::pso::bundle::Bundle::new(slice, pso, data),
             instance_upload: factory.create_upload_buffer(MAX_NUM_INSTANCES)
                 .expect("Failed to create upload buffer"),
@@ -372,7 +375,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
                 .expect("Failed to create upload buffer"),
             vision_buffer,
             light_buffer,
-            sprite_sheet,
+            sprite_table,
             num_instances: 0,
             num_cells: 0,
             instance_manager: InstanceManager::new(),
@@ -380,14 +383,16 @@ impl<R: gfx::Resources> TileRenderer<R> {
             world_width: 0,
             world_height: 0,
             visible_range: VisibleRange::default(),
-        }
+        };
+        ret.init(target, sprite_sheet, encoder);
+        ret
     }
 
-    pub fn init<C>(&self, target: &RenderTarget<R>, encoder: &mut gfx::Encoder<R, C>)
+    fn init<C>(&self, target: &RenderTarget<R>, sprite_sheet: &SpriteSheetTexture<R>, encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {
         encoder.update_constant_buffer(&self.bundle.data.fixed_dimensions, &FixedDimensions {
-            sprite_sheet_size: [self.sprite_sheet.width as f32, self.sprite_sheet.height as f32],
+            sprite_sheet_size: [sprite_sheet.width as f32, sprite_sheet.height as f32],
             cell_size: [input_sprite::WIDTH_PX as f32, input_sprite::HEIGHT_PX as f32],
         });
         self.update_output_dimensions(target, encoder);
@@ -444,7 +449,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             light_writer,
             world_width: self.world_width,
             bundle: &mut self.bundle,
-            sprite_table: &self.sprite_sheet.sprite_table,
+            sprite_table: &self.sprite_table,
             instance_manager: &mut self.instance_manager,
             num_instances: &mut self.num_instances,
             player_position: None,
@@ -506,7 +511,7 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
     light_writer: gfx::mapping::Writer<'a, R, Light>,
     world_width: u32,
     bundle: &'a mut gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
-    sprite_table: &'a SpriteTable,
+    sprite_table: &'a TileSpriteTable,
     instance_manager: &'a mut InstanceManager,
     num_instances: &'a mut usize,
     player_position: Option<Vector2<f32>>,
