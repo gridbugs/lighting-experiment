@@ -1,10 +1,10 @@
-use content::Sprite;
+use content::TileSprite;
 
 pub type SpriteAnimation = &'static [SpriteAnimationFrame];
 
 const DOOR_MILLIS: u32 = 16;
 
-use self::Sprite::*;
+use self::TileSprite::*;
 
 pub const INNER_DOOR_OPEN: SpriteAnimation = &[
     SpriteAnimationFrame { sprite: InnerDoorOpening1, millis: DOOR_MILLIS },
@@ -43,7 +43,7 @@ pub const OUTER_DOOR_CLOSE: SpriteAnimation = &[
 ];
 
 pub struct SpriteAnimationFrame {
-    pub sprite: Sprite,
+    pub sprite: TileSprite,
     pub millis: u32,
 }
 

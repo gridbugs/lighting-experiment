@@ -1,7 +1,7 @@
 imports = [
     'cgmath::Vector2',
     'content::DoorInfo',
-    'content::Sprite',
+    'content::TileSprite',
     'content::DepthInfo',
     'content::SpriteEffectInfo',
     'content::LightInfo',
@@ -19,7 +19,7 @@ door_closing_finished = { name = 'DoorClosingFinished', store = 'none' }
 door_opener = { name = 'DoorOpener' }
 wall = { name = 'Wall' }
 player = { name = 'Player' }
-sprite = { type = 'Sprite', name = 'Sprite' }
+sprite = { type = 'TileSprite', name = 'Sprite' }
 depth = { type = 'DepthInfo', name = 'Depth' }
 sprite_effect = { type = 'SpriteEffectInfo', name = 'SpriteEffect' }
 light = { type = 'LightInfo', name = 'Light', store = 'btree' }

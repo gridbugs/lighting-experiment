@@ -1,5 +1,5 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Sprite {
+pub enum TileSprite {
     Blank = 0,
 
     Angler,
@@ -37,4 +37,4 @@ pub enum Sprite {
     _Num,
 }
 
-pub const NUM_SPRITES: usize = Sprite::_Num as usize;
+pub const NUM_TILE_SPRITES: usize = TileSprite::_Num as usize;

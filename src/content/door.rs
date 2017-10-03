@@ -1,4 +1,4 @@
-use content::{DoorType, Sprite};
+use content::{DoorType, TileSprite};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DoorState {
@@ -17,7 +17,7 @@ impl DoorInfo {
         DoorInfo { typ, state }
     }
 
-    pub fn sprite(self) -> Sprite {
+    pub fn sprite(self) -> TileSprite {
         self.typ.state_sprite(self.state)
     }
 }

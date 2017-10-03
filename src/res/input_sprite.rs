@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use cgmath::{Vector2, ElementWise};
 use direction::Direction;
-use content::{Sprite, HealthOverlay};
+use content::{TileSprite, FieldUiSprite};
 
 pub const WIDTH_PX: u32 = 16;
 pub const HEIGHT_PX: u32 = 16;
@@ -9,7 +9,7 @@ pub const DIMENSIONS: Vector2<u32> = Vector2 { x: WIDTH_PX, y: HEIGHT_PX };
 
 pub fn input_sprites() -> Vec<InputSprite> {
 
-    use self::Sprite::*;
+    use self::TileSprite::*;
 
     vec![
         character(Angler, [0, 0], Some([0, 8]), None),
@@ -43,9 +43,9 @@ pub fn input_sprites() -> Vec<InputSprite> {
 
         feature(Light, [0, 0], None, None),
 
-        health_overlay(HealthOverlay::Full, [0, 0]),
-        health_overlay(HealthOverlay::Half, [1, 0]),
-        health_overlay(HealthOverlay::Empty, [2, 0]),
+        field_ui(FieldUiSprite::FullHealth, [0, 0]),
+        field_ui(FieldUiSprite::HalfHealth, [1, 0]),
+        field_ui(FieldUiSprite::EmptyHealth, [2, 0]),
     ]
 }
 
@@ -59,21 +59,21 @@ pub struct InputSpriteLocation {
 #[derive(Clone, Debug)]
 pub enum InputSprite {
     Simple {
-        sprite: Sprite,
+        sprite: TileSprite,
         location: InputSpriteLocation,
     },
     Wall {
-        sprite: Sprite,
+        sprite: TileSprite,
         top: InputSpriteLocation,
         decorations: BTreeMap<Direction, Vector2<u32>>,
     },
     WallFit {
-        sprite: Sprite,
+        sprite: TileSprite,
         top: InputSpriteLocation,
         front: InputSpriteLocation,
     },
-    HealthOverlay {
-        health_overlay: HealthOverlay,
+    FieldUi {
+        sprite: FieldUiSprite,
         location: InputSpriteLocation,
     },
 }
@@ -126,7 +126,7 @@ const FEATURE_DIMENSIONS: Vector2<u32> = Vector2 { x: 16, y: 16 };
 const FEATURE_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
 const FEATURE_TOTAL_HEIGHT: u32 = FEATURE_DIMENSIONS.y * 1;
 
-fn character(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Option<[u32; 2]>) -> InputSprite {
+fn character(sprite: TileSprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Option<[u32; 2]>) -> InputSprite {
     let position = CHARACTER_START + Vector2::from(position).mul_element_wise(CHARACTER_DIMENSIONS);
     let offset = offset.map(Vector2::from).unwrap_or(CHARACTER_OFFSET);
     let size = size.map(Vector2::from).unwrap_or(CHARACTER_DIMENSIONS);
@@ -140,7 +140,7 @@ fn character(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>, size:
     }
 }
 
-fn floor(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Option<[u32; 2]>) -> InputSprite {
+fn floor(sprite: TileSprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Option<[u32; 2]>) -> InputSprite {
     let position = FLOOR_START + Vector2::from(position).mul_element_wise(FLOOR_DIMENSIONS);
     let offset = offset.map(Vector2::from).unwrap_or(FLOOR_OFFSET);
     let size = size.map(Vector2::from).unwrap_or(FLOOR_DIMENSIONS);
@@ -154,7 +154,7 @@ fn floor(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Opt
     }
 }
 
-fn wall(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Option<[u32; 2]>) -> InputSprite {
+fn wall(sprite: TileSprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Option<[u32; 2]>) -> InputSprite {
     let position = WALL_START + Vector2::from(position).mul_element_wise(WALL_BLOCK_DIMENSIONS);
     let offset = offset.map(Vector2::from).unwrap_or(WALL_OFFSET);
     let size = size.map(Vector2::from).unwrap_or(WALL_DIMENSIONS);
@@ -175,7 +175,7 @@ fn wall(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Opti
     }
 }
 
-fn door(sprite: Sprite, position: [u32; 2]) -> InputSprite {
+fn door(sprite: TileSprite, position: [u32; 2]) -> InputSprite {
     let position = DOOR_START + Vector2::from(position).mul_element_wise(DOOR_BLOCK_DIMENSIONS);
 
     let front = InputSpriteLocation {
@@ -193,7 +193,7 @@ fn door(sprite: Sprite, position: [u32; 2]) -> InputSprite {
     InputSprite::WallFit { sprite, front, top }
 }
 
-fn general_wall_fit(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Option<[u32; 2]>) -> InputSprite {
+fn general_wall_fit(sprite: TileSprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Option<[u32; 2]>) -> InputSprite {
 
     let position = GENERAL_WALL_FIT_START + Vector2::from(position).mul_element_wise(GENERAL_WALL_FIT_DIMENSIONS);
     let offset = offset.map(Vector2::from).unwrap_or(GENERAL_WALL_FIT_OFFSET);
@@ -214,7 +214,7 @@ fn general_wall_fit(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>
     InputSprite::WallFit { sprite, front, top }
 }
 
-fn feature(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Option<[u32; 2]>) -> InputSprite {
+fn feature(sprite: TileSprite, position: [u32; 2], offset: Option<[i32; 2]>, size: Option<[u32; 2]>) -> InputSprite {
     let position = FEATURE_START + Vector2::from(position).mul_element_wise(FEATURE_DIMENSIONS);
     let offset = offset.map(Vector2::from).unwrap_or(FEATURE_OFFSET);
     let size = size.map(Vector2::from).unwrap_or(FEATURE_DIMENSIONS);
@@ -228,19 +228,19 @@ fn feature(sprite: Sprite, position: [u32; 2], offset: Option<[i32; 2]>, size: O
     }
 }
 
-const HEALTH_OVERLAY_START: Vector2<u32> = Vector2 { x: 0, y: FEATURE_START.y + FEATURE_TOTAL_HEIGHT };
-const HEALTH_OVERLAY_DIMENSIONS: Vector2<u32> = Vector2 { x: 8, y: 7 };
-const HEALTH_OVERLAY_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
-const HEALTH_OVERLAY_TOTAL_HEIGHT: u32 = 7;
+const FIELD_UI_START: Vector2<u32> = Vector2 { x: 0, y: FEATURE_START.y + FEATURE_TOTAL_HEIGHT };
+const FIELD_UI_DIMENSIONS: Vector2<u32> = Vector2 { x: 8, y: 7 };
+const FIELD_UI_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
+const FIELD_UI_TOTAL_HEIGHT: u32 = 7;
 
-fn health_overlay(typ: HealthOverlay, position: [u32; 2]) -> InputSprite {
-    let position = HEALTH_OVERLAY_START + Vector2::from(position).mul_element_wise(HEALTH_OVERLAY_DIMENSIONS);
-    InputSprite::HealthOverlay {
-        health_overlay: typ,
+fn field_ui(sprite: FieldUiSprite, position: [u32; 2]) -> InputSprite {
+    let position = FIELD_UI_START + Vector2::from(position).mul_element_wise(FIELD_UI_DIMENSIONS);
+    InputSprite::FieldUi {
+        sprite,
         location: InputSpriteLocation {
             position,
-            size: HEALTH_OVERLAY_DIMENSIONS,
-            offset: HEALTH_OVERLAY_OFFSET,
+            size: FIELD_UI_DIMENSIONS,
+            offset: FIELD_UI_OFFSET,
         },
     }
 }

@@ -9,8 +9,8 @@ use direction::{Direction, OrdinalDirections, DirectionBitmap, CardinalDirection
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::common;
 use res::input_sprite::{self, InputSprite, InputSpriteLocation};
-use content::sprite::{self, Sprite};
-use content::health_overlay::{self, HealthOverlay};
+use content::tile_sprite::{self, TileSprite};
+use content::field_ui_sprite::{self, FieldUiSprite};
 
 // one for each combination of wall neighbours
 const TILES_PER_WALL: u32 = 256;
@@ -78,22 +78,22 @@ impl Default for SpriteResolution {
 
 #[derive(Debug)]
 pub struct SpriteTable {
-    sprites: Vec<SpriteResolution>,
-    health_overlays: Vec<SpriteResolution>,
+    tile_sprites: Vec<SpriteResolution>,
+    field_ui_sprites: Vec<SpriteResolution>,
 }
 
 impl SpriteTable {
-    fn new(sprites: Vec<SpriteResolution>, health_overlays: Vec<SpriteResolution>) -> Self {
+    fn new(tile_sprites: Vec<SpriteResolution>, field_ui_sprites: Vec<SpriteResolution>) -> Self {
         SpriteTable {
-            sprites,
-            health_overlays,
+            tile_sprites,
+            field_ui_sprites,
         }
     }
-    pub fn get_sprite(&self, sprite: Sprite) -> Option<&SpriteResolution> {
-        self.sprites.get(sprite as usize)
+    pub fn get_tile_sprite(&self, sprite: TileSprite) -> Option<&SpriteResolution> {
+        self.tile_sprites.get(sprite as usize)
     }
-    pub fn get_health_overlay(&self, health_overlay: HealthOverlay) -> Option<&SpriteResolution> {
-        self.health_overlays.get(health_overlay as usize)
+    pub fn get_field_ui_sprite(&self, sprite: FieldUiSprite) -> Option<&SpriteResolution> {
+        self.field_ui_sprites.get(sprite as usize)
     }
 }
 
@@ -135,8 +135,8 @@ struct SpriteSheetBuilder<R: gfx::Resources> {
     width: u32,
     height: u32,
     input_sprites: Vec<input_sprite::InputSprite>,
-    sprite_table: Vec<SpriteResolution>,
-    health_overlay_table: Vec<SpriteResolution>,
+    tile_sprite_table: Vec<SpriteResolution>,
+    field_ui_sprite_table: Vec<SpriteResolution>,
     image: RgbaImage,
     bundle: gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     upload: gfx::handle::Buffer<R, Instance>,
@@ -170,7 +170,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                     width += top.size.x + front.size.x;
                     height = cmp::max(cmp::max(top.size.y, front.size.y), height);
                 }
-                &HealthOverlay { location, .. } => {
+                &FieldUi { location, .. } => {
                     num_instances += 1;
                     width += location.size.x;
                     height = cmp::max(height, location.size.y);
@@ -181,14 +181,14 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         let (_, srv, rtv) = factory.create_render_target(width as u16, height as u16)
             .expect("Failed to create render target for sprite sheet");
 
-        let mut sprite_table = Vec::new();
-        for _ in 0..sprite::NUM_SPRITES {
-            sprite_table.push(SpriteResolution::default());
+        let mut tile_sprite_table = Vec::new();
+        for _ in 0..tile_sprite::NUM_TILE_SPRITES {
+            tile_sprite_table.push(SpriteResolution::default());
         }
 
-        let mut health_overlay_table = Vec::new();
-        for _ in 0..health_overlay::NUM_HEALTH_OVERLAYS {
-            health_overlay_table.push(SpriteResolution::default());
+        let mut field_ui_sprite_table = Vec::new();
+        for _ in 0..field_ui_sprite::NUM_FIELD_UI_SPRITES {
+            field_ui_sprite_table.push(SpriteResolution::default());
         }
 
         let pso = factory.create_pipeline_simple(
@@ -238,8 +238,8 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
             width,
             height,
             input_sprites,
-            sprite_table,
-            health_overlay_table,
+            tile_sprite_table,
+            field_ui_sprite_table,
             image,
             bundle,
             upload,
@@ -254,7 +254,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
             .expect("Failed to map upload buffer");
 
         // leave a blank sprite at the start
-        self.sprite_table[Sprite::Blank as usize] = SpriteResolution::Simple(SpriteLocation {
+        self.tile_sprite_table[TileSprite::Blank as usize] = SpriteResolution::Simple(SpriteLocation {
             position: 0.0,
             size: input_sprite::DIMENSIONS.cast().into(),
             offset: Vector2::new(0.0, 0.0),
@@ -267,7 +267,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
         for input_sprite in self.input_sprites.iter() {
             match input_sprite {
                 &InputSprite::Simple { sprite, location } => {
-                    self.sprite_table[sprite as usize] = SpriteResolution::Simple(SpriteLocation {
+                    self.tile_sprite_table[sprite as usize] = SpriteResolution::Simple(SpriteLocation {
                         position: sprite_sheet_x as f32,
                         size: location.size.cast(),
                         offset: location.offset.cast(),
@@ -282,7 +282,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                     instance_index += 1;
                 }
                 &InputSprite::Wall { sprite, top, ref decorations } => {
-                    self.sprite_table[sprite as usize] = SpriteResolution::Wall(WallSpriteLocation(SpriteLocation {
+                    self.tile_sprite_table[sprite as usize] = SpriteResolution::Wall(WallSpriteLocation(SpriteLocation {
                         position: sprite_sheet_x as f32,
                         size: top.size.cast(),
                         offset: top.offset.cast(),
@@ -301,7 +301,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                     let top_x = sprite_sheet_x;
                     sprite_sheet_x += top.size.x;
 
-                    self.sprite_table[sprite as usize] = SpriteResolution::WallFit {
+                    self.tile_sprite_table[sprite as usize] = SpriteResolution::WallFit {
                         front: SpriteLocation {
                             position: front_x as f32,
                             size: front.size.cast(),
@@ -330,8 +330,8 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                     };
                     instance_index += 1;
                 }
-                &InputSprite::HealthOverlay { health_overlay, location } => {
-                    self.health_overlay_table[health_overlay as usize] = SpriteResolution::Simple(SpriteLocation {
+                &InputSprite::FieldUi { sprite, location } => {
+                    self.field_ui_sprite_table[sprite as usize] = SpriteResolution::Simple(SpriteLocation {
                         position: sprite_sheet_x as f32,
                         size: location.size.cast(),
                         offset: location.offset.cast(),
@@ -423,14 +423,14 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
     }
 
     fn build(self) -> SpriteSheet<R> {
-        let Self { srv, width, height, sprite_table, health_overlay_table, .. } = self;
+        let Self { srv, width, height, tile_sprite_table, field_ui_sprite_table, .. } = self;
         SpriteSheet {
             srv,
             width,
             height,
             sprite_table: SpriteTable {
-                sprites: sprite_table,
-                health_overlays: health_overlay_table,
+                tile_sprites: tile_sprite_table,
+                field_ui_sprites: field_ui_sprite_table,
             },
         }
     }

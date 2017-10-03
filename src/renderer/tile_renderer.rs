@@ -13,7 +13,7 @@ use renderer::render_target::RenderTarget;
 use renderer::common;
 
 use direction::{Direction, DirectionBitmap};
-use content::{Sprite, DepthType, DepthInfo, SpriteEffect};
+use content::{TileSprite, DepthType, DepthInfo, SpriteEffect};
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 use vision::VisionGrid;
@@ -183,8 +183,8 @@ pub struct WallSpriteRenderInfo {
 }
 
 impl WallSpriteRenderInfo {
-    pub fn resolve(sprite: Sprite, sprite_table: &SpriteTable) -> Option<Self> {
-        if let Some(&SpriteResolution::Wall(location)) = sprite_table.get_sprite(sprite) {
+    pub fn resolve(sprite: TileSprite, sprite_table: &SpriteTable) -> Option<Self> {
+        if let Some(&SpriteResolution::Wall(location)) = sprite_table.get_tile_sprite(sprite) {
             return Some(Self {
                 base_x: location.base(),
                 size: location.size().x,
@@ -198,9 +198,9 @@ impl WallSpriteRenderInfo {
 }
 
 impl SpriteRenderInfo {
-    pub fn resolve(sprite: Sprite, sprite_table: &SpriteTable,
+    pub fn resolve(sprite: TileSprite, sprite_table: &SpriteTable,
                position: Vector2<f32>, spatial_hash: &SpatialHashTable) -> Option<Self> {
-        if let Some(sprite_resolution) = sprite_table.get_sprite(sprite) {
+        if let Some(sprite_resolution) = sprite_table.get_tile_sprite(sprite) {
             let (position_x, size, offset, wall_info) = match sprite_resolution {
                 &SpriteResolution::Simple(location) => {
                     (location.position, location.size, location.offset, None)

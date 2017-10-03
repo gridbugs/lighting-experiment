@@ -8,7 +8,7 @@ use renderer::tile_renderer::{Instance, SpriteRenderInfo, WallSpriteRenderInfo, 
 use renderer::sprite_sheet::SpriteTable;
 
 use direction::Directions;
-use content::Sprite;
+use content::TileSprite;
 
 type InstanceIndex = u16;
 
@@ -31,7 +31,7 @@ impl InstanceManager {
 
     fn update_sprite(&mut self, instances: &mut [Instance],
                      entity_store: &EntityStore,spatial_hash: &SpatialHashTable, sprite_table: &SpriteTable,
-                     index: InstanceIndex, position: Vector2<f32>, sprite: Sprite) {
+                     index: InstanceIndex, position: Vector2<f32>, sprite: TileSprite) {
         if let Some(sprite_info) = SpriteRenderInfo::resolve(
             sprite, sprite_table, position, spatial_hash
         ) {

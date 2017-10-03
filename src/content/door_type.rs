@@ -1,4 +1,4 @@
-use content::{Sprite, SpriteAnimation, sprite_animation, DoorState};
+use content::{TileSprite, SpriteAnimation, sprite_animation, DoorState};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DoorType {
@@ -9,21 +9,21 @@ pub enum DoorType {
 use self::DoorType::*;
 
 impl DoorType {
-    pub fn open_sprite(self) -> Sprite {
+    pub fn open_sprite(self) -> TileSprite {
         match self {
-            Inner => Sprite::InnerDoorOpen,
-            Outer => Sprite::OuterDoorOpen,
+            Inner => TileSprite::InnerDoorOpen,
+            Outer => TileSprite::OuterDoorOpen,
         }
     }
 
-    pub fn closed_sprite(self) -> Sprite {
+    pub fn closed_sprite(self) -> TileSprite {
         match self {
-            Inner => Sprite::InnerDoor,
-            Outer => Sprite::OuterDoor,
+            Inner => TileSprite::InnerDoor,
+            Outer => TileSprite::OuterDoor,
         }
     }
 
-    pub fn state_sprite(self, state: DoorState) -> Sprite {
+    pub fn state_sprite(self, state: DoorState) -> TileSprite {
         match state {
             DoorState::Open => self.open_sprite(),
             DoorState::Closed => self.closed_sprite(),

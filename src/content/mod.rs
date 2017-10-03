@@ -1,8 +1,8 @@
 mod door;
 pub use self::door::{DoorState, DoorInfo};
 
-pub mod sprite;
-pub use self::sprite::Sprite;
+pub mod tile_sprite;
+pub use self::tile_sprite::TileSprite;
 
 pub mod door_type;
 pub use self::door_type::DoorType;
@@ -28,8 +28,8 @@ pub use self::sprite_effect::{SpriteEffect, SpriteEffectInfo};
 pub mod light;
 pub use self::light::LightInfo;
 
-pub mod health_overlay;
-pub use self::health_overlay::HealthOverlay;
+pub mod field_ui_sprite;
+pub use self::field_ui_sprite::FieldUiSprite;
 
 pub mod health;
 pub use self::health::HealthInfo;
