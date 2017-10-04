@@ -27,6 +27,7 @@ pub fn crab<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vecto
     changes.append(insert::bump_attack(id));
     changes.append(insert::attackable(id));
     changes.append(insert::health(id, HealthInfo::full(4)));
+    changes.append(insert::hide_in_dark(id));
 }
 
 pub fn snail<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vector2<i32>) {
@@ -39,6 +40,7 @@ pub fn snail<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vect
     changes.append(insert::bump_attack(id));
     changes.append(insert::attackable(id));
     changes.append(insert::health(id, HealthInfo::full(3)));
+    changes.append(insert::hide_in_dark(id));
 }
 
 pub fn inner_wall<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vector2<i32>) {

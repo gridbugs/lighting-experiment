@@ -49,6 +49,7 @@ gfx_vertex_struct!( Instance {
     flags: u32 = "a_Flags",
     sprite_effect: u32 = "a_SpriteEffect",
     sprite_effect_args: [f32; 4] = "a_SpriteEffectArgs",
+    hide_in_dark: u32 = "a_HideInDark",
 });
 
 gfx_constant_struct!( WorldDimensions {
@@ -106,6 +107,7 @@ impl Default for Instance {
             flags: 0,
             sprite_effect: 0,
             sprite_effect_args: [0.0, 0.0, 0.0, 0.0],
+            hide_in_dark: 0,
         }
     }
 }

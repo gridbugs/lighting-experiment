@@ -33,6 +33,7 @@ in uint a_DepthType;
 in uint a_Flags;
 in uint a_SpriteEffect;
 in vec4 a_SpriteEffectArgs;
+in uint a_HideInDark;
 
 out vec2 v_TexCoord;
 out float v_ColourMult;
@@ -100,7 +101,16 @@ void main() {
     v_CellIndex = cell_index();
     int vision_base = int(v_CellIndex * TBO_VISION_ENTRY_SIZE);
 
-    if (!timestamp_is_seen(get_vision_timestamp(vision_base, t_VisionTable))) {
+    uvec2 vision_timestamp = get_vision_timestamp(vision_base, t_VisionTable);
+
+    if (!timestamp_is_seen(vision_timestamp)) {
+        // if a cell has never been seen, don't draw it
+        gl_Position = vec4(0.0, 0.0, 0.0, -1.0);
+        return;
+    }
+
+    if (!timestamp_is_visible(vision_timestamp) && a_HideInDark == 1u) {
+        // if an instance is hidden when not seen, don't draw it
         gl_Position = vec4(0.0, 0.0, 0.0, -1.0);
         return;
     }

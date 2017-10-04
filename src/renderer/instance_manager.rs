@@ -83,12 +83,14 @@ impl InstanceManager {
                     if let Some(depth_type) = entity_store.depth.get(&id) {
                         instance.update_depth(position.y, spatial_hash.height() as f32, *depth_type);
                     }
+                    if entity_store.hide_in_dark.contains(&id) {
+                        instance.hide_in_dark = 1;
+                    }
                 }
 
                 if let Some(sprite) = entity_store.sprite.get(&id) {
                     self.update_sprite(instances, entity_store, spatial_hash, sprite_table, index, position, *sprite);
                 }
-
             }
             &Insert(id, Sprite(sprite)) => {
                 if let Some(index) = self.index_table.get(&id).cloned() {
@@ -110,6 +112,11 @@ impl InstanceManager {
                     instance.flags |= instance_flags::SPRITE_EFFECT;
                     instance.sprite_effect = sprite_effect.effect as u32;
                     instance.sprite_effect_args = sprite_effect.args;
+                }
+            }
+            &Insert(id, HideInDark) => {
+                if let Some(index) = self.index_table.get(&id).cloned() {
+                    instances[index as usize].hide_in_dark = 1;
                 }
             }
             &Remove(id, ComponentType::Position) => {
