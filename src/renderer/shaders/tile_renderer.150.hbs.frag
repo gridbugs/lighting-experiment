@@ -1,6 +1,6 @@
 #version 150 core
 
-{{INCLUDE_COMMON}}
+{{INCLUDE_VISION}}
 
 struct Light {
     vec4 colour;

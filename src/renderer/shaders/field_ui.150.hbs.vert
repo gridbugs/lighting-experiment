@@ -1,5 +1,9 @@
 #version 150 core
 
+{{INCLUDE_VISION}}
+{{INCLUDE_DIMENSIONS}}
+{{INCLUDE_SCROLL_OFFSET}}
+
 in vec2 a_Pos;
 
 void main() {

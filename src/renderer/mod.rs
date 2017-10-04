@@ -8,6 +8,11 @@ mod instance_manager;
 mod field_ui;
 mod render_target;
 mod dimensions;
+mod vision_buffer;
+mod sizes;
+mod frame_info;
+mod template;
+mod scroll_offset;
 
 pub use self::formats::{ColourFormat, DepthFormat};
 pub use self::renderer::Renderer;

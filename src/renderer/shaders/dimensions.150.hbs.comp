@@ -1,0 +1,8 @@
+uniform FixedDimensions {
+    vec2 u_SpriteSheetSize;
+    vec2 u_CellSize;
+};
+
+uniform OutputDimensions {
+    vec2 u_OutputSize;
+};

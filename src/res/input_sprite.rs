@@ -42,10 +42,6 @@ pub fn input_sprites() -> Vec<InputSprite> {
         general_wall_fit(Window, [0, 0], None, None),
 
         feature(Light, [0, 0], None, None),
-
-        field_ui(FieldUiSprite::FullHealth, [0, 0]),
-        field_ui(FieldUiSprite::HalfHealth, [1, 0]),
-        field_ui(FieldUiSprite::EmptyHealth, [2, 0]),
     ]
 }
 

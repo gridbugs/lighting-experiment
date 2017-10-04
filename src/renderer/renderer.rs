@@ -8,6 +8,10 @@ use renderer::formats::ColourFormat;
 use renderer::sprite_sheet;
 use renderer::render_target::RenderTarget;
 use renderer::dimensions::Dimensions;
+use renderer::vision_buffer::VisionBuffer;
+use renderer::frame_info::FrameInfo;
+use renderer::sizes;
+use renderer::scroll_offset;
 
 use res::{input_sprite, paths, files};
 use frontend::VisibleRange;
@@ -47,8 +51,28 @@ impl<R: gfx::Resources> Renderer<R> {
         let dimensions = Dimensions::new(factory);
         dimensions.update_all(&target, &sprite_sheet, encoder);
 
-        let tile_renderer = TileRenderer::new(&sprite_sheet, tile_table, &target, &dimensions, factory);
-        let field_ui = FieldUi::new(&sprite_sheet, field_ui_table, &target, &dimensions, factory);
+        let vision_buffer = VisionBuffer::new(sizes::LIGHT_BUFFER_SIZE, factory);
+        let frame_info_buffer = FrameInfo::create_buffer(factory);
+        let scroll_offset_buffer = scroll_offset::create_buffer(factory);
+
+        let tile_renderer = TileRenderer::new(&sprite_sheet,
+                                              tile_table,
+                                              &target,
+                                              &dimensions,
+                                              &vision_buffer,
+                                              &frame_info_buffer,
+                                              &scroll_offset_buffer,
+                                              factory);
+
+        let field_ui = FieldUi::new(&sprite_sheet,
+                                    field_ui_table,
+                                    &target,
+                                    &dimensions,
+                                    &vision_buffer,
+                                    &frame_info_buffer,
+                                    &scroll_offset_buffer,
+                                    factory);
+
         let scale = Scale::new(rtv.clone(), target.srv.clone(), target.width, target.height, factory, encoder);
 
         Renderer {

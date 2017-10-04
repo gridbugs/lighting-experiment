@@ -1,23 +1,12 @@
 #version 150 core
 
-{{INCLUDE_COMMON}}
-
-uniform FixedDimensions {
-    vec2 u_SpriteSheetSize;
-    vec2 u_CellSize;
-};
-
-uniform OutputDimensions {
-    vec2 u_OutputSize;
-};
+{{INCLUDE_VISION}}
+{{INCLUDE_DIMENSIONS}}
+{{INCLUDE_SCROLL_OFFSET}}
 
 uniform WorldDimensions {
     vec2 u_WorldSize;
     uvec2 u_WorldSizeUint;
-};
-
-uniform Offset {
-    vec2 u_ScrollOffsetPix;
 };
 
 uniform samplerBuffer t_VisionTable;

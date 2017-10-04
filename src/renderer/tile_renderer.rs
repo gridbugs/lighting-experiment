@@ -1,20 +1,22 @@
-use std::collections::HashMap;
 use std::time::Duration;
 use gfx;
-use toml::Value;
 
 use cgmath::{Vector2, ElementWise};
-use handlebars::Handlebars;
 
 use renderer::sprite_sheet::{SpriteSheetTexture, TileSpriteTable, SpriteResolution};
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::instance_manager::InstanceManager;
 use renderer::render_target::RenderTarget;
 use renderer::common;
+use renderer::sizes;
 use renderer::dimensions::{Dimensions, FixedDimensions, OutputDimensions};
+use renderer::vision_buffer::VisionBuffer;
+use renderer::frame_info::{FrameInfo, FrameInfoBuffer};
+use renderer::template;
+use renderer::scroll_offset::{ScrollOffset, ScrollOffsetBuffer};
 
 use direction::{Direction, DirectionBitmap};
-use content::{TileSprite, DepthType, DepthInfo, SpriteEffect};
+use content::{TileSprite, DepthType, DepthInfo};
 use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 use vision::VisionGrid;
@@ -22,18 +24,6 @@ use vision::VisionGrid;
 use frontend::{OutputWorldState, LightUpdate, VisibleRange};
 use res::input_sprite;
 use util::time::duration_millis;
-
-const MAX_NUM_INSTANCES: usize = 65536;
-const MAX_CELL_TABLE_SIZE: usize = 16384;
-const MAX_NUM_LIGHTS: usize = 32;
-
-const TBO_VISION_FRAME_COUNT_SIZE: usize = 5; // 40 bit uint
-const TBO_VISION_BITMAP_SIZE: usize = 1; // 8 bit bitmap
-const TBO_VISION_BITMAP_OFFSET: usize = TBO_VISION_FRAME_COUNT_SIZE;
-const TBO_VISION_ENTRY_SIZE: usize = TBO_VISION_FRAME_COUNT_SIZE + TBO_VISION_BITMAP_SIZE;
-const TBO_VISION_BUFFER_SIZE: usize = TBO_VISION_ENTRY_SIZE * MAX_CELL_TABLE_SIZE;
-
-const LIGHT_BUFFER_SIZE: usize = TBO_VISION_BUFFER_SIZE * MAX_NUM_LIGHTS;
 
 gfx_vertex_struct!( Vertex {
     pos: [f32; 2] = "a_Pos",
@@ -57,16 +47,6 @@ gfx_constant_struct!( WorldDimensions {
     world_size_u32: [u32; 2] = "u_WorldSizeUint",
 });
 
-gfx_constant_struct!( Offset {
-    scroll_offset_pix: [f32; 2] = "u_ScrollOffsetPix",
-});
-
-gfx_constant_struct!( FrameInfo {
-    frame_count: [u32; 2] = "u_FrameCount_u64",
-    total_time_ms: [u32; 2] = "u_TotalTimeMs_u64",
-    num_lights: u32 = "u_NumLights",
-});
-
 gfx_constant_struct!( Light {
     colour: [f32; 4] = "colour",
     position: [f32; 4] = "position",
@@ -79,7 +59,7 @@ gfx_pipeline!( pipe {
     fixed_dimensions: gfx::ConstantBuffer<FixedDimensions> = "FixedDimensions",
     output_dimensions: gfx::ConstantBuffer<OutputDimensions> = "OutputDimensions",
     world_dimensions: gfx::ConstantBuffer<WorldDimensions> = "WorldDimensions",
-    offset: gfx::ConstantBuffer<Offset> = "Offset",
+    scroll_offset: gfx::ConstantBuffer<ScrollOffset> = "ScrollOffset",
     frame_info: gfx::ConstantBuffer<FrameInfo> = "FrameInfo",
     vertex: gfx::VertexBuffer<Vertex> = (),
     instance: gfx::InstanceBuffer<Instance> = (),
@@ -139,10 +119,6 @@ impl Instance {
             }
         }
     }
-}
-
-fn u64_to_arr(u: u64) -> [u32; 2] {
-    [ u as u32, (u >> 32) as u32 ]
 }
 
 pub struct TileRenderer<R: gfx::Resources> {
@@ -245,67 +221,22 @@ impl SpriteRenderInfo {
     }
 }
 
-macro_rules! include_shader_part {
-    ($table:expr, $handlebars:expr, $key:expr, $file_name:expr) => {
-        {
-            let bytes = include_bytes!(concat!("shaders/", $file_name));
-            let shader_str = ::std::str::from_utf8(bytes)
-                .expect("Failed to convert part to utf8");
-            let expanded = $handlebars.template_render(shader_str, &$table)
-                .expect("Failed to render part template");
-            $table.insert($key, Value::String(expanded));
-        }
-    }
-}
-
-fn make_shader_template_context() -> (Handlebars, HashMap<&'static str, Value>) {
-    let handlebars = {
-        let mut h = Handlebars::new();
-        h.register_escape_fn(|input| input.to_string());
-        h
-    };
-
-    use self::Value::*;
-    let mut table = hashmap!{
-        "FLAGS_ENABLED" => Integer(instance_flags::ENABLED as i64),
-        "FLAGS_SPRITE_EFFECT" => Integer(instance_flags::SPRITE_EFFECT as i64),
-        "DEPTH_FIXED" => Integer(DepthType::Fixed as i64),
-        "DEPTH_GRADIENT" => Integer(DepthType::Gradient as i64),
-        "DEPTH_BOTTOM" => Integer(DepthType::Bottom as i64),
-        "MAX_CELL_TABLE_SIZE" => Integer(MAX_CELL_TABLE_SIZE as i64),
-        "SPRITE_EFFECT_WATER" => Integer(SpriteEffect::Water as i64),
-        "MAX_NUM_LIGHTS" => Integer(MAX_NUM_LIGHTS as i64),
-        "TBO_VISION_ENTRY_SIZE" => Integer(TBO_VISION_ENTRY_SIZE as i64),
-        "TBO_VISION_BITMAP_OFFSET" => Integer(TBO_VISION_BITMAP_OFFSET as i64),
-        "TBO_VISION_BUFFER_SIZE" => Integer(TBO_VISION_BUFFER_SIZE as i64),
-    };
-
-    include_shader_part!(table, handlebars, "INCLUDE_COMMON", "tile_renderer.150.hbs.comp");
-
-    (handlebars, table)
-}
-
-fn populate_shader(handlebars: &Handlebars, table: &HashMap<&'static str, Value>, shader: &[u8]) -> String {
-    let shader_str = ::std::str::from_utf8(shader)
-        .expect("Failed to convert shader to utf8");
-
-    handlebars.template_render(shader_str, table)
-        .expect("Failed to render shader template")
-}
-
 impl<R: gfx::Resources> TileRenderer<R> {
     pub fn new<F>(sprite_sheet: &SpriteSheetTexture<R>,
                   sprite_table: TileSpriteTable,
                   target: &RenderTarget<R>,
                   dimensions: &Dimensions<R>,
+                  vision_buffer: &VisionBuffer<R>,
+                  frame_info_buffer: &FrameInfoBuffer<R>,
+                  scroll_offset_buffer: &ScrollOffsetBuffer<R>,
                   factory: &mut F) -> Self
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
-        let (handlebars, context) = make_shader_template_context();
+        let (handlebars, context) = template::make_shader_template_context();
 
         let pso = factory.create_pipeline_simple(
-            populate_shader(&handlebars, &context, include_bytes!("shaders/tile_renderer.150.hbs.vert")).as_bytes(),
-            populate_shader(&handlebars, &context, include_bytes!("shaders/tile_renderer.150.hbs.frag")).as_bytes(),
+            template::populate_shader(&handlebars, &context, include_bytes!("shaders/tile_renderer.150.hbs.vert")).as_bytes(),
+            template::populate_shader(&handlebars, &context, include_bytes!("shaders/tile_renderer.150.hbs.frag")).as_bytes(),
             pipe::new()).expect("Failed to create pipeline");
 
         let vertex_data: Vec<Vertex> = common::QUAD_VERTICES_REFL.iter()
@@ -324,32 +255,26 @@ impl<R: gfx::Resources> TileRenderer<R> {
             gfx::texture::SamplerInfo::new(gfx::texture::FilterMethod::Scale,
                                            gfx::texture::WrapMode::Tile));
 
-        let vision_buffer = common::create_transfer_dst_buffer(TBO_VISION_BUFFER_SIZE, factory)
-            .expect("Failed to create vision buffer");
-
-        let vision_buffer_srv = factory.view_buffer_as_shader_resource(&vision_buffer)
-            .expect("Failed to view vision buffer as shader resource");
-
-        let light_buffer = common::create_transfer_dst_buffer(LIGHT_BUFFER_SIZE, factory)
+        let light_buffer = common::create_transfer_dst_buffer(sizes::LIGHT_BUFFER_SIZE, factory)
             .expect("Failed to create light buffer");
 
         let light_buffer_srv = factory.view_buffer_as_shader_resource(&light_buffer)
             .expect("Failed to view light buffer as shader resource");
 
-        let light_list = common::create_transfer_dst_buffer(MAX_NUM_LIGHTS, factory)
+        let light_list = common::create_transfer_dst_buffer(sizes::MAX_NUM_LIGHTS, factory)
             .expect("Failed to create light list");
 
         let data = pipe::Data {
-            vision_table: vision_buffer_srv,
+            vision_table: vision_buffer.srv.clone(),
             light_table: light_buffer_srv,
             light_list,
             fixed_dimensions: dimensions.fixed_dimensions.clone(),
             output_dimensions: dimensions.output_dimensions.clone(),
             world_dimensions: factory.create_constant_buffer(1),
-            offset: factory.create_constant_buffer(1),
-            frame_info: factory.create_constant_buffer(1),
+            scroll_offset: scroll_offset_buffer.clone(),
+            frame_info: frame_info_buffer.clone(),
             vertex: vertex_buffer,
-            instance: common::create_instance_buffer(MAX_NUM_INSTANCES, factory)
+            instance: common::create_instance_buffer(sizes::MAX_NUM_INSTANCES, factory)
                 .expect("Failed to create instance buffer"),
             out_colour: target.rtv.clone(),
             out_depth: target.dsv.clone(),
@@ -358,15 +283,15 @@ impl<R: gfx::Resources> TileRenderer<R> {
 
         let ret = Self {
             bundle: gfx::pso::bundle::Bundle::new(slice, pso, data),
-            instance_upload: factory.create_upload_buffer(MAX_NUM_INSTANCES)
+            instance_upload: factory.create_upload_buffer(sizes::MAX_NUM_INSTANCES)
                 .expect("Failed to create upload buffer"),
-            vision_upload: factory.create_upload_buffer(TBO_VISION_BUFFER_SIZE)
+            vision_upload: factory.create_upload_buffer(sizes::TBO_VISION_BUFFER_SIZE)
                 .expect("Failed to create upload buffer"),
-            light_upload: factory.create_upload_buffer(LIGHT_BUFFER_SIZE)
+            light_upload: factory.create_upload_buffer(sizes::LIGHT_BUFFER_SIZE)
                 .expect("Failed to create upload buffer"),
-            light_list_upload: factory.create_upload_buffer(MAX_NUM_LIGHTS)
+            light_list_upload: factory.create_upload_buffer(sizes::MAX_NUM_LIGHTS)
                 .expect("Failed to create upload buffer"),
-            vision_buffer,
+            vision_buffer: vision_buffer.buffer.clone(),
             light_buffer,
             sprite_table,
             num_instances: 0,
@@ -392,11 +317,11 @@ impl<R: gfx::Resources> TileRenderer<R> {
     {
         encoder.copy_buffer(&self.instance_upload, &self.bundle.data.instance, 0, 0, self.num_instances)
             .expect("Failed to copy instances");
-        encoder.copy_buffer(&self.vision_upload, &self.vision_buffer, 0, 0, self.num_cells * TBO_VISION_ENTRY_SIZE)
+        encoder.copy_buffer(&self.vision_upload, &self.vision_buffer, 0, 0, self.num_cells * sizes::TBO_VISION_ENTRY_SIZE)
             .expect("Failed to copy cells");
-        encoder.copy_buffer(&self.light_upload, &self.light_buffer, 0, 0, LIGHT_BUFFER_SIZE)
+        encoder.copy_buffer(&self.light_upload, &self.light_buffer, 0, 0, sizes::LIGHT_BUFFER_SIZE)
             .expect("Failed to copy light info");
-        encoder.copy_buffer(&self.light_list_upload, &self.bundle.data.light_list, 0, 0, MAX_NUM_LIGHTS)
+        encoder.copy_buffer(&self.light_list_upload, &self.bundle.data.light_list, 0, 0, sizes::MAX_NUM_LIGHTS)
             .expect("Failed to copy light info");
         encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);
     }
@@ -446,7 +371,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
         self.visible_range = compute_visible_range(self.mid_position, target.width as i32, target.num_rows);
 
         let scroll_offset = compute_scroll_offset(target.width, target.height, self.mid_position);
-        encoder.update_constant_buffer(&self.bundle.data.offset, &Offset {
+        encoder.update_constant_buffer(&self.bundle.data.scroll_offset, &ScrollOffset {
             scroll_offset_pix: scroll_offset.into(),
         });
     }
@@ -457,7 +382,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
     {
         let num_cells = (width * height) as usize;
 
-        if num_cells > MAX_CELL_TABLE_SIZE {
+        if num_cells > sizes::MAX_CELL_TABLE_SIZE {
             panic!("World too big for shader");
         }
 
@@ -524,12 +449,12 @@ impl<'a, 'b, R: gfx::Resources> OutputWorldState<'a, 'b> for RendererWorldState<
     }
 
     fn next_light(&'b mut self) -> Option<(Self::LightCellGrid, &'b mut Self::LightUpdate)> {
-        if self.next_light_index < MAX_NUM_LIGHTS {
+        if self.next_light_index < sizes::MAX_NUM_LIGHTS {
             let index = self.next_light_index;
             self.next_light_index += 1;
 
-            let start = index * TBO_VISION_BUFFER_SIZE;
-            let end = start + TBO_VISION_BUFFER_SIZE;
+            let start = index * sizes::TBO_VISION_BUFFER_SIZE;
+            let end = start + sizes::TBO_VISION_BUFFER_SIZE;
 
             Some((TboVisionGrid {
                 slice: &mut self.light_grid_writer[start..end],
@@ -553,16 +478,11 @@ impl<'a, R: gfx::Resources> RendererWorldState<'a, R> {
             *self.mid_position = player_position;
             let scroll_offset = compute_scroll_offset(self.width_px, self.height_px, player_position);
             *self.visible_range = compute_visible_range(player_position, self.width_px as i32, self.num_rows);
-            encoder.update_constant_buffer(&self.bundle.data.offset, &Offset {
+            encoder.update_constant_buffer(&self.bundle.data.scroll_offset, &ScrollOffset {
                 scroll_offset_pix: scroll_offset.into(),
             });
         }
-        encoder.update_constant_buffer(&self.bundle.data.frame_info, &FrameInfo {
-            frame_count: u64_to_arr(self.frame_count),
-            total_time_ms: u64_to_arr(self.total_time_ms),
-            num_lights: self.next_light_index as u32,
-        });
-
+        FrameInfo::update(&self.bundle.data.frame_info, self.frame_count, self.total_time_ms, self.next_light_index, encoder);
     }
 }
 
@@ -598,11 +518,11 @@ struct TboVisionCell<'a>(&'a mut [u8]);
 
 impl<'a> TboVisionCell<'a> {
     fn see(&mut self, bitmap: DirectionBitmap, mut time: u64) {
-        for i in 0..TBO_VISION_FRAME_COUNT_SIZE {
+        for i in 0..sizes::TBO_VISION_FRAME_COUNT_SIZE {
             self.0[i] = time as u8;
             time >>= 8;
         }
-        self.0[TBO_VISION_BITMAP_OFFSET] = bitmap.raw;
+        self.0[sizes::TBO_VISION_BITMAP_OFFSET] = bitmap.raw;
     }
 }
 
@@ -613,8 +533,8 @@ pub struct TboVisionGrid<'a> {
 
 impl<'a> VisionGrid for TboVisionGrid<'a> {
     fn see(&mut self, v: Vector2<u32>, bitmap: DirectionBitmap, time: u64) {
-        let index = ((v.y * self.width + v.x) as usize) * TBO_VISION_ENTRY_SIZE;
-        TboVisionCell(&mut self.slice[index..index + TBO_VISION_ENTRY_SIZE]).see(bitmap, time);
+        let index = ((v.y * self.width + v.x) as usize) * sizes::TBO_VISION_ENTRY_SIZE;
+        TboVisionCell(&mut self.slice[index..index + sizes::TBO_VISION_ENTRY_SIZE]).see(bitmap, time);
     }
 }
 
