@@ -10,6 +10,7 @@ use frontend::{FrontendOutput, FrontendInput, VisibleRange};
 use renderer::{Renderer, ColourFormat, DepthFormat, RendererWorldState};
 
 use input::Input;
+use entity_store::EntityStore;
 
 mod input;
 use self::input::convert_event;
@@ -78,9 +79,9 @@ impl<'a> FrontendOutput<'a> for GlutinFrontendOutput {
         f(&mut state);
         state.finalise(&mut self.encoder);
     }
-    fn draw(&mut self) {
+    fn draw(&mut self, entity_store: &EntityStore) {
         self.renderer.clear(&mut self.encoder);
-        self.renderer.render(&mut self.encoder);
+        self.renderer.render(entity_store, &mut self.encoder);
 
         self.encoder.flush(&mut self.device);
         self.window.swap_buffers().expect("Failed to swap buffers");

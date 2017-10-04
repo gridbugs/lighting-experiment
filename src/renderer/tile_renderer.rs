@@ -11,6 +11,7 @@ use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::instance_manager::InstanceManager;
 use renderer::render_target::RenderTarget;
 use renderer::common;
+use renderer::dimensions::{Dimensions, FixedDimensions, OutputDimensions};
 
 use direction::{Direction, DirectionBitmap};
 use content::{TileSprite, DepthType, DepthInfo, SpriteEffect};
@@ -48,15 +49,6 @@ gfx_vertex_struct!( Instance {
     flags: u32 = "a_Flags",
     sprite_effect: u32 = "a_SpriteEffect",
     sprite_effect_args: [f32; 4] = "a_SpriteEffectArgs",
-});
-
-gfx_constant_struct!( FixedDimensions {
-    sprite_sheet_size: [f32; 2] = "u_SpriteSheetSize",
-    cell_size: [f32; 2] = "u_CellSize",
-});
-
-gfx_constant_struct!( OutputDimensions {
-    output_size: [f32; 2] = "u_OutputSize",
 });
 
 gfx_constant_struct!( WorldDimensions {
@@ -300,13 +292,12 @@ fn populate_shader(handlebars: &Handlebars, table: &HashMap<&'static str, Value>
 }
 
 impl<R: gfx::Resources> TileRenderer<R> {
-    pub fn new<F, C>(sprite_sheet: &SpriteSheetTexture<R>,
-                     sprite_table: TileSpriteTable,
-                     target: &RenderTarget<R>,
-                     factory: &mut F,
-                     encoder: &mut gfx::Encoder<R, C>) -> Self
+    pub fn new<F>(sprite_sheet: &SpriteSheetTexture<R>,
+                  sprite_table: TileSpriteTable,
+                  target: &RenderTarget<R>,
+                  dimensions: &Dimensions<R>,
+                  factory: &mut F) -> Self
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
-              C: gfx::CommandBuffer<R>
     {
         let (handlebars, context) = make_shader_template_context();
 
@@ -350,8 +341,8 @@ impl<R: gfx::Resources> TileRenderer<R> {
             vision_table: vision_buffer_srv,
             light_table: light_buffer_srv,
             light_list,
-            fixed_dimensions: factory.create_constant_buffer(1),
-            output_dimensions: factory.create_constant_buffer(1),
+            fixed_dimensions: dimensions.fixed_dimensions.clone(),
+            output_dimensions: dimensions.output_dimensions.clone(),
             world_dimensions: factory.create_constant_buffer(1),
             offset: factory.create_constant_buffer(1),
             frame_info: factory.create_constant_buffer(1),
@@ -384,26 +375,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             world_height: 0,
             visible_range: VisibleRange::default(),
         };
-        ret.init(target, sprite_sheet, encoder);
         ret
-    }
-
-    fn init<C>(&self, target: &RenderTarget<R>, sprite_sheet: &SpriteSheetTexture<R>, encoder: &mut gfx::Encoder<R, C>)
-        where C: gfx::CommandBuffer<R>,
-    {
-        encoder.update_constant_buffer(&self.bundle.data.fixed_dimensions, &FixedDimensions {
-            sprite_sheet_size: [sprite_sheet.width as f32, sprite_sheet.height as f32],
-            cell_size: [input_sprite::WIDTH_PX as f32, input_sprite::HEIGHT_PX as f32],
-        });
-        self.update_output_dimensions(target, encoder);
-    }
-
-    fn update_output_dimensions<C>(&self, target: &RenderTarget<R>, encoder: &mut gfx::Encoder<R, C>)
-        where C: gfx::CommandBuffer<R>,
-    {
-        encoder.update_constant_buffer(&self.bundle.data.output_dimensions, &OutputDimensions {
-            output_size: [target.width as f32, target.height as f32],
-        });
     }
 
     pub fn clear<C>(&self, encoder: &mut gfx::Encoder<R, C>)
@@ -470,8 +442,6 @@ impl<R: gfx::Resources> TileRenderer<R> {
         self.bundle.data.out_colour = target.rtv.clone();
         self.bundle.data.out_depth = target.dsv.clone();
         self.visible_range = compute_visible_range(self.mid_position, target.width as i32, target.num_rows);
-
-        self.update_output_dimensions(target, encoder);
 
         let scroll_offset = compute_scroll_offset(target.width, target.height, self.mid_position);
         encoder.update_constant_buffer(&self.bundle.data.offset, &Offset {

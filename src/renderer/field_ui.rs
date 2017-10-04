@@ -1,8 +1,12 @@
 use gfx;
 use renderer::formats::{ColourFormat, DepthFormat};
 use renderer::render_target::RenderTarget;
+use renderer::sprite_sheet::{FieldUiSpriteTable, SpriteSheetTexture};
+
 use renderer::common;
-use renderer::sprite_sheet::FieldUiSpriteTable;
+use renderer::dimensions::{Dimensions, FixedDimensions, OutputDimensions};
+
+use entity_store::EntityStore;
 
 gfx_vertex_struct!( Vertex {
     pos: [f32; 2] = "a_Pos",
@@ -10,8 +14,11 @@ gfx_vertex_struct!( Vertex {
 
 gfx_pipeline!( pipe {
     vertex: gfx::VertexBuffer<Vertex> = (),
+    fixed_dimensions: gfx::ConstantBuffer<FixedDimensions> = "FixedDimensions",
+    output_dimensions: gfx::ConstantBuffer<OutputDimensions> = "OutputDimensions",
     out_colour: gfx::BlendTarget<ColourFormat> = ("Target0", gfx::state::ColorMask::all(), gfx::preset::blend::ALPHA),
     out_depth: gfx::DepthTarget<DepthFormat> = gfx::preset::depth::LESS_EQUAL_WRITE,
+    tex: gfx::TextureSampler<[f32; 4]> = "t_Texture",
 });
 
 pub struct FieldUi<R: gfx::Resources> {
@@ -20,7 +27,11 @@ pub struct FieldUi<R: gfx::Resources> {
 }
 
 impl<R: gfx::Resources> FieldUi<R> {
-    pub fn new<F>(sprite_table: FieldUiSpriteTable, target: &RenderTarget<R>, factory: &mut F) -> Self
+    pub fn new<F>(sprite_sheet: &SpriteSheetTexture<R>,
+                  sprite_table: FieldUiSpriteTable,
+                  target: &RenderTarget<R>,
+                  dimensions: &Dimensions<R>,
+                  factory: &mut F) -> Self
         where F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
 
@@ -41,10 +52,17 @@ impl<R: gfx::Resources> FieldUi<R> {
                 &vertex_data,
                 &common::QUAD_INDICES[..]);
 
+        let sampler = factory.create_sampler(
+            gfx::texture::SamplerInfo::new(gfx::texture::FilterMethod::Scale,
+                                           gfx::texture::WrapMode::Tile));
+
         let data = pipe::Data {
             vertex: vertex_buffer,
+            fixed_dimensions: dimensions.fixed_dimensions.clone(),
+            output_dimensions: dimensions.output_dimensions.clone(),
             out_colour: target.rtv.clone(),
             out_depth: target.dsv.clone(),
+            tex: (sprite_sheet.srv.clone(), sampler),
         };
 
         let bundle = gfx::pso::bundle::Bundle::new(slice, pso, data);
@@ -69,7 +87,7 @@ impl<R: gfx::Resources> FieldUi<R> {
         encoder.clear_depth(&self.bundle.data.out_depth, 1.0);
     }
 
-    pub fn draw<C>(&self, encoder: &mut gfx::Encoder<R, C>)
+    pub fn draw<C>(&self, _entity_store: &EntityStore, encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {
         encoder.draw(&self.bundle.slice, &self.bundle.pso, &self.bundle.data);

@@ -242,7 +242,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
             }
         });
 
-        frontend_output.draw();
+        frontend_output.draw(&entity_store);
 
         count += 1;
         turn = next_turn;

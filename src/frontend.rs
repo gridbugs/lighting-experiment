@@ -47,7 +47,7 @@ pub trait OutputWorldState<'a, 'b> {
 pub trait FrontendOutput<'a> {
     type WorldState: for<'b> OutputWorldState<'a, 'b>;
     fn with_world_state<F: FnMut(&mut Self::WorldState)>(&'a mut self, f: F);
-    fn draw(&mut self);
+    fn draw(&mut self, entity_store: &EntityStore);
     fn handle_resize(&mut self, width: u16, height: u16);
     fn update_world_size(&mut self, width: u32, height: u32);
     fn visible_range(&self) -> VisibleRange;

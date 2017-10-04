@@ -7,15 +7,19 @@ use renderer::field_ui::FieldUi;
 use renderer::formats::ColourFormat;
 use renderer::sprite_sheet;
 use renderer::render_target::RenderTarget;
+use renderer::dimensions::Dimensions;
 
 use res::{input_sprite, paths, files};
 use frontend::VisibleRange;
+
+use entity_store::EntityStore;
 
 pub struct Renderer<R: gfx::Resources> {
     target: RenderTarget<R>,
     tile_renderer: TileRenderer<R>,
     field_ui: FieldUi<R>,
     scale: Scale<R>,
+    dimensions: Dimensions<R>,
 }
 
 impl<R: gfx::Resources> Renderer<R> {
@@ -40,8 +44,11 @@ impl<R: gfx::Resources> Renderer<R> {
 
         let target = RenderTarget::new((width, height), factory);
 
-        let tile_renderer = TileRenderer::new(&sprite_sheet, tile_table, &target, factory, encoder);
-        let field_ui = FieldUi::new(field_ui_table, &target, factory);
+        let dimensions = Dimensions::new(factory);
+        dimensions.update_all(&target, &sprite_sheet, encoder);
+
+        let tile_renderer = TileRenderer::new(&sprite_sheet, tile_table, &target, &dimensions, factory);
+        let field_ui = FieldUi::new(&sprite_sheet, field_ui_table, &target, &dimensions, factory);
         let scale = Scale::new(rtv.clone(), target.srv.clone(), target.width, target.height, factory, encoder);
 
         Renderer {
@@ -49,6 +56,7 @@ impl<R: gfx::Resources> Renderer<R> {
             tile_renderer,
             field_ui,
             scale,
+            dimensions,
         }
     }
 
@@ -60,11 +68,11 @@ impl<R: gfx::Resources> Renderer<R> {
         self.scale.clear(encoder);
     }
 
-    pub fn render<C>(&mut self, encoder: &mut gfx::Encoder<R, C>)
+    pub fn render<C>(&mut self, entity_store: &EntityStore, encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {
         self.tile_renderer.draw(encoder);
-        self.field_ui.draw(encoder);
+        self.field_ui.draw(entity_store, encoder);
         self.scale.draw(encoder);
     }
 
@@ -81,6 +89,7 @@ impl<R: gfx::Resources> Renderer<R> {
     {
         let (width, height, ..) = rtv.get_dimensions();
         self.target = RenderTarget::new((width, height), factory);
+        self.dimensions.update_output_dimensions(&self.target, encoder);
         self.tile_renderer.handle_resize(&self.target, encoder);
         self.field_ui.handle_resize(&self.target, encoder);
         self.scale.handle_resize(rtv.clone(), self.target.srv.clone(), self.target.width, self.target.height, encoder, factory);

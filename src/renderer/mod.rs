@@ -7,6 +7,7 @@ mod renderer;
 mod instance_manager;
 mod field_ui;
 mod render_target;
+mod dimensions;
 
 pub use self::formats::{ColourFormat, DepthFormat};
 pub use self::renderer::Renderer;
