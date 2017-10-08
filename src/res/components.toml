@@ -6,6 +6,7 @@ imports = [
     'content::SpriteEffectInfo',
     'content::LightInfo',
     'content::HealthInfo',
+    'content::FieldUiOffsets',
 ]
 
 [components]
@@ -26,5 +27,6 @@ light = { type = 'LightInfo', name = 'Light', store = 'btree' }
 npc = { name = 'Npc', store = 'hash' }
 bump_attack = { name = 'BumpAttack' }
 attackable = { name = 'Attackable' }
-health = { type = 'HealthInfo', name = 'Health', store = 'hash' }
+health = { type = 'HealthInfo', name = 'Health' }
+field_ui = { type = 'FieldUiOffsets', name = 'FieldUi', store = 'btree' }
 hide_in_dark = { name = 'HideInDark' }

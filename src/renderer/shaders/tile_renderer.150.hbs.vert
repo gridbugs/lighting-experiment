@@ -3,11 +3,7 @@
 {{INCLUDE_VISION}}
 {{INCLUDE_DIMENSIONS}}
 {{INCLUDE_SCROLL_OFFSET}}
-
-uniform WorldDimensions {
-    vec2 u_WorldSize;
-    uvec2 u_WorldSizeUint;
-};
+{{INCLUDE_POSITIONS}}
 
 uniform samplerBuffer t_VisionTable;
 
@@ -37,11 +33,6 @@ const uint DEPTH_GRADIENT = {{DEPTH_GRADIENT}}u;
 const uint DEPTH_BOTTOM = {{DEPTH_BOTTOM}}u;
 
 const uint SPRITE_EFFECT_WATER = {{SPRITE_EFFECT_WATER}}u;
-
-uint cell_index() {
-    vec2 pos = a_Position + vec2(0.5);
-    return uint(pos.x) + uint(pos.y) * u_WorldSizeUint.x;
-}
 
 float u64_uvec2_to_float(uvec2 u) {
     const float MAXUINT_FLOAT = 4294967296.0;
@@ -87,20 +78,20 @@ void main() {
         }
     }
 
-    v_CellIndex = cell_index();
+    v_CellIndex = get_cell_index(a_Position);
     int vision_base = int(v_CellIndex * TBO_VISION_ENTRY_SIZE);
 
     uvec2 vision_timestamp = get_vision_timestamp(vision_base, t_VisionTable);
 
     if (!timestamp_is_seen(vision_timestamp)) {
         // if a cell has never been seen, don't draw it
-        gl_Position = vec4(0.0, 0.0, 0.0, -1.0);
+        gl_Position = vec4(0.0, 0.0, -1.0, 0.0);
         return;
     }
 
     if (!timestamp_is_visible(vision_timestamp) && a_HideInDark == 1u) {
         // if an instance is hidden when not seen, don't draw it
-        gl_Position = vec4(0.0, 0.0, 0.0, -1.0);
+        gl_Position = vec4(0.0, 0.0, -1.0, 0.0);
         return;
     }
 
@@ -117,15 +108,9 @@ void main() {
             break;
     }
 
-    vec2 in_pix = a_SpriteSheetPixCoord + a_Pos * a_PixSize;
-    v_TexCoord = in_pix / u_SpriteSheetSize;
-    v_TexCoord.y = 1.0 - v_TexCoord.y;
-
-    vec2 out_pix = a_Position * u_CellSize - u_ScrollOffsetPix - a_PixOffset + a_Pos * a_PixSize;
-    vec2 out_scaled = out_pix / u_OutputSize;
-    vec2 dst = vec2(out_scaled.x * 2.0 - 1.0, 1.0 - out_scaled.y * 2.0);
-
+    v_TexCoord = get_tex_coord_inverted(a_SpriteSheetPixCoord, a_Pos, a_PixSize);
     v_FragPosition = a_Position + a_Pos;
 
+    vec2 dst = get_output_vertex(a_Position, a_PixOffset, a_PixSize, a_Pos);
     gl_Position = vec4(dst, depth, 1.0);
 }

@@ -41,12 +41,16 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
                         }
 
                         if entity_store.bump_attack.contains(&id) {
-                            if let Some(_attackable_id) = sh_cell.attackable_set.iter().next() {
+                            if let Some(attackable_id) = sh_cell.attackable_set.iter().next() {
+                                let mid_change = entity_store.health.get(attackable_id).map(|health| {
+                                    insert::health(*attackable_id, health.reduce(1))
+                                });
                                 reactions.append(ChangeDesc::bump_slide(id,
                                                                         current_coord.cast(),
                                                                         coord.cast(),
                                                                         Duration::from_millis(100),
-                                                                        0.49));
+                                                                        0.49,
+                                                                        mid_change));
                                 return false;
                             }
                         }

@@ -23,7 +23,12 @@ impl ChangeDesc {
         };
         ChangeDesc::Animation(animation)
     }
-    pub fn bump_slide(id: EntityId, from: Vector2<f32>, target: Vector2<f32>, duration: Duration, turnaround_progress: f32) -> Self {
+    pub fn bump_slide(id: EntityId,
+                      from: Vector2<f32>,
+                      target: Vector2<f32>,
+                      duration: Duration,
+                      turnaround_progress: f32,
+                      mid_change: Option<EntityChange>) -> Self {
         let animation = Animation::BumpSlide {
             id,
             base: from,
@@ -31,6 +36,7 @@ impl ChangeDesc {
             progress: 0.0,
             duration,
             turnaround_progress,
+            mid_change,
         };
         ChangeDesc::Animation(animation)
     }

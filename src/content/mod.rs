@@ -33,3 +33,6 @@ pub use self::field_ui_sprite::FieldUiSprite;
 
 pub mod health;
 pub use self::health::HealthInfo;
+
+pub mod field_ui_offsets;
+pub use self::field_ui_offsets::FieldUiOffsets;

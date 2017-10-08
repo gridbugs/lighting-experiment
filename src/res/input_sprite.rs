@@ -15,6 +15,7 @@ pub fn input_sprites() -> Vec<InputSprite> {
         character(Angler, [0, 0], Some([0, 8]), None),
         character(Crab, [1, 0], Some([0, 8]), None),
         character(Snail, [2, 0], Some([0, 8]), None),
+
         floor(InnerFloor, [0, 0], None, None),
         floor(OuterFloor, [0, 1], None, None),
         floor(InnerWater, [1, 1], None, None),
@@ -42,6 +43,9 @@ pub fn input_sprites() -> Vec<InputSprite> {
         general_wall_fit(Window, [0, 0], None, None),
 
         feature(Light, [0, 0], None, None),
+
+        field_ui(FieldUiSprite::HealthFull, [0, 0], Some([2, 1])),
+        field_ui(FieldUiSprite::HealthEmpty, [1, 0], Some([2, 1])),
     ]
 }
 
@@ -225,17 +229,18 @@ fn feature(sprite: TileSprite, position: [u32; 2], offset: Option<[i32; 2]>, siz
 }
 
 const FIELD_UI_START: Vector2<u32> = Vector2 { x: 0, y: FEATURE_START.y + FEATURE_TOTAL_HEIGHT };
-const FIELD_UI_DIMENSIONS: Vector2<u32> = Vector2 { x: 8, y: 7 };
+const FIELD_UI_DIMENSIONS: Vector2<u32> = Vector2 { x: 8, y: 8 };
 const FIELD_UI_OFFSET: Vector2<i32> = Vector2 { x: 0, y: 0 };
 const FIELD_UI_TOTAL_HEIGHT: u32 = 7;
 
-fn field_ui(sprite: FieldUiSprite, position: [u32; 2]) -> InputSprite {
+fn field_ui(sprite: FieldUiSprite, position: [u32; 2], size: Option<[u32; 2]>) -> InputSprite {
     let position = FIELD_UI_START + Vector2::from(position).mul_element_wise(FIELD_UI_DIMENSIONS);
+    let size = size.map(Vector2::from).unwrap_or(FIELD_UI_DIMENSIONS);
     InputSprite::FieldUi {
         sprite,
         location: InputSpriteLocation {
             position,
-            size: FIELD_UI_DIMENSIONS,
+            size,
             offset: FIELD_UI_OFFSET,
         },
     }

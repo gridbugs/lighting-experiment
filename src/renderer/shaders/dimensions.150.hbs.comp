@@ -6,3 +6,13 @@ uniform FixedDimensions {
 uniform OutputDimensions {
     vec2 u_OutputSize;
 };
+
+uniform WorldDimensions {
+    vec2 u_WorldSize;
+    uvec2 u_WorldSizeUint;
+};
+
+uint get_cell_index(vec2 instance_position) {
+    vec2 mid = instance_position + vec2(0.5);
+    return uint(mid.x) + uint(mid.y) * u_WorldSizeUint.x;
+}

@@ -9,7 +9,7 @@ use renderer::instance_manager::InstanceManager;
 use renderer::render_target::RenderTarget;
 use renderer::common;
 use renderer::sizes;
-use renderer::dimensions::{Dimensions, FixedDimensions, OutputDimensions};
+use renderer::dimensions::{Dimensions, FixedDimensions, OutputDimensions, WorldDimensions};
 use renderer::vision_buffer::VisionBuffer;
 use renderer::frame_info::{FrameInfo, FrameInfoBuffer};
 use renderer::template;
@@ -40,11 +40,6 @@ gfx_vertex_struct!( Instance {
     sprite_effect: u32 = "a_SpriteEffect",
     sprite_effect_args: [f32; 4] = "a_SpriteEffectArgs",
     hide_in_dark: u32 = "a_HideInDark",
-});
-
-gfx_constant_struct!( WorldDimensions {
-    world_size: [f32; 2] = "u_WorldSize",
-    world_size_u32: [u32; 2] = "u_WorldSizeUint",
 });
 
 gfx_constant_struct!( Light {
@@ -270,7 +265,7 @@ impl<R: gfx::Resources> TileRenderer<R> {
             light_list,
             fixed_dimensions: dimensions.fixed_dimensions.clone(),
             output_dimensions: dimensions.output_dimensions.clone(),
-            world_dimensions: factory.create_constant_buffer(1),
+            world_dimensions: dimensions.world_dimensions.clone(),
             scroll_offset: scroll_offset_buffer.clone(),
             frame_info: frame_info_buffer.clone(),
             vertex: vertex_buffer,
@@ -376,20 +371,12 @@ impl<R: gfx::Resources> TileRenderer<R> {
         });
     }
 
-    pub fn update_world_size<C>(&mut self, width: u32, height: u32,
-                                encoder: &mut gfx::Encoder<R, C>)
-        where C: gfx::CommandBuffer<R>,
-    {
+    pub fn update_world_size(&mut self, width: u32, height: u32) {
         let num_cells = (width * height) as usize;
 
         if num_cells > sizes::MAX_CELL_TABLE_SIZE {
             panic!("World too big for shader");
         }
-
-        encoder.update_constant_buffer(&self.bundle.data.world_dimensions, &WorldDimensions {
-            world_size: [width as f32, height as f32],
-            world_size_u32: [width, height],
-        });
 
         self.num_cells = num_cells;
         self.world_width = width;

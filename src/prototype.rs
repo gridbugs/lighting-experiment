@@ -1,7 +1,8 @@
 use cgmath::Vector2;
 use entity_store::{EntityId, EntityChange, insert};
 use content::{TileSprite, DepthType, DepthInfo, DoorState, DoorInfo,
-              DoorType, SpriteEffectInfo, LightInfo, HealthInfo};
+              DoorType, SpriteEffectInfo, LightInfo, HealthInfo,
+              FieldUiOffsets};
 use append::Append;
 
 pub fn angler<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vector2<i32>) {
@@ -26,7 +27,10 @@ pub fn crab<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vecto
     changes.append(insert::npc(id));
     changes.append(insert::bump_attack(id));
     changes.append(insert::attackable(id));
-    changes.append(insert::health(id, HealthInfo::full(4)));
+    changes.append(insert::health(id, HealthInfo::full(8)));
+    changes.append(insert::field_ui(id, FieldUiOffsets {
+        health_vertical: 7,
+    }));
     changes.append(insert::hide_in_dark(id));
 }
 
@@ -40,6 +44,9 @@ pub fn snail<A: Append<EntityChange>>(changes: &mut A, id: EntityId, coord: Vect
     changes.append(insert::bump_attack(id));
     changes.append(insert::attackable(id));
     changes.append(insert::health(id, HealthInfo::full(3)));
+    changes.append(insert::field_ui(id, FieldUiOffsets {
+        health_vertical: 1,
+    }));
     changes.append(insert::hide_in_dark(id));
 }
 

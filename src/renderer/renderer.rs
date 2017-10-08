@@ -49,7 +49,8 @@ impl<R: gfx::Resources> Renderer<R> {
         let target = RenderTarget::new((width, height), factory);
 
         let dimensions = Dimensions::new(factory);
-        dimensions.update_all(&target, &sprite_sheet, encoder);
+        dimensions.update_fixed_dimensions(&sprite_sheet, encoder);
+        dimensions.update_output_dimensions(&target, encoder);
 
         let vision_buffer = VisionBuffer::new(sizes::LIGHT_BUFFER_SIZE, factory);
         let frame_info_buffer = FrameInfo::create_buffer(factory);
@@ -92,11 +93,12 @@ impl<R: gfx::Resources> Renderer<R> {
         self.scale.clear(encoder);
     }
 
-    pub fn render<C>(&mut self, entity_store: &EntityStore, encoder: &mut gfx::Encoder<R, C>)
+    pub fn render<C, F>(&mut self, entity_store: &EntityStore, encoder: &mut gfx::Encoder<R, C>, factory: &mut F)
         where C: gfx::CommandBuffer<R>,
+              F: gfx::Factory<R> + gfx::traits::FactoryExt<R>,
     {
         self.tile_renderer.draw(encoder);
-        self.field_ui.draw(entity_store, encoder);
+        self.field_ui.draw(entity_store, encoder, factory);
         self.scale.draw(encoder);
     }
 
@@ -123,7 +125,8 @@ impl<R: gfx::Resources> Renderer<R> {
                                 encoder: &mut gfx::Encoder<R, C>)
         where C: gfx::CommandBuffer<R>,
     {
-        self.tile_renderer.update_world_size(width, height, encoder);
+        self.dimensions.update_world_dimensions((width, height), encoder);
+        self.tile_renderer.update_world_size(width, height);
     }
 
     pub fn visible_range(&self) -> VisibleRange {

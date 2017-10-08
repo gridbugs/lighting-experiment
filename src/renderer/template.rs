@@ -44,6 +44,7 @@ pub fn make_shader_template_context() -> (Handlebars, HashMap<&'static str, Valu
     include_shader_part!(table, handlebars, "INCLUDE_VISION", "vision.150.hbs.comp");
     include_shader_part!(table, handlebars, "INCLUDE_DIMENSIONS", "dimensions.150.hbs.comp");
     include_shader_part!(table, handlebars, "INCLUDE_SCROLL_OFFSET", "scroll_offset.150.hbs.comp");
+    include_shader_part!(table, handlebars, "INCLUDE_POSITIONS", "positions.150.hbs.comp");
 
     (handlebars, table)
 }

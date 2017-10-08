@@ -1,5 +1,7 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FieldUiSprite {
+    HealthFull,
+    HealthEmpty,
     _Num,
 }
 

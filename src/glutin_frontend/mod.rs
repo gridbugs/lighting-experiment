@@ -82,7 +82,7 @@ impl<'a> FrontendOutput<'a> for GlutinFrontendOutput {
     }
     fn draw(&mut self, entity_store: &EntityStore) {
         self.renderer.clear(&mut self.encoder);
-        self.renderer.render(entity_store, &mut self.encoder);
+        self.renderer.render(entity_store, &mut self.encoder, &mut self.factory);
 
         self.encoder.flush(&mut self.device);
         self.window.swap_buffers().expect("Failed to swap buffers");

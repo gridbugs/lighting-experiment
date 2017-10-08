@@ -78,15 +78,31 @@ impl Default for SpriteResolution {
 
 #[derive(Debug)]
 pub struct TileSpriteTable(Vec<SpriteResolution>);
-pub struct FieldUiSpriteTable(Vec<SpriteResolution>);
+#[derive(Debug)]
+pub struct TileSpriteSimpleTable(Vec<SpriteLocation>);
+#[derive(Debug)]
+pub struct FieldUiSpriteTable(Vec<SpriteLocation>);
 
 impl TileSpriteTable {
     pub fn get(&self, sprite: TileSprite) -> Option<&SpriteResolution> {
         self.0.get(sprite as usize)
     }
+    pub fn create_simple_table(&self) -> TileSpriteSimpleTable {
+        TileSpriteSimpleTable(self.0.iter().filter_map(|resolution| {
+            match resolution {
+                &SpriteResolution::Simple(location) => Some(location),
+                _ => None,
+            }
+        }).collect())
+    }
+}
+impl TileSpriteSimpleTable {
+    pub fn get(&self, sprite: TileSprite) -> Option<&SpriteLocation> {
+        self.0.get(sprite as usize)
+    }
 }
 impl FieldUiSpriteTable {
-    pub fn get(&self, sprite: FieldUiSprite) -> Option<&SpriteResolution> {
+    pub fn get(&self, sprite: FieldUiSprite) -> Option<&SpriteLocation> {
         self.0.get(sprite as usize)
     }
 }
@@ -129,7 +145,7 @@ struct SpriteSheetBuilder<R: gfx::Resources> {
     height: u32,
     input_sprites: Vec<input_sprite::InputSprite>,
     tile_sprite_table: Vec<SpriteResolution>,
-    field_ui_sprite_table: Vec<SpriteResolution>,
+    field_ui_sprite_table: Vec<SpriteLocation>,
     image: RgbaImage,
     bundle: gfx::pso::bundle::Bundle<R, pipe::Data<R>>,
     upload: gfx::handle::Buffer<R, Instance>,
@@ -181,7 +197,7 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
 
         let mut field_ui_sprite_table = Vec::new();
         for _ in 0..field_ui_sprite::NUM_FIELD_UI_SPRITES {
-            field_ui_sprite_table.push(SpriteResolution::default());
+            field_ui_sprite_table.push(SpriteLocation::default());
         }
 
         let pso = factory.create_pipeline_simple(
@@ -324,11 +340,11 @@ impl<R: gfx::Resources> SpriteSheetBuilder<R> {
                     instance_index += 1;
                 }
                 &InputSprite::FieldUi { sprite, location } => {
-                    self.field_ui_sprite_table[sprite as usize] = SpriteResolution::Simple(SpriteLocation {
+                    self.field_ui_sprite_table[sprite as usize] = SpriteLocation {
                         position: sprite_sheet_x as f32,
                         size: location.size.cast(),
                         offset: location.offset.cast(),
-                    });
+                    };
                     mapping[instance_index] = Instance {
                         in_pix_pos: location.position.cast().into(),
                         out_pix_pos: [sprite_sheet_x as f32, 0.0],
