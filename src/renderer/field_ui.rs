@@ -189,7 +189,6 @@ impl<R: gfx::Resources> FieldUi<R> {
                    entity_store: &EntityStore) -> u32
     {
         let mut count = base;
-
         for (id, offsets) in entity_store.field_ui.iter() {
             let position = if let Some(position) = entity_store.position.get(id) {
                 *position
@@ -198,7 +197,7 @@ impl<R: gfx::Resources> FieldUi<R> {
             };
 
             if let Some(health) = entity_store.health.get(id) {
-                count += Self::draw_health_entity(sprite_cache, offsets.health_vertical, instances, count, position, *health);
+                count = Self::draw_health_entity(sprite_cache, offsets.health_vertical, instances, count, position, *health);
             }
         }
 

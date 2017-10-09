@@ -108,6 +108,24 @@ macro_rules! enum_component_value {
     }
 }
 
+macro_rules! enum_component_value_types {
+    ($component_value:ident, $component_type:ident) => {
+        impl $component_value {
+            pub fn typ(&self) -> $component_type {
+                match self {
+{{#each components}}
+    {{#if type}}
+                    &$component_value::{{name}}(_) => $component_type::{{name}},
+    {{else}}
+                    &$component_value::{{name}} => $component_type::{{name}},
+    {{/if}}
+{{/each}}
+                }
+            }
+        }
+    }
+}
+
 macro_rules! insert_shorthands {
     ($insert:ident) => {
         pub mod $insert {

@@ -1,7 +1,7 @@
 use enum_primitive::FromPrimitive;
 use entity_store::{constants, ComponentType};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ComponentTypeSet {
     bitmaps: [u64; constants::NUM_COMPONENT_TYPE_WORDS],
 }

@@ -18,6 +18,7 @@ use ai_info::GlobalAiInfo;
 use turn::{TurnInfo, TurnState};
 use ai::AiEnv;
 use door_manager::DoorManager;
+use entity_component_table::EntityComponentTable;
 use policy;
 
 fn commit<'a, 'b, S: OutputWorldState<'a, 'b>>(change: EntityChange,
@@ -25,6 +26,7 @@ fn commit<'a, 'b, S: OutputWorldState<'a, 'b>>(change: EntityChange,
                                                entity_store: &mut EntityStore,
                                                spatial_hash: &mut SpatialHashTable,
                                                door_manager: &mut DoorManager,
+                                               entity_component_table: &mut EntityComponentTable,
                                                time: u64,
                                                turn: TurnInfo,
                                                player_id: EntityId)
@@ -33,6 +35,7 @@ fn commit<'a, 'b, S: OutputWorldState<'a, 'b>>(change: EntityChange,
 
     spatial_hash.update(entity_store, &change, time);
     door_manager.update(&change, turn);
+    entity_component_table.update(&change);
 
     if let EntityChange::Insert(id, ComponentValue::Position(new_position)) = change {
         if id == player_id {
@@ -69,6 +72,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
     let mut ai_info = GlobalAiInfo::new(metadata.width, metadata.height);
     let mut ai_env = AiEnv::new(metadata.width, metadata.height);
     let mut door_manager = DoorManager::new();
+    let mut entity_component_table = EntityComponentTable::new();
 
     frontend_output.update_world_size(metadata.width, metadata.height);
 
@@ -102,6 +106,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
     let mut animations: VecDeque<Animation> = VecDeque::new();
     let mut animations_swap = VecDeque::new();
     let mut animated_changes = VecDeque::new();
+    let mut to_delete = Vec::new();
 
     let mut running = true;
     let mut count = 1;
@@ -188,12 +193,12 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
             for animated_change in animated_changes.drain(..) {
                 match animated_change {
                     AnimatedChange::Checked(change) => {
-                        if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs) {
-                            commit(change, state, &mut entity_store, &mut spatial_hash, &mut door_manager, count, turn, player_id);
+                        if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs, &mut to_delete) {
+                            commit(change, state, &mut entity_store, &mut spatial_hash, &mut door_manager, &mut entity_component_table, count, turn, player_id);
                         }
                     }
                     AnimatedChange::Unchecked(change) => {
-                        commit(change, state, &mut entity_store, &mut spatial_hash, &mut door_manager, count, turn, player_id);
+                        commit(change, state, &mut entity_store, &mut spatial_hash, &mut door_manager, &mut entity_component_table, count, turn, player_id);
                     }
                 }
             }
@@ -203,10 +208,10 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                     use self::ChangeDesc::*;
                     match desc {
                         Immediate(change) => {
-                            if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs_swap) {
+                            if policy::check(&change, &entity_store, &spatial_hash, &mut change_descs_swap, &mut to_delete) {
                                 ai_info.update(&change, &entity_store);
                                 ai_env.update(&change, &entity_store);
-                                commit(change, state, &mut entity_store, &mut spatial_hash, &mut door_manager, count, turn, player_id);
+                                commit(change, state, &mut entity_store, &mut spatial_hash, &mut door_manager, &mut entity_component_table, count, turn, player_id);
                             }
                         }
                         Animation(animation) => {
@@ -219,6 +224,14 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                 } else {
                     mem::swap(&mut change_descs, &mut change_descs_swap);
                 }
+            }
+
+            for id in to_delete.drain(..) {
+                entity_component_table.delete_entity(id, &mut changes);
+            }
+
+            for change in changes.drain(..) {
+                commit(change, state, &mut entity_store, &mut spatial_hash, &mut door_manager, &mut entity_component_table, count, turn, player_id);
             }
 
             state.set_frame_info(count, total_duration);

@@ -1,14 +1,17 @@
 use std::time::Duration;
-use entity_store::{EntityChange, ComponentValue, EntityStore, insert, remove};
+use entity_store::{EntityId, EntityChange, ComponentValue, EntityStore, insert, remove};
 use spatial_hash::SpatialHashTable;
 use append::Append;
 use content::{ChangeDesc, DoorState};
 
-pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
-                                    entity_store: &EntityStore,
-                                    spatial_hash: &SpatialHashTable,
-                                    reactions: &mut A) -> bool {
-
+pub fn check<R, D>(change: &EntityChange,
+                   entity_store: &EntityStore,
+                   spatial_hash: &SpatialHashTable,
+                   reactions: &mut R,
+                   to_delete: &mut D) -> bool
+    where R: Append<ChangeDesc>,
+          D: Append<EntityId>,
+{
     use self::EntityChange::*;
     match change {
         &Insert(id, ComponentValue::Coord(coord)) => {
@@ -92,6 +95,12 @@ pub fn check<A: Append<ChangeDesc>>(change: &EntityChange,
             reactions.append(ChangeDesc::immediate(insert::opacity(id, 1.0)));
             if let Some(door_info) = entity_store.door.get(&id) {
                 reactions.append(ChangeDesc::immediate(insert::sprite(id, door_info.typ.closed_sprite())));
+            }
+        }
+        &Insert(id, ComponentValue::Health(info)) => {
+            if info.current <= 0 {
+                to_delete.append(id);
+                return false;
             }
         }
         _ => {}

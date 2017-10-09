@@ -44,6 +44,18 @@ impl<T> EntityVecMap<T> {
             iter: self.components.iter().enumerate(),
         }
     }
+
+    pub fn entry(&mut self, id: &EntityId) -> EntityVecMapEntry<T> {
+        if self.contains_key(id) {
+            let value = self.get_mut(id).unwrap();
+            EntityVecMapEntry::Occupied(value)
+        } else {
+            EntityVecMapEntry::Vacant {
+                map: self,
+                id: *id,
+            }
+        }
+    }
 }
 
 impl<T: Clone> EntityVecMap<T> {
@@ -81,6 +93,37 @@ impl<'a, T: 'a> Iterator for EntityVecMapIter<'a, T> {
 
         None
     }
+}
+
+pub enum EntityVecMapEntry<'a, T: 'a> {
+    Occupied(&'a mut T),
+    Vacant {
+        map: &'a mut EntityVecMap<T>,
+        id: EntityId,
+    },
+}
+
+impl<'a, T: Clone> EntityVecMapEntry<'a, T> {
+    pub fn or_insert(self, default: T) -> &'a mut T {
+        match self {
+            EntityVecMapEntry::Occupied(v) => v,
+            EntityVecMapEntry::Vacant { map, id } => {
+                map.insert(id, default);
+                map.components[id as usize].as_mut().unwrap()
+            }
+        }
+    }
+    pub fn or_insert_with<F: FnOnce() -> T>(self, default: F) -> &'a mut T {
+        match self {
+            EntityVecMapEntry::Occupied(v) => v,
+            EntityVecMapEntry::Vacant { map, id } => {
+                map.insert(id, default());
+                map.components[id as usize].as_mut().unwrap()
+            }
+        }
+
+    }
+
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

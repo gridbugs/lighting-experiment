@@ -31,6 +31,7 @@ mod spatial_hash;
 mod id_allocator;
 mod entity_id_allocator;
 mod frame_env;
+mod entity_component_table;
 
 mod prototype;
 mod terrain;

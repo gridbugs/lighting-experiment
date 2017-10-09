@@ -39,6 +39,7 @@ pub type EntityId = u16;
 
 enum_component_type!{ComponentType}
 enum_component_value!{ComponentValue}
+enum_component_value_types!{ComponentValue, ComponentType}
 
 #[derive(Debug, Clone)]
 pub enum EntityChange {
