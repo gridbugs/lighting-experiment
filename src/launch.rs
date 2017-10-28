@@ -18,7 +18,7 @@ use ai_info::GlobalAiInfo;
 use turn::{TurnInfo, TurnState};
 use ai::AiEnv;
 use door_manager::DoorManager;
-use entity_component_table::EntityComponentTable;
+use entity_store::EntityComponentTable;
 use policy;
 
 fn commit<'a, 'b, S: OutputWorldState<'a, 'b>>(change: EntityChange,
@@ -227,7 +227,9 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
             }
 
             for id in to_delete.drain(..) {
-                entity_component_table.delete_entity(id, &mut changes);
+                for change in entity_component_table.remove_entity(id) {
+                    changes.push(change);
+                }
             }
 
             for change in changes.drain(..) {

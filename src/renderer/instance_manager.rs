@@ -37,7 +37,7 @@ impl InstanceManager {
         ) {
             if sprite_info.wall_info.is_some() {
                 for (coord, dir) in izip!(spatial_hash.neighbour_coord_iter(position.cast(), Directions), Directions) {
-                    if let Some(cell) = spatial_hash.get_valid(coord) {
+                    if let Some(cell) = spatial_hash.get(coord) {
                         for wall_id in cell.wall_set.iter() {
                             if let Some(index) = self.index_table.get(wall_id).cloned() {
                                 if let Some(wall_sprite) = entity_store.sprite.get(wall_id) {

@@ -1,0 +1,34 @@
+id_width = 16
+spatial_hash_key = 'coord'
+
+[components]
+position = { type = '::cgmath::Vector2<f32>', storage = 'vector' }
+coord = { type = '::cgmath::Vector2<i32>', storage = 'vector' }
+solid = { storage = 'vector' }
+collider = { storage = 'vector' }
+opacity = { type = 'f32', storage = 'vector' }
+door = { type = '::content::DoorInfo', storage = 'hash' }
+door_closing_finished = {}
+door_opener = { storage = 'vector' }
+wall = { storage = 'vector' }
+player = { storage = 'vector' }
+sprite = { type = '::content::TileSprite', storage = 'vector' }
+depth = { type = '::content::DepthInfo', storage = 'vector' }
+sprite_effect = { type = '::content::SpriteEffectInfo', storage = 'vector' }
+light = { type = '::content::LightInfo', storage = 'btree' }
+npc = { storage = 'hash' }
+bump_attack = { storage = 'vector' }
+attackable = { storage = 'vector' }
+health = { type = '::content::HealthInfo', storage = 'vector' }
+field_ui = { type = '::content::FieldUiOffsets', storage = 'btree' }
+hide_in_dark = { storage = 'vector' }
+
+[spatial_hash]
+opacity_total = { component = 'opacity', aggregate = 'total' }
+solid_count = { component = 'solid', aggregate = 'count' }
+door_set = { component = 'door', aggregate = 'set' }
+wall_neighbours = { component = 'wall', aggregate = 'neighbour_count' }
+wall_set = { component = 'wall', aggregate = 'set' }
+attackable_set = { component = 'attackable', aggregate = 'set' }
+npc_count = { component = 'npc', aggregate = 'count' }
+player_count = { component = 'player', aggregate = 'count' }

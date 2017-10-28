@@ -23,10 +23,9 @@ glutin = "0.9"
 genmesh = "0.5"
 image = "0.15"
 
-[build-dependencies]
+entity_store_helpers = { version = "0.1.0", path = "/home/steve/src/entity-store-helpers" }
 
-serde = "1.0"
-serde_derive = "1.0"
-toml = "0.4"
-handlebars = "0.29"
-maplit = "0.1"
+direction = "0.1"
+
+[build-dependencies]
+entity_store_code_gen = { version = "0.1.0", path = "/home/steve/src/entity-store-code-gen" }

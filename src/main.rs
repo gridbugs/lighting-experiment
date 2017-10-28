@@ -18,20 +18,22 @@ extern crate gfx_window_glutin;
 extern crate gfx_device_gl;
 extern crate image;
 
+extern crate direction;
+#[macro_use] extern crate entity_store_helpers;
+
 mod static_grid;
 mod limits;
-mod direction;
 mod neighbour_count;
 mod append;
 mod vector_index;
 mod util;
 
-#[macro_use] mod entity_store;
+mod entity_store { include_entity_store!(); }
+
 mod spatial_hash;
 mod id_allocator;
 mod entity_id_allocator;
 mod frame_env;
-mod entity_component_table;
 
 mod prototype;
 mod terrain;
