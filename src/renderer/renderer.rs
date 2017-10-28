@@ -14,7 +14,6 @@ use renderer::sizes;
 use renderer::scroll_offset;
 
 use res::{input_sprite, paths, files};
-use frontend::VisibleRange;
 
 use entity_store::EntityStore;
 
@@ -127,9 +126,5 @@ impl<R: gfx::Resources> Renderer<R> {
     {
         self.dimensions.update_world_dimensions((width, height), encoder);
         self.tile_renderer.update_world_size(width, height);
-    }
-
-    pub fn visible_range(&self) -> VisibleRange {
-        self.tile_renderer.visible_range()
     }
 }

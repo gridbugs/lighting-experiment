@@ -7,25 +7,6 @@ use vision::VisionGrid;
 
 use input::Input;
 
-#[derive(Debug, Clone, Copy)]
-pub struct VisibleRange {
-    pub x_min: i32,
-    pub x_max: i32,
-    pub y_min: i32,
-    pub y_max: i32,
-}
-
-impl Default for VisibleRange {
-    fn default() -> Self {
-        Self {
-            x_min: 0,
-            x_max: 0,
-            y_min: 0,
-            y_max: 0,
-        }
-    }
-}
-
 pub trait LightUpdate {
     fn set_position(&mut self, position: Vector2<f32>);
     fn set_height(&mut self, height: f32);
@@ -50,7 +31,6 @@ pub trait FrontendOutput<'a> {
     fn draw(&mut self, entity_store: &EntityStore);
     fn handle_resize(&mut self, width: u16, height: u16);
     fn update_world_size(&mut self, width: u32, height: u32);
-    fn visible_range(&self) -> VisibleRange;
 }
 
 pub trait FrontendInput {

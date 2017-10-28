@@ -5,7 +5,7 @@ use glutin::GlContext;
 use gfx_window_glutin;
 use gfx_device_gl;
 
-use frontend::{FrontendOutput, FrontendInput, VisibleRange};
+use frontend::{FrontendOutput, FrontendInput};
 
 use renderer::{Renderer, ColourFormat, DepthFormat, RendererWorldState};
 
@@ -96,8 +96,5 @@ impl<'a> FrontendOutput<'a> for GlutinFrontendOutput {
     }
     fn update_world_size(&mut self, width: u32, height: u32) {
         self.renderer.update_world_size(width, height, &mut self.encoder);
-    }
-    fn visible_range(&self) -> VisibleRange {
-        self.renderer.visible_range()
     }
 }

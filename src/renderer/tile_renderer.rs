@@ -21,7 +21,7 @@ use entity_store::{EntityStore, EntityChange};
 use spatial_hash::SpatialHashTable;
 use vision::VisionGrid;
 
-use frontend::{OutputWorldState, LightUpdate, VisibleRange};
+use frontend::{OutputWorldState, LightUpdate};
 use res::input_sprite;
 use util::time::duration_millis;
 
@@ -131,7 +131,6 @@ pub struct TileRenderer<R: gfx::Resources> {
     mid_position: Vector2<f32>,
     world_width: u32,
     world_height: u32,
-    visible_range: VisibleRange,
 }
 
 pub struct SpriteRenderInfo {
@@ -295,7 +294,6 @@ impl<R: gfx::Resources> TileRenderer<R> {
             mid_position: Vector2::new(0.0, 0.0),
             world_width: 0,
             world_height: 0,
-            visible_range: VisibleRange::default(),
         };
         ret
     }
@@ -353,7 +351,6 @@ impl<R: gfx::Resources> TileRenderer<R> {
             frame_count: 0,
             total_time_ms: 0,
             next_light_index: 0,
-            visible_range: &mut self.visible_range,
             num_rows: target.num_rows,
         }
     }
@@ -363,7 +360,6 @@ impl<R: gfx::Resources> TileRenderer<R> {
     {
         self.bundle.data.out_colour = target.rtv.clone();
         self.bundle.data.out_depth = target.dsv.clone();
-        self.visible_range = compute_visible_range(self.mid_position, target.width as i32, target.num_rows);
 
         let scroll_offset = compute_scroll_offset(target.width, target.height, self.mid_position);
         encoder.update_constant_buffer(&self.bundle.data.scroll_offset, &ScrollOffset {
@@ -381,10 +377,6 @@ impl<R: gfx::Resources> TileRenderer<R> {
         self.num_cells = num_cells;
         self.world_width = width;
         self.world_height = height;
-    }
-
-    pub fn visible_range(&self) -> VisibleRange {
-        self.visible_range
     }
 }
 
@@ -405,7 +397,6 @@ pub struct RendererWorldState<'a, R: gfx::Resources> {
     frame_count: u64,
     total_time_ms: u64,
     next_light_index: usize,
-    visible_range: &'a mut VisibleRange,
     num_rows: u16,
 }
 
@@ -464,7 +455,6 @@ impl<'a, R: gfx::Resources> RendererWorldState<'a, R> {
         if let Some(player_position) = self.player_position {
             *self.mid_position = player_position;
             let scroll_offset = compute_scroll_offset(self.width_px, self.height_px, player_position);
-            *self.visible_range = compute_visible_range(player_position, self.width_px as i32, self.num_rows);
             encoder.update_constant_buffer(&self.bundle.data.scroll_offset, &ScrollOffset {
                 scroll_offset_pix: scroll_offset.into(),
             });
@@ -477,28 +467,6 @@ fn compute_scroll_offset(width: u16, height: u16, mid_position: Vector2<f32>) ->
     let mid = (mid_position + Vector2::new(0.5, 0.5))
         .mul_element_wise(Vector2::new(input_sprite::WIDTH_PX, input_sprite::HEIGHT_PX).cast());
     Vector2::new(mid.x - (width / 2) as f32, mid.y - (height / 2) as f32)
-}
-
-fn compute_visible_range(mid_position: Vector2<f32>, width_px: i32, num_rows: u16) -> VisibleRange {
-    let dy = (num_rows / 2) as i32;
-    let mid_y = mid_position.y as i32; // rounded down
-
-    let y_min = mid_y - dy;
-
-    // if we're between cells, add 1
-    let y_max = mid_y + dy + (mid_position.y != 0.0) as i32;
-
-    let mid_x = mid_position.x as i32;
-    // pad dx unless there's an integer number of cells
-    let double_cell_width = input_sprite::WIDTH_PX as i32 * 2;
-    let dx = width_px / double_cell_width + (width_px % double_cell_width != 0) as i32;
-
-    let x_min = mid_x - dx;
-
-    // if we're between cells, add 1
-    let x_max = mid_x + dx + (mid_position.x != 0.0) as i32;
-
-    VisibleRange { x_min, x_max, y_min, y_max }
 }
 
 struct TboVisionCell<'a>(&'a mut [u8]);

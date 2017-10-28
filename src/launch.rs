@@ -171,7 +171,6 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
 
         door_manager.close_doors(&mut proposed_actions, &entity_store, turn);
 
-        let visible_range = frontend_output.visible_range();
 
         for a in proposed_actions.drain(..) {
             a.populate(&entity_store, &mut change_descs);
@@ -242,7 +241,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
                 if let Some(position) = entity_store.position.get(id) {
                     if let Some((mut light_grid, light_update)) = state.next_light() {
                         shadowcast::observe(&mut light_grid, &mut shadowcast_env, *position, &spatial_hash,
-                                            light_info.range, visible_range, count);
+                                            light_info.range, count);
                         light_update.set_position(*position + Vector2::new(0.5, 0.5));
                         light_update.set_height(light_info.height);
                         light_update.set_intensity(light_info.intensity);
@@ -253,7 +252,7 @@ pub fn launch<I: FrontendInput, O: for<'a> FrontendOutput<'a>>(mut frontend_inpu
 
             if let Some(player_position) = entity_store.position.get(&player_id) {
                 shadowcast::observe(&mut state.vision_grid(), &mut shadowcast_env, *player_position, &spatial_hash,
-                                    8, visible_range, count);
+                                    8, count);
             }
         });
 
