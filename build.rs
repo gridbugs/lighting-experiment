@@ -1,5 +1,5 @@
-extern crate entity_store_code_gen;
+#[macro_use] extern crate entity_store_code_gen;
 
 fn main() {
-    entity_store_code_gen::generate(include_str!("spec.toml")).unwrap()
+    generate_entity_store!("spec.toml", "entity_store.rs")
 }

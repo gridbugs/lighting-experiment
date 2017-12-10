@@ -19,7 +19,7 @@ extern crate gfx_device_gl;
 extern crate image;
 
 extern crate direction;
-#[macro_use] extern crate entity_store_helpers;
+#[macro_use] extern crate entity_store_helper;
 
 mod static_grid;
 mod limits;
@@ -28,7 +28,7 @@ mod append;
 mod vector_index;
 mod util;
 
-mod entity_store { include_entity_store!(); }
+mod entity_store { include_entity_store!("entity_store.rs"); }
 
 mod spatial_hash;
 mod id_allocator;
