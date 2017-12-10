@@ -33,7 +33,7 @@ pub struct GlutinFrontendInput {
 
 pub fn create() -> (GlutinFrontendInput, GlutinFrontendOutput) {
     let builder = glutin::WindowBuilder::new()
-        .with_dimensions(320, 240);
+        .with_dimensions(960, 720);
 
     let events_loop = glutin::EventsLoop::new();
     let context = glutin::ContextBuilder::new()
